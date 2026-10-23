@@ -47,7 +47,8 @@ Firestore security rules (`firestore.rules`) enforce all of this on the server.
 5. Deploy the security rules (required):
    ```bash
    npx firebase-tools login
-   npm run deploy:rules           # deploys to candoni-fts-f868c (set in .firebaserc)
+   npx firebase-tools use --add   # pick your project
+   npm run deploy:rules
    ```
    You can also paste `firestore.rules` into **Firestore → Rules** in the console.
 
