@@ -93,6 +93,7 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
     );
   } else {
     control = <input id={`f-${field.key}`} type={inputType(field.type)} value={value ?? ''} disabled={disabled}
+      readOnly={Boolean(field.compute)} className={field.compute ? 'computed' : ''}
       step={field.type === 'currency' ? '0.01' : undefined} placeholder={field.placeholder}
       onChange={(e) => onChange(e.target.value)} />;
   }

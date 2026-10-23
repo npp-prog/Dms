@@ -13,6 +13,9 @@ import DocumentTypes from './pages/admin/DocumentTypes.jsx';
 import DocumentTypeEditor from './pages/admin/DocumentTypeEditor.jsx';
 import Users from './pages/admin/Users.jsx';
 import Settings from './pages/admin/Settings.jsx';
+import Checklists from './pages/Checklists.jsx';
+import ChecklistView from './pages/ChecklistView.jsx';
+import ChecklistEditor from './pages/admin/ChecklistEditor.jsx';
 
 function AdminOnly({ children, superOnly = false }) {
   const { isAdmin, isSuper } = useAuth();
@@ -35,6 +38,10 @@ export default function App() {
         <Route path="formats/:typeId" element={<FormatView />} />
         <Route path="new" element={<PrepareDocument />} />
         <Route path="new/:typeId" element={<PrepareDocument />} />
+        <Route path="checklists" element={<Checklists />} />
+        <Route path="checklists/:code" element={<ChecklistView />} />
+        <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
+        <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />
         <Route path="documents/:docId/edit" element={<PrepareDocument />} />

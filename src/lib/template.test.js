@@ -2,8 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderTemplate, generateDefaultTemplate } from './template.js';
 import { amountToWords } from './numberToWords.js';
-import { buildSteps, computeRow, missingChecklist, missingFields, slugKey } from './forms.js';
+import { readFileSync } from 'node:fs';
+import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
+import {
+  checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
+} from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
+
+const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
 test('renders fields with filters and escapes HTML', () => {
   const out = renderTemplate('<p>{{payee|upper}} {{amount|peso}} {{date|date}} {{x}}</p>', {
@@ -27,6 +33,10 @@ test('table, sum, each, check and context values', () => {
   assert.match(table, /<td class="r">250.25<\/td>/);
   assert.match(table, /NOTHING FOLLOWS/);
   assert.match(table, /<b>350.25<\/b>/);
+});
+
+test('negative amounts print in parentheses', () => {
+  assert.equal(renderTemplate('{{a|currency}} {{b|currency}}', { data: { a: '-100', b: 2500.5 } }), '(100.00) 2,500.50');
 });
 
 test('conditional blocks', () => {
@@ -59,12 +69,64 @@ test('starter types are consistent and render', () => {
     const stepIds = new Set(type.steps.map((s) => s.id));
     for (const f of type.fields) assert.ok(stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
     assert.equal(buildSteps(type).length, type.steps.length);
+    const columns = type.fields.flatMap((f) => (f.columns || []).map((c) => c.key));
+    const known = new Set([...keys, ...columns, 'controlNo', 'lgu', 'sig', 'today', 'preparedBy', 'docType']);
     const refs = [...type.template.matchAll(/\{\{\s*(?:#if\s+|table:|sum:)?([\w]+)/g)].map((m) => m[1]);
-    const known = new Set([...keys, 'controlNo', 'lgu', 'today', 'preparedBy', 'docType']);
     for (const r of refs) assert.ok(known.has(r), `${type.code} template references unknown "${r}"`);
-    assert.ok(renderTemplate(type.template, { fields: type.fields }).length > 100);
-    assert.match(generateDefaultTemplate(type), /\{\{controlNo\}\}/);
+    for (const f of type.fields) {
+      for (const c of f.columns || []) if (c.compute) assert.ok(evaluate(c.compute, {}) === '', `${type.code}.${c.key} formula`);
+    }
+    const html = renderTemplate(type.template, { fields: type.fields, signatories: { mayor: 'JUAN DELA CRUZ' } });
+    assert.ok(html.length > 500);
+    assert.doesNotMatch(html, /\{\{/, `${type.code} left a tag unrendered`);
+    assert.ok(['own', 'disbursement', 'liquidation'].includes(type.checklistSource));
     assert.ok(type.processing.length >= 3, `${type.code} needs a processing guide`);
     for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
+    assert.ok(type.copies.some((c) => c.original), `${type.code} needs an original copy`);
   }
+});
+
+test('formulas and computed fields', () => {
+  assert.equal(evaluate('qty*unitCost', { qty: '3', unitCost: '10.10' }), 30.3);
+  assert.equal(evaluate('gross-deductions', { gross: 1000, deductions: '250.5' }), 749.5);
+  assert.equal(evaluate('labor+spareParts+materials', { labor: 100, materials: 5 }), 105);
+  assert.equal(evaluate('sum:items.amount-cashAdvance', { items: [{ amount: 300 }, { amount: 200 }], cashAdvance: 450 }), 50);
+  assert.equal(evaluate('a+b', {}), '');
+  const fields = [{ key: 'spent', compute: 'sum:items.amount' }, { key: 'back', compute: 'spent-advance' }];
+  const out = computeFields(fields, { items: [{ amount: '120' }], advance: '100' });
+  assert.equal(out.spent, 120);
+  assert.equal(out.back, 20);
+});
+
+test('checklist helpers', () => {
+  const items = [{ id: 'i1', required: true, label: 'DV' }, { id: 'i2', required: false, label: 'BAC', group: 'Award' }, { id: 'i3', required: true, label: 'NOA', group: 'Award' }];
+  assert.deepEqual(missingRequired(items, { i1: 'Y', i2: 'NA' }).map((i) => i.id), ['i3']);
+  assert.deepEqual(missingRequired(items, { i1: true, i3: 'Y' }), []);
+  assert.deepEqual(groupItems(items).map((g) => [g.group, g.items.length]), [['', 1], ['Award', 2]]);
+  assert.deepEqual(checklistProgress(items, { i1: 'Y', i2: 'NA' }), { answered: 2, total: 3 });
+  assert.equal(headerValue('DV Number', { dvNo: '101' }), '101');
+  assert.equal(headerValue('OBR/FURS Number', { cafoaNo: 'C-1' }), 'C-1');
+  assert.equal(headerValue('Payee', { claimant: 'Ana' }), 'Ana');
+  assert.equal(headerValue('Liquidation Report No.', { serialNo: 'LR-9' }), 'LR-9');
+  const lib = [{ code: '1613', kind: 'disbursement', title: 'Payment to Supplier - Direct Acquisition', category: 'x' }, { code: '2002', kind: 'liquidation', title: 'Local Travel', category: 'y' }];
+  assert.deepEqual(searchChecklists(lib, 'direct acq', 'disbursement').map((c) => c.code), ['1613']);
+  assert.deepEqual(searchChecklists(lib, '2002').map((c) => c.code), ['2002']);
+  const own = effectiveChecklist({ checklistSource: 'own', code: 'PR', name: 'Purchase Request', checklist: [{ id: 'c1', label: 'PPMP', required: true }] });
+  assert.equal(own.items[0].id, 'c1');
+  assert.equal(effectiveChecklist({ checklistSource: 'disbursement' }, null), null);
+});
+
+test('checklist library data is complete', () => {
+  assert.equal(LIBRARY.length, 210);
+  assert.equal(new Set(LIBRARY.map((c) => c.code)).size, LIBRARY.length);
+  assert.equal(LIBRARY.filter((c) => c.kind === 'liquidation').length, 9);
+  for (const c of LIBRARY) {
+    assert.ok(c.title && c.items.length > 0, `${c.code} empty`);
+    assert.equal(new Set(c.items.map((i) => i.id)).size, c.items.length, `${c.code} duplicate item ids`);
+    for (const i of c.items) assert.equal(typeof i.required, 'boolean');
+    assert.ok(!c.items.some((i) => /\(deleted\b/i.test(i.label)), `${c.code} has a deleted item`);
+  }
+  const c1613 = LIBRARY.find((c) => c.code === '1613');
+  assert.equal(c1613.items.length, 15);
+  assert.equal(c1613.items.filter((i) => i.required).length, 8);
 });

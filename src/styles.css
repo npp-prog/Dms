@@ -422,3 +422,48 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .process p { margin: .2rem 0 0; font-size: .87rem; color: var(--muted); }
 .process.compact li { padding-bottom: .6rem; }
 .guide-card { border-left: 4px solid var(--gold); }
+
+/* Printed checklist (Municipal Accounting Office format) */
+.checklist-sheet .cl-no { text-align: right; font-size: 10px; }
+.checklist-sheet .ph .l3 { font-size: 13px; }
+.checklist-sheet .cl-desc { font-size: 10px; text-align: justify; margin: 4px 0 6px; white-space: pre-line; }
+.checklist-sheet .cl-head { width: 60%; margin: 6px auto 0; }
+.checklist-sheet .cl-head td { height: 18px; }
+.checklist-sheet .cl-items td { font-size: 10px; }
+.checklist-sheet .cl-label { white-space: pre-line; text-align: justify; }
+.checklist-sheet .cl-group td { font-weight: 700; background: #f4f4f4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.checklist-sheet .cl-note { font-size: 9.5px; font-style: italic; margin: 4px 0 0; }
+.checklist-sheet .cl-additional { margin-top: 8px; }
+
+/* Checklist library */
+.cl-list { list-style: none; margin: 0; padding: 0; }
+.cl-list li + li { border-top: 1px solid var(--line); }
+.cl-list a { display: flex; gap: .9rem; align-items: baseline; padding: .6rem .3rem; text-decoration: none; color: inherit; border-radius: 8px; }
+.cl-list a:hover { background: var(--hover); }
+.cl-list .code { font-family: var(--display); font-weight: 800; color: var(--navy); min-width: 3.6rem; font-variant-numeric: tabular-nums; }
+.cl-list .t { flex: 1; min-width: 0; }
+.cl-list .meta { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.yn { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; flex: none; }
+.yn button { border: 0; background: #fff; padding: .3rem .7rem; font-weight: 700; font-size: .8rem; color: var(--muted); min-width: 44px; }
+.yn button + button { border-left: 1px solid var(--line-2); }
+.yn button.on-y { background: var(--ok); color: #fff; }
+.yn button.on-na { background: var(--neutral-bg); color: var(--ink); }
+.yn button:disabled { cursor: default; opacity: .35; }
+.cl-answer { display: flex; gap: .8rem; align-items: flex-start; padding: .65rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.cl-answer.done { background: var(--ok-bg); border-color: #c4e2cf; }
+.cl-answer.na { background: var(--sunken); }
+.cl-answer .lbl { flex: 1; font-size: .9rem; white-space: pre-line; }
+.cl-answers { display: grid; gap: .45rem; margin-bottom: 1rem; }
+.cl-groupname { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--gold-ink); margin: .8rem 0 .1rem; }
+.picker-results { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: .5rem; }
+.picker-results button { display: flex; gap: .8rem; width: 100%; text-align: left; background: #fff; border: 0; border-bottom: 1px solid var(--line); padding: .6rem .8rem; }
+.picker-results button:hover { background: var(--gold-soft); }
+.picker-results .code { font-weight: 800; color: var(--navy); min-width: 3.4rem; }
+.chosen { display: flex; gap: .8rem; align-items: center; padding: .8rem 1rem; border: 1px solid var(--gold-soft-2); background: var(--gold-soft); border-radius: 12px; margin-bottom: .8rem; }
+.chosen .code { font-family: var(--display); font-weight: 800; color: var(--navy); font-size: 1.1rem; }
+.chosen .t { flex: 1; }
+.view-toggle { margin-bottom: .6rem; }
+.copies { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: .87rem; margin-bottom: 1rem; padding: .6rem .8rem; background: var(--sunken); border-radius: 10px; }
+.copies .copy { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: .1rem .6rem; font-size: .8rem; }
+.paper-long { width: 216mm; min-height: 330mm; }
+.paper-long.landscape { width: 330mm; min-height: 216mm; }

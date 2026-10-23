@@ -4,7 +4,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 import {
   createDocument, getDocument, getDocumentType, getTypeForDocument, listDocumentTypes, updateDocument,
 } from '../lib/api.js';
-import { buildSteps, initialData, missingChecklist, missingFields } from '../lib/forms.js';
+import { buildSteps, computeFields, initialData, missingFields } from '../lib/forms.js';
+import { effectiveChecklist, missingRequired } from '../lib/checklists.js';
+import ChecklistStep from '../components/ChecklistStep.jsx';
+import ChecklistSheet from '../components/ChecklistSheet.jsx';
+import { signatoriesFrom } from '../lib/signatories.js';
 import FieldInput from '../components/FieldInput.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
@@ -46,6 +50,7 @@ function Wizard({ typeId, docId }) {
   const [existing, setExisting] = useState(null);
   const [data, setData] = useState({});
   const [checklist, setChecklist] = useState({});
+  const [transaction, setTransaction] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,6 +69,7 @@ function Wizard({ typeId, docId }) {
           setType(t);
           setData({ ...initialData(t), ...d.data });
           setChecklist(d.checklist || {});
+          setTransaction(d.transaction || null);
         } else {
           const t = await getDocumentType(typeId);
           if (!t || t.active === false) throw new Error('Document type not found or inactive.');
@@ -80,7 +86,13 @@ function Wizard({ typeId, docId }) {
     if (!type) return [];
     return [
       ...buildSteps(type),
-      { id: '__checklist', title: 'Checklist', instructions: 'Confirm that each requirement is attached/complied with. Required items must be checked before the document can be marked complete.' },
+      {
+        id: '__checklist',
+        title: 'Checklist',
+        instructions: type.checklistSource && type.checklistSource !== 'own'
+          ? 'Choose the type of transaction. FTS loads its checklist from the Municipal Accounting Office. Attach each document, then tick Y (or N/A if it does not apply). Items marked required must be ticked before the document can be marked complete.'
+          : 'Confirm that each requirement is attached or complied with. Items marked required must be ticked before the document can be marked complete.',
+      },
       { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete when everything is encoded. Then print it and process it as shown below.' },
     ];
   }, [type]);
@@ -91,7 +103,10 @@ function Wizard({ typeId, docId }) {
   const step = steps[stepIndex];
   const stepMissing = step.fields ? missingFields(step.fields, data) : [];
   const allMissing = missingFields(type.fields, data);
-  const checklistMissing = missingChecklist(type.checklist, checklist);
+  const library = type.checklistSource && type.checklistSource !== 'own';
+  const activeChecklist = effectiveChecklist(type, transaction);
+  const checklistMissing = activeChecklist ? missingRequired(activeChecklist.items, checklist) : [];
+  const needsTransaction = library && !transaction;
 
   const next = () => {
     if (stepMissing.length) { setShowErrors(true); return; }
@@ -104,8 +119,9 @@ function Wizard({ typeId, docId }) {
     setError('');
     try {
       let id = docId;
-      if (existing) await updateDocument(docId, type, { data, checklist, status }, actor, existing.history);
-      else id = await createDocument(type, { data, checklist, status }, actor);
+      const payload = { data, checklist, transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
+      if (existing) await updateDocument(docId, type, payload, actor, existing.history);
+      else id = await createDocument(type, payload, actor);
       navigate(`/documents/${id}`);
     } catch (e) {
       setError(e.message);
@@ -143,25 +159,14 @@ function Wizard({ typeId, docId }) {
               {step.fields.map((f) => (
                 <FieldInput key={f.key} field={f} value={data[f.key]}
                   invalid={showErrors && stepMissing.includes(f)}
-                  onChange={(v) => setData((d) => ({ ...d, [f.key]: v }))} />
+                  onChange={(v) => setData((d) => computeFields(type.fields, { ...d, [f.key]: v }))} />
               ))}
             </div>
           )}
 
           {step.id === '__checklist' && (
-            <ul className="checklist">
-              {(type.checklist || []).length === 0 && <li className="muted">No checklist for this document type.</li>}
-              {(type.checklist || []).map((c) => (
-                <li key={c.id}>
-                  <label>
-                    <input type="checkbox" checked={Boolean(checklist[c.id])}
-                      onChange={(e) => setChecklist((s) => ({ ...s, [c.id]: e.target.checked }))} />
-                    <span>{c.label} {c.required && <span className="req">required</span>}</span>
-                  </label>
-                  {c.help && <div className="small muted">{c.help}</div>}
-                </li>
-              ))}
-            </ul>
+            <ChecklistStep type={type} transaction={transaction} onTransaction={setTransaction}
+              state={checklist} onState={setChecklist} />
           )}
 
           {step.id === '__review' && (
@@ -169,15 +174,18 @@ function Wizard({ typeId, docId }) {
               {allMissing.length > 0 && (
                 <div className="alert">Missing required fields: {allMissing.map((f) => f.label).join(', ')}</div>
               )}
+              {needsTransaction && (
+                <div className="alert">Choose the type of transaction in the Checklist step.</div>
+              )}
               {checklistMissing.length > 0 && (
                 <div className="alert">Unchecked required items: {checklistMissing.map((c) => c.label).join(', ')}</div>
               )}
-              {!allMissing.length && !checklistMissing.length && (
+              {!allMissing.length && !checklistMissing.length && !needsTransaction && (
                 <div className="alert alert-ok">All required fields and checklist items are complete.</div>
               )}
               <div className="row gap">
                 <button className="btn btn-ghost" disabled={busy} onClick={() => save('draft')}>Save as draft</button>
-                <button className="btn btn-primary" disabled={busy || allMissing.length > 0 || checklistMissing.length > 0}
+                <button className="btn btn-primary" disabled={busy || allMissing.length > 0 || checklistMissing.length > 0 || needsTransaction}
                   onClick={() => save('complete')}>Mark complete</button>
               </div>
               <h4 style={{ marginTop: '1.4rem' }}>After saving: how to process this document</h4>
@@ -196,9 +204,18 @@ function Wizard({ typeId, docId }) {
         </section>
 
         <div className="preview-col">
-          <div className="preview-label no-print">Live preview</div>
-          <DocumentPreview type={type} data={data} checklist={checklist} settings={settings}
-            controlNo={existing?.controlNo || '(assigned on save)'} preparedBy={existing?.createdByName || actor.displayName} />
+          {step.id === '__checklist' && activeChecklist ? (
+            <>
+              <div className="preview-label no-print">Checklist preview</div>
+              <ChecklistSheet checklist={activeChecklist} state={checklist} data={data} settings={settings} />
+            </>
+          ) : (
+            <>
+              <div className="preview-label no-print">Live preview</div>
+              <DocumentPreview type={type} data={data} checklist={checklist} settings={settings}
+                signatories={existing?.signatories} controlNo={existing?.controlNo || '(assigned on save)'} preparedBy={existing?.createdByName || actor.displayName} />
+            </>
+          )}
         </div>
       </div>
     </div>

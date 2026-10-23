@@ -96,6 +96,46 @@ export async function importDocumentTypes(types, user) {
   await batch.commit();
 }
 
+// ---------- Checklist library ----------
+// One document per checklist, keyed by its checklist number (e.g. "1613").
+
+export async function listChecklists() {
+  const snap = await getDocs(collection(db, 'checklists'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export async function getChecklist(code) {
+  const snap = await getDoc(doc(db, 'checklists', code));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export function saveChecklist(checklist, user) {
+  const { id, createdAt, ...clean } = checklist;
+  return setDoc(doc(db, 'checklists', clean.code), { ...clean, updatedAt: serverTimestamp(), updatedBy: user.uid });
+}
+
+export function deleteChecklist(code) {
+  return deleteDoc(doc(db, 'checklists', code));
+}
+
+// Writes many checklists (e.g. the bundled library), overwriting same-numbered ones.
+export async function importChecklists(list, user) {
+  for (let i = 0; i < list.length; i += 400) {
+    const batch = writeBatch(db);
+    for (const c of list.slice(i, i + 400)) {
+      const { id, createdAt, updatedAt, ...clean } = c;
+      batch.set(doc(db, 'checklists', clean.code), { ...clean, updatedAt: serverTimestamp(), updatedBy: user.uid });
+    }
+    await batch.commit();
+  }
+}
+
+// The checklist library from the Municipal Accounting Office, bundled with the app.
+// Loaded on demand so it is not part of the main bundle.
+export async function loadBundledChecklists() {
+  return (await import('../data/checklists.json')).default;
+}
+
 // ---------- Documents ----------
 
 async function nextControlNo(typeCode) {
@@ -115,7 +155,7 @@ function historyEntry(action, user, note = '') {
   return { action, note, by: user.displayName || user.email, uid: user.uid, at: new Date().toISOString() };
 }
 
-export async function createDocument(type, { data, checklist, status }, user) {
+export async function createDocument(type, { data, checklist, transaction = null, signatories = null, status }, user) {
   const controlNo = await nextControlNo(type.code);
   const ref = await addDoc(collection(db, 'documents'), {
     typeId: type.id,
@@ -128,6 +168,9 @@ export async function createDocument(type, { data, checklist, status }, user) {
     controlNo,
     data,
     checklist,
+    transaction,
+    // Officials as they were when the document was prepared, so reprints match.
+    signatories,
     status,
     title: summarize(type, data),
     createdBy: user.uid,
@@ -140,10 +183,11 @@ export async function createDocument(type, { data, checklist, status }, user) {
   return ref.id;
 }
 
-export async function updateDocument(id, type, { data, checklist, status }, user, history = []) {
+export async function updateDocument(id, type, { data, checklist, transaction = null, status }, user, history = []) {
   await updateDoc(doc(db, 'documents', id), {
     data,
     checklist,
+    transaction,
     status,
     title: summarize(type, data),
     updatedAt: serverTimestamp(),
@@ -180,7 +224,7 @@ export function deleteDocument(id) {
 }
 
 export function snapshotType(type) {
-  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'processing', 'template', 'paperSize', 'orientation'];
+  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'copies', 'template', 'paperSize', 'orientation'];
   return Object.fromEntries(keys.filter((k) => type[k] !== undefined).map((k) => [k, type[k]]));
 }
 

@@ -4,12 +4,13 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { getDocumentType, saveDocumentType } from '../../lib/api.js';
 import { COLUMN_TYPES, FIELD_TYPES } from '../../lib/defaults.js';
 import { slugKey } from '../../lib/forms.js';
+import { CHECKLIST_SOURCES } from '../../lib/checklists.js';
 import { generateDefaultTemplate } from '../../lib/template.js';
 import DocumentPreview from '../../components/DocumentPreview.jsx';
 
 const EMPTY = {
   code: '', name: '', category: '', description: '', active: true,
-  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], processing: [], template: '',
+  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], checklistSource: 'own', processing: [], copies: [], template: '',
 };
 
 const TABS = ['General', 'Guided Steps', 'Fields', 'Checklist', 'Processing Guide', 'Format / Template'];
@@ -151,7 +152,7 @@ export default function DocumentTypeEditor() {
               </select></div>
             <div className="field"><label className="field-label">Paper size</label>
               <select value={type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
-                <option>A4</option><option>Letter</option><option>Legal</option>
+                <option>A4</option><option value="Long">Long (8.5 × 13)</option><option>Letter</option><option>Legal</option>
               </select></div>
             <div className="field"><label className="field-label">Orientation</label>
               <select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
@@ -229,6 +230,15 @@ export default function DocumentTypeEditor() {
 
       {tab === 'Checklist' && (
         <section className="card">
+          <div className="field" style={{ maxWidth: 520, marginBottom: '1rem' }}>
+            <label className="field-label">Checklist source</label>
+            <select value={type.checklistSource || 'own'} onChange={(e) => patch({ checklistSource: e.target.value })}>
+              {CHECKLIST_SOURCES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <div className="help">With a library source, the user picks the transaction type (e.g. 1613) and its checklist from the
+              Checklists page is used and printed. The list below is then not used.</div>
+          </div>
+          {(type.checklistSource || 'own') === 'own' && <>
           <p className="muted small">Requirements the user must confirm before the document can be marked complete (e.g. supporting documents per COA rules).</p>
           {type.checklist.map((c, i) => (
             <div key={c.id} className="editor-block">
@@ -242,6 +252,7 @@ export default function DocumentTypeEditor() {
             </div>
           ))}
           <button className="btn btn-ghost" onClick={() => patch({ checklist: [...type.checklist, { id: uid('c'), label: '', required: false }] })}>+ Add requirement</button>
+          </>}
         </section>
       )}
 
@@ -264,6 +275,18 @@ export default function DocumentTypeEditor() {
             </div>
           ))}
           <button className="btn btn-ghost" onClick={() => patch({ processing: [...type.processing, { id: uid('p'), office: '', action: '', details: '' }] })}>+ Add processing step</button>
+
+          <h3 style={{ marginTop: '1.6rem' }}>Copies to print</h3>
+          <p className="muted small">Who receives a copy. Mark the one that gets the original.</p>
+          {type.copies.map((c, i) => (
+            <div key={i} className="editor-row compact" style={{ marginBottom: '.5rem' }}>
+              <input placeholder="Recipient (e.g. COA, Accounting, Payee)" value={c.to} onChange={(e) => setItem('copies', i, { to: e.target.value })} />
+              <input type="number" min="1" style={{ maxWidth: 90 }} value={c.count} onChange={(e) => setItem('copies', i, { count: Number(e.target.value) || 1 })} />
+              <label className="check"><input type="checkbox" checked={Boolean(c.original)} onChange={(e) => setItem('copies', i, { original: e.target.checked })} /> Original</label>
+              <RowActions list={type.copies} i={i} onChange={setList('copies')} />
+            </div>
+          ))}
+          <button className="btn btn-ghost" onClick={() => patch({ copies: [...type.copies, { to: '', count: 1, original: false }] })}>+ Add recipient</button>
         </section>
       )}
 

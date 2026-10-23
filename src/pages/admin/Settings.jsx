@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { saveSettings } from '../../lib/api.js';
+import { SIGNATORY_ROLES, signatoriesFrom } from '../../lib/signatories.js';
 
 export default function Settings() {
   const { settings, setSettings } = useAuth();
-  const [form, setForm] = useState({ lguName: '', lguAddress: '', province: '', sealUrl: '', ...settings });
+  const [form, setForm] = useState({ lguName: '', lguAddress: '', province: '', sealUrl: '', ...settings, signatories: signatoriesFrom(settings) });
   const [status, setStatus] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const setSig = (k) => (e) => setForm({ ...form, signatories: { ...form.signatories, [k]: e.target.value } });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -37,6 +39,21 @@ export default function Settings() {
           <div className="field field-wide"><label className="field-label">Seal / logo image URL</label>
             <input value={form.sealUrl} onChange={set('sealUrl')} placeholder="/municipal-seal.png" />
             <div className="help">Printed on document headers as <code>{'{{lgu.seal}}'}</code>. Leave blank to use the municipal seal.</div></div>
+        </div>
+        <h3>Signatories</h3>
+        <p className="small muted">Printed on the forms where the official form pre-prints the name (e.g. the Municipal
+          Accountant in Box B of the DV). Each document keeps the officials who were set when it was prepared.</p>
+        <div className="fields">
+          {SIGNATORY_ROLES.map((r) => (
+            <div key={r.key} className="field field-wide">
+              <label className="field-label">{r.label}</label>
+              <div className="editor-row">
+                <input placeholder="Name, as printed (e.g. JUAN DELA CRUZ, CPA)" value={form.signatories[r.key]} onChange={setSig(r.key)} />
+                <input placeholder="Position" value={form.signatories[`${r.key}Position`]} onChange={setSig(`${r.key}Position`)} />
+              </div>
+              <div className="help">Template: <code>{`{{sig.${r.key}}}`}</code> <code>{`{{sig.${r.key}Position}}`}</code></div>
+            </div>
+          ))}
         </div>
         <div className="row gap">
           <button className="btn btn-primary">Save settings</button>

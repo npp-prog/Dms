@@ -77,8 +77,8 @@ export default function Dashboard() {
       <div className="flow">
         <div className="now"><b>1. Choose the format</b>DV, OBR, PR, PO and more</div>
         <div><b>2. Encode, step by step</b>Guided by the instructions</div>
-        <div><b>3. Checklist</b>Confirm the requirements</div>
-        <div><b>4. Print</b>Official format, for signing</div>
+        <div><b>3. Checklist</b>Pick the transaction, tick Y / N/A</div>
+        <div><b>4. Print</b>Form and checklist, for signing</div>
         <div><b>5. Process</b>Follow the processing guide</div>
       </div>
 

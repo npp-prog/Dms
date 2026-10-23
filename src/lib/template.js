@@ -4,7 +4,7 @@ import { amountToWords } from './numberToWords.js';
 //
 //   {{field}}                   value of a field (HTML-escaped)
 //   {{field|currency}}          filters: currency, peso, number, date, upper, words
-//   {{lgu.name}} {{controlNo}}  context values (lgu, docType, controlNo, today, preparedBy)
+//   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, controlNo, today, preparedBy)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
 //   {{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}
@@ -27,9 +27,12 @@ export function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Negative amounts print in parentheses, as on the official forms: (100.00).
 export function formatCurrency(value) {
   if (value === '' || value === null || value === undefined) return '';
-  return toNumber(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const n = toNumber(value);
+  const text = Math.abs(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n < 0 ? `(${text})` : text;
 }
 
 export function formatDate(value) {
@@ -84,7 +87,7 @@ export function renderTable(field, rows) {
   const totals = columns.some((c) => c.total)
     ? `<tr class="total">${columns
       .map((c, i) => {
-        if (c.total) return `<td class="r"><b>${escapeHtml(formatCurrency(sumColumn(list, c.key)))}</b></td>`;
+        if (c.total) return `<td class="r"><b>${list.length ? escapeHtml(formatCurrency(sumColumn(list, c.key))) : ''}</b></td>`;
         return i === 0 ? '<td class="r"><b>TOTAL</b></td>' : '<td></td>';
       })
       .join('')}</tr>`
@@ -103,7 +106,11 @@ function renderTokens(template, scope, ctx) {
     }
     if (head.startsWith('sum:')) {
       const [key, column] = head.slice(4).split('.');
-      return escapeHtml(applyFilters(sumColumn(lookup(scope, key), column), filters.length ? filters : ['currency']));
+      const rows = lookup(scope, key);
+      // A blank form prints blank totals, not 0.00.
+      const hasValues = Array.isArray(rows) && rows.some((r) => r?.[column] !== '' && r?.[column] != null);
+      if (!hasValues) return '';
+      return escapeHtml(applyFilters(sumColumn(rows, column), filters.length ? filters : ['currency']));
     }
     if (head.startsWith('check:')) {
       return ctx.checklist?.[head.slice(6)] ? '&#9745;' : '&#9744;';
@@ -122,6 +129,7 @@ export function renderTemplate(template, ctx = {}) {
     lgu: ctx.lgu || {},
     docType: ctx.docType || {},
     preparedBy: ctx.preparedBy || '',
+    sig: ctx.signatories || {},
   };
 
   const withIfs = String(template || '').replace(

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, getDocument, getTypeForDocument, setDocumentStatus } from '../lib/api.js';
-import { missingChecklist } from '../lib/forms.js';
+import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
+import ChecklistSheet from '../components/ChecklistSheet.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
@@ -15,6 +16,7 @@ export default function DocumentView() {
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState('document');
 
   const load = async () => {
     try {
@@ -42,7 +44,8 @@ export default function DocumentView() {
     run(async () => { await deleteDocument(docId); navigate('/documents'); });
   };
 
-  const unchecked = type ? missingChecklist(type.checklist, docData.checklist) : [];
+  const activeChecklist = type ? effectiveChecklist(type, docData.transaction) : null;
+  const unchecked = activeChecklist ? missingRequired(activeChecklist.items, docData.checklist) : [];
 
   return (
     <div className="page">
@@ -53,7 +56,7 @@ export default function DocumentView() {
           <p className="muted">{docData.title} · Prepared by {docData.createdByName}</p>
         </div>
         <div className="row gap wrap">
-          <button className="btn btn-primary" onClick={() => window.print()}>Print</button>
+          <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>
           {editable && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
           {editable && (
             <button className="btn btn-ghost" disabled={busy}
@@ -86,16 +89,21 @@ export default function DocumentView() {
             <dl className="details">
               <dt>Control No.</dt><dd>{docData.controlNo}</dd>
               <dt>Format version</dt><dd>v{docData.typeVersion || 1}</dd>
+              {docData.transaction && (<><dt>Transaction</dt><dd>{docData.transaction.code} — {docData.transaction.title}</dd></>)}
             </dl>
           </section>
-          {type && (
+          {activeChecklist && activeChecklist.items.length > 0 && (
             <section className="card">
-              <h3>Checklist</h3>
-              {unchecked.length > 0 && <div className="alert">{unchecked.length} required item(s) unchecked</div>}
+              <div className="card-head">
+                <h3>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</h3>
+                <button className="btn btn-sm" onClick={() => setView('checklist')}>View / print</button>
+              </div>
+              {unchecked.length > 0 && <div className="alert">{unchecked.length} required item(s) not yet ticked</div>}
               <ul className="checklist-view">
-                {(type.checklist || []).map((c) => (
-                  <li key={c.id}><span>{docData.checklist?.[c.id] ? '☑' : '☐'}</span> {c.label}</li>
-                ))}
+                {activeChecklist.items.map((c) => {
+                  const v = docData.checklist?.[c.id];
+                  return <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}</li>;
+                })}
               </ul>
             </section>
           )}
@@ -109,8 +117,21 @@ export default function DocumentView() {
           </section>
         </div>
         {type ? (
+          <div>
+            {activeChecklist && activeChecklist.items.length > 0 && (
+              <div className="tabs view-toggle no-print">
+                <button className={view === 'document' ? 'active' : ''} onClick={() => setView('document')}>{docData.typeCode}</button>
+                <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>
+              </div>
+            )}
+            {view === 'checklist' && activeChecklist ? (
+              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={docData.data} settings={settings} />
+            ) : (
           <DocumentPreview type={type} data={docData.data} checklist={docData.checklist} settings={settings}
+            signatories={docData.signatories}
             controlNo={docData.controlNo} preparedBy={docData.createdByName} />
+            )}
+          </div>
         ) : <div className="alert">The document type for this document was deleted; the format cannot be rendered.</div>}
       </div>
     </div>

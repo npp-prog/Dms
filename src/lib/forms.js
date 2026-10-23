@@ -1,14 +1,49 @@
 import { toNumber } from './template.js';
+import { isChecked } from './checklists.js';
 
 // Pure helpers shared by the guided wizard and validation (no Firebase here).
+
+// Tiny formula language for computed values: terms joined by + and -, each term a
+// product (*) of numbers, keys, or sum:table.column. E.g. "qty*unitCost",
+// "gross-deductions", "sum:items.amount-cashAdvance".
+export function evaluate(formula, scope) {
+  const terms = String(formula || '').replace(/\s+/g, '').match(/[+-]?[^+-]+/g) || [];
+  let any = false;
+  const total = terms.reduce((acc, term) => {
+    const sign = term.startsWith('-') ? -1 : 1;
+    const product = term.replace(/^[+-]/, '').split('*').reduce((p, factor) => {
+      if (/^\d+(\.\d+)?$/.test(factor)) return p * Number(factor);
+      if (factor.startsWith('sum:')) {
+        const [tbl, col] = factor.slice(4).split('.');
+        const rows = Array.isArray(scope?.[tbl]) ? scope[tbl] : [];
+        if (rows.some((r) => r?.[col] !== '' && r?.[col] != null)) any = true;
+        return p * rows.reduce((t, r) => t + toNumber(r?.[col]), 0);
+      }
+      const v = scope?.[factor];
+      if (v !== undefined && v !== '' && v !== null) any = true;
+      return p * toNumber(v);
+    }, 1);
+    return acc + sign * product;
+  }, 0);
+  return any ? Math.round(total * 100) / 100 : '';
+}
 
 export function computeRow(columns, row) {
   const next = { ...row };
   for (const col of columns || []) {
-    if (!col.compute) continue;
-    const keys = col.compute.split('*').map((k) => k.trim()).filter(Boolean);
-    const hasAny = keys.some((k) => next[k] !== undefined && next[k] !== '');
-    next[col.key] = hasAny ? Math.round(keys.reduce((p, k) => p * toNumber(next[k]), 1) * 100) / 100 : '';
+    if (col.compute) next[col.key] = evaluate(col.compute, next);
+  }
+  return next;
+}
+
+// Recomputes fields that have a formula (field.compute) from the rest of the data.
+export function computeFields(fields, data) {
+  let next = data;
+  for (const f of fields || []) {
+    if (f.type !== 'table' && f.compute) {
+      const v = evaluate(f.compute, next);
+      if (v !== next[f.key]) next = { ...next, [f.key]: v };
+    }
   }
   return next;
 }
@@ -47,7 +82,7 @@ export function missingFields(fields, data) {
 }
 
 export function missingChecklist(checklist, state) {
-  return (checklist || []).filter((c) => c.required && !state?.[c.id]);
+  return (checklist || []).filter((c) => c.required && !isChecked(state?.[c.id]));
 }
 
 export function slugKey(label) {

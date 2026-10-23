@@ -17,6 +17,7 @@ export default function Layout() {
       label: 'Documents',
       items: [
         ['/formats', 'formats', 'Document Formats'],
+        ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],
         ['/documents', 'documents', isAdmin ? 'All Documents' : 'My Documents'],
       ],

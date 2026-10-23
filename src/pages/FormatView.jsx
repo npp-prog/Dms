@@ -56,9 +56,14 @@ export default function FormatView() {
           </section>
           <section className="card">
             <h3>Checklist of requirements</h3>
-            {(type.checklist || []).length === 0 && <p className="muted">No checklist defined.</p>}
+            {type.checklistSource && type.checklistSource !== 'own' && (
+              <p className="small">The checklist depends on the type of transaction. When you prepare this document, you choose the
+                transaction (e.g. <b>1613</b> — Payment to Supplier, Direct Acquisition) and its checklist is loaded and printed.
+                {' '}<Link to="/checklists">Browse the {type.checklistSource} checklists</Link>.</p>
+            )}
+            {(!type.checklistSource || type.checklistSource === 'own') && (type.checklist || []).length === 0 && <p className="muted">No checklist defined.</p>}
             <ul className="checklist-view">
-              {(type.checklist || []).map((c) => (
+              {(!type.checklistSource || type.checklistSource === 'own') && (type.checklist || []).map((c) => (
                 <li key={c.id}>
                   <span>☐</span> {c.label} {c.required && <span className="req">required</span>}
                   {c.help && <div className="small muted">{c.help}</div>}

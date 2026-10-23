@@ -7,7 +7,10 @@ import {
 import {
   collection, connectFirestoreEmulator, doc, getFirestore, serverTimestamp, setDoc, updateDoc, writeBatch,
 } from 'firebase/firestore';
+import { readFileSync } from 'node:fs';
 import { STARTER_TYPES } from '../src/lib/defaults.js';
+
+const CHECKLISTS = JSON.parse(readFileSync(new URL('../src/data/checklists.json', import.meta.url)));
 
 export const DEMO = {
   admin: { email: 'admin@fts.local', password: 'admin123', displayName: 'Maria Santos', office: 'Municipal Accounting Office' },
@@ -41,8 +44,18 @@ async function main() {
   await boot.commit();
 
   // 2. Settings and starter formats.
+  // Signatories as printed on the Appendix Forms of the Municipal Government of Candoni (change in Settings).
   await setDoc(doc(db, 'meta', 'settings'), {
-    lguName: 'Municipal Government of Candoni', lguAddress: 'Candoni, Negros Occidental', province: 'Negros Occidental',
+    lguName: 'Municipal Government of Candoni',
+    lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
+    province: 'Negros Occidental',
+    signatories: {
+      mayor: 'CICERO D. BORROMEO', mayorPosition: 'Municipal Mayor',
+      accountant: 'NEIL P. PRIOLO, CPA', accountantPosition: 'Municipal Accountant',
+      budget: 'RAQUEL C. MATA', budgetPosition: 'Municipal Budget Officer',
+      treasurer: 'MA. DYMPHNA T. SARMOY', treasurerPosition: 'Acting - Municipal Treasurer',
+      sbSecretary: 'BENJIE M. OROT, LPT', sbSecretaryPosition: 'Secretary to the Sanggunian',
+    },
   });
   const types = writeBatch(db);
   for (const t of STARTER_TYPES) {
@@ -51,6 +64,9 @@ async function main() {
     });
   }
   await types.commit();
+  const lists = writeBatch(db);
+  for (const c of CHECKLISTS) lists.set(doc(db, 'checklists', c.code), { ...c, updatedAt: serverTimestamp(), updatedBy: a.user.uid });
+  await lists.commit();
   await signOut(auth);
 
   // 3. An end user (registers, then the superadmin approves them).
@@ -69,6 +85,7 @@ async function main() {
       Superadmin  ${DEMO.admin.email} / ${DEMO.admin.password}
       End user    ${DEMO.user.email} / ${DEMO.user.password}
       Formats     ${STARTER_TYPES.map((t) => t.code).join(', ')}
+      Checklists  ${CHECKLISTS.length} (disbursement and liquidation)
 `);
 }
 

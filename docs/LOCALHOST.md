@@ -54,13 +54,14 @@ You should see this in the terminal:
 [FTS] Demo data loaded:
       Superadmin  admin@fts.local / admin123
       End user    user@fts.local / user123
-      Formats     DV, OBR, PR, PO
+      Formats     DV, CAFOA, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO
+      Checklists  210 (disbursement and liquidation)
 [FTS] Starting the app at http://localhost:5173 …
 ```
 
 **To stop:** press **Ctrl + C** in the terminal, once. FTS saves your local data to the `.emulator-data` folder and loads it again the next time you run `npm run local`.
 
-**To start over with fresh demo data:** stop FTS, run `npm run local:reset`, then run `npm run local` again.
+**To start over with fresh demo data:** stop FTS, run `npm run local:reset`, then run `npm run local` again. Do this once after updating FTS, so the demo data includes the latest formats and checklists.
 
 > Everything here stays on your computer. Accounts and documents you create locally are not on the live site, and live data is not here.
 
@@ -87,54 +88,80 @@ The dashboard shows:
 - shortcuts to each document format;
 - **At a glance**: your document counts.
 
-### Look up a format and how to process it
+### Document formats
 
-Open **Document Formats** to see every format, grouped by category.
+**Document Formats** lists every form: DV, CAFOA, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO.
 
 ![Document formats](images/03-formats.png)
 
 **View format** shows three things:
 
 - the guided encoding steps;
-- **How to process this document**: which office receives it, in what order, and what each one does;
-- the checklist of requirements and a blank printable form.
+- **How to process this document**: how many copies to print and who gets each one, then which office receives the document, in what order, and what each does;
+- the blank printable form.
 
-![Format view with the processing guide](images/04-format-view.png)
+![Format view with the processing guide](images/06-format-dv.png)
 
-### Encode a document
+### Checklists
 
-Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. The instructions for the step are shown in the blue box. You can't go to the next step until the required fields (marked \*) are filled in. The preview on the right updates as you type.
+**Checklists** has all 210 checklists of the Municipal Accounting Office: 201 for disbursements and 9 for liquidations, grouped by category. Search by number or by words.
 
-![Step 1](images/05-step1.png)
+![Checklist library](images/04-checklists.png)
 
-For line items, click **+ Add row**. Totals, computed amounts and the amount in words fill in automatically.
+Open a checklist to read it or print a blank copy:
 
-![Line items](images/06-step2-particulars.png)
+- an item with only a **Y** box is always required;
+- an item with **Y** and **N/A** boxes is required only if it applies.
 
-In the **Checklist** step, tick each requirement you have attached. Required items must be ticked before the document can be marked complete.
+![Checklist 1613](images/05-checklist-1613.png)
 
-![Checklist](images/07-checklist.png)
+### Encode a Disbursement Voucher
 
-In **Review & Save** you can:
+Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
 
-- choose **Save as draft** to continue later, or **Mark complete** when everything is encoded;
-- see the processing guide again, so you know what to do next.
+![DV step 1](images/07-dv-step1.png)
 
-![Review](images/08-review.png)
+For line items, click **+ Add row**. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due and the amount in words fill in automatically. Signatories in boxes B, C and D come from Settings.
+
+![DV particulars](images/08-dv-particulars.png)
+
+### Checklist step: choose the type of transaction
+
+For a DV, Payroll or Liquidation Report, FTS first asks **"What type of transaction is this?"**. Type a checklist number or some words (e.g. `1613` or `direct acquisition`) and pick one.
+
+![Transaction picker](images/09-dv-transaction-picker.png)
+
+FTS then loads that checklist:
+
+- tick **Y** for each document you attached;
+- tick **N/A** for items that don't apply (always-required items have no N/A);
+- the preview on the right shows the checklist as it will print.
+
+![Checklist step](images/10-dv-checklist.png)
+
+**Review & Save** tells you what is still missing. **Mark complete** stays disabled until every required field and every always-required checklist item is done.
+
+![Review](images/11-dv-review.png)
 
 ### Print and process
 
-The completed document gets a control number, e.g. `DV-2026-10-0001`. Click **Print**: only the form prints, on the paper size set for that format. Then follow **How to process this document**, office by office. FTS doesn't route the document; the guide tells you where it goes next.
+The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
 
-![Completed document with the processing guide](images/09-document.png)
+![Completed document](images/12-dv-document.png)
 
-What the printout looks like:
+| The DV (Long bond paper) | The checklist cover sheet, filled in |
+|---|---|
+| ![DV printout](images/13-dv-print.png) | ![Checklist printout](images/14-dv-checklist-print.png) |
 
-![Printout](images/10-print.png)
+The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from the document. The DV Number box stays blank until Accounting assigns the number.
 
-**My Documents** lists everything you have encoded. You can search and filter it, and open any document to print it again or edit it. A document you cancel can no longer be edited.
+### Computed amounts (example: Liquidation Report)
 
-![My documents](images/11-my-documents.png)
+Totals are computed as you type. On the Liquidation Report, for example, FTS computes the total amount spent and the amount to be reimbursed (total spent − cash advance + refund). For the checklist, you pick the liquidation type, e.g. **2002 – Local Travel**.
+
+![LR computed amounts](images/15-lr-computed.png)
+
+![LR checklist](images/16-lr-checklist.png)
 
 ---
 
@@ -142,43 +169,46 @@ What the printout looks like:
 
 Sign out (top right), then sign in as **admin@fts.local** / **admin123**. On the live site, the first account ever registered becomes the superadmin.
 
+### Checklists
+
+On **Checklists**, an administrator can:
+
+- **load the checklist library**: on the live site, click this once;
+- **reload the original library**, which overwrites your edits;
+- create a new checklist;
+- edit or delete any checklist.
+
+The editor shows the printed checklist as you edit. Each item is either **Always required (Y)** or **If applicable (Y / N/A)** and can have a group heading (e.g. *Progress Payment*, *Final Payment*).
+
+![Checklist editor](images/17-admin-checklist-editor.png)
+
 ### Document types
 
-**Document Types** lists every format. Here you can:
+Each document type has six tabs: **General** (code, name, paper size including **Long 8.5 × 13**), **Guided Steps**, **Fields**, **Checklist**, **Processing Guide** and **Format / Template**.
 
-- add a new document type;
-- edit, preview, deactivate or delete a type;
-- import or export types as JSON;
-- load the starter formats (DV, OBR, PR, PO).
+In the **Checklist** tab, **Checklist source** decides where the checklist comes from:
 
-![Document types](images/12-admin-types.png)
+- **Own checklist**: a fixed list you write here;
+- **Disbursement library** or **Liquidation library**: the user picks the transaction type, as shown above.
 
-Each document type has six tabs:
+![Checklist source](images/18-admin-checklist-source.png)
 
-| Tab | What you set |
-|---|---|
-| **General** | Code (e.g. `DV`), name, category, paper size and orientation, and whether it is active |
-| **Guided Steps** | The steps users go through, with instructions for each |
-| **Fields** | What users encode: text, amount, date, dropdown, or a table of line items with computed columns and totals. Assign each field to a step |
-| **Checklist** | The requirements to attach, each marked required or optional |
-| **Processing Guide** | How to process the document after encoding: the office, the action, and details for each step |
-| **Format / Template** | The printed layout, with a live preview. **Generate from fields** gives you a starting layout |
+The **Processing Guide** tab has the routing steps and the **copies to print** (who gets the original and who gets copies).
 
-![Processing guide editor](images/13-admin-processing-guide.png)
+![Processing guide editor](images/19-admin-processing-guide.png)
 
-![Checklist editor](images/14-admin-checklist.png)
+Fields can be **computed**: in a table column or a field, the formula combines other keys with `+`, `-` and `*`, and `sum:table.column` adds up a table column. For example, `qty*unitCost`, `gross-deductions` or `sum:items.amount-cashAdvance`.
 
-![Template editor](images/15-admin-template.png)
+### Settings and users
 
-Click **Save** when done. Documents encoded earlier keep the version of the format they were made with.
+**Settings** (superadmin only) holds:
 
-### Users and settings
+- the LGU name, address and seal;
+- the **signatories**: Mayor, Accountant, Budget Officer, Treasurer and Secretary to the Sanggunian. These are printed where the official forms pre-print a name. Each document keeps the signatories that were set when it was prepared.
 
-**Users** is where you approve new accounts and deactivate old ones. Only the superadmin can make someone an administrator.
+![Settings](images/20-admin-settings.png)
 
-![Users](images/16-admin-users.png)
-
-**Settings** (superadmin only) holds the LGU name, address and seal printed on every form.
+**Users** is where you approve new accounts. Only the superadmin can make someone an administrator.
 
 ---
 

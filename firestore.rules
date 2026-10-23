@@ -74,8 +74,14 @@ service cloud.firestore {
       allow delete: if isSuper() && request.auth.uid != uid;
     }
 
-    // ---- Document types (formats, checklists, guided steps) ----
+    // ---- Document types (formats, guided steps, processing guides) ----
     match /documentTypes/{typeId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // ---- Checklist library (requirements per transaction type, keyed by checklist no.) ----
+    match /checklists/{code} {
       allow read: if isActive();
       allow write: if isAdmin();
     }
