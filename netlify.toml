@@ -4,6 +4,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Netlify's smart secret detection fails the build when it sees a value shaped like
+  # a Google API key. The Firebase web apiKey (src/firebase-config.js) is public by
+  # design (access is controlled by Firebase Auth and firestore.rules), so allow just
+  # that one value; secret scanning stays on for everything else.
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyCNI8dJaXA70z5y0oX5tu6DqzBPN9dvsGo"
 
 # Single-page app: let React Router handle every path
 [[redirects]]
