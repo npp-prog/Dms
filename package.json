@@ -1,0 +1,26 @@
+{
+  "name": "fts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FTS - Financial Transaction System: repository of LGU financial document formats with guided, checklist-based preparation",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test src/lib/*.test.js",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-fts",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.17",
+    "firebase": "^13.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}

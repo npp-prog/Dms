@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// FTS - Financial Transaction System
+// Roles: superadmin > admin > user. New accounts start inactive until an
+// admin approves them. The very first account becomes the superadmin.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+    function hasProfile() {
+      return signedIn() && exists(profilePath());
+    }
+    function profile() {
+      return get(profilePath()).data;
+    }
+    function isActive() {
+      return hasProfile() && profile().active == true;
+    }
+    function isAdmin() {
+      return isActive() && profile().role in ['admin', 'superadmin'];
+    }
+    function isSuper() {
+      return isActive() && profile().role == 'superadmin';
+    }
+    function bootstrapPath() {
+      return /databases/$(database)/documents/meta/bootstrap;
+    }
+    function unchanged(keys) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+
+    // ---- System metadata ----
+    match /meta/bootstrap {
+      allow read: if signedIn();
+      // Created once, in the same batch that creates the first superadmin profile.
+      allow create: if signedIn()
+        && request.resource.data.superadmin == request.auth.uid
+        && getAfter(profilePath()).data.role == 'superadmin';
+      allow update, delete: if false;
+    }
+    match /meta/settings {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // ---- User profiles ----
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if signedIn() && request.auth.uid == uid && (
+        // Regular self-registration: inactive user awaiting approval.
+        (request.resource.data.role == 'user' && request.resource.data.active == false)
+        // First account ever: becomes superadmin while claiming the bootstrap doc.
+        || (request.resource.data.role == 'superadmin'
+            && request.resource.data.active == true
+            && !exists(bootstrapPath())
+            && getAfter(bootstrapPath()).data.superadmin == uid)
+      );
+
+      allow update: if
+        // Superadmin manages everyone (but cannot lock themselves out).
+        (isSuper() && (request.auth.uid != uid || unchanged(['role', 'active'])))
+        // Admin may approve/deactivate and edit regular users only.
+        || (isAdmin() && request.auth.uid != uid
+            && resource.data.role == 'user' && request.resource.data.role == 'user')
+        // Anyone may edit their own name/office.
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email']));
+
+      allow delete: if isSuper() && request.auth.uid != uid;
+    }
+
+    // ---- Document types (formats, checklists, guided steps) ----
+    match /documentTypes/{typeId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // ---- Prepared documents ----
+    match /documents/{docId} {
+      allow read: if isActive()
+        && (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow create: if isActive()
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isActive()
+        && (isAdmin() || (resource.data.createdBy == request.auth.uid
+                          && !(resource.data.status in ['transmitted', 'cancelled'])))
+        && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot']);
+      allow delete: if isAdmin()
+        || (isActive() && resource.data.createdBy == request.auth.uid
+            && resource.data.status == 'draft');
+    }
+
+    // ---- Control number sequences ----
+    match /counters/{counterId} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.value == 1;
+      allow update: if isActive() && request.resource.data.value == resource.data.value + 1;
+      allow delete: if isSuper();
+    }
+  }
+}

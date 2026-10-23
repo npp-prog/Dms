@@ -1,0 +1,178 @@
+import { amountToWords } from './numberToWords.js';
+
+// Lightweight template engine for document formats.
+//
+//   {{field}}                   value of a field (HTML-escaped)
+//   {{field|currency}}          filters: currency, peso, number, date, upper, words
+//   {{lgu.name}} {{controlNo}}  context values (lgu, docType, controlNo, today, preparedBy)
+//   {{sum:items.amount|peso}}   sum of a table column
+//   {{table:items}}             auto-rendered HTML table for a table field
+//   {{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}
+//   {{check:itemId}}            checkbox mark for a checklist item
+
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function toNumber(value) {
+  if (typeof value === 'number') return value;
+  const n = parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function formatCurrency(value) {
+  if (value === '' || value === null || value === undefined) return '';
+  return toNumber(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function formatDate(value) {
+  if (!value) return '';
+  const d = value instanceof Date ? value : new Date(`${value}`.length === 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+const FILTERS = {
+  currency: (v) => formatCurrency(v),
+  peso: (v) => (v === '' || v == null ? '' : `₱ ${formatCurrency(v)}`),
+  number: (v) => (v === '' || v == null ? '' : toNumber(v).toLocaleString('en-PH')),
+  date: (v) => formatDate(v),
+  upper: (v) => String(v ?? '').toUpperCase(),
+  words: (v) => (v === '' || v == null ? '' : amountToWords(toNumber(v))),
+};
+
+function lookup(scope, path) {
+  return path.split('.').reduce((obj, key) => (obj == null ? undefined : obj[key]), scope);
+}
+
+function applyFilters(value, filters) {
+  return filters.reduce((v, name) => (FILTERS[name] ? FILTERS[name](v) : v), value);
+}
+
+export function sumColumn(rows, column) {
+  return (Array.isArray(rows) ? rows : []).reduce((total, row) => total + toNumber(row?.[column]), 0);
+}
+
+function formatCell(value, type) {
+  if (type === 'currency') return formatCurrency(value);
+  if (type === 'date') return formatDate(value);
+  return value ?? '';
+}
+
+export function renderTable(field, rows) {
+  const columns = field?.columns || [];
+  const list = Array.isArray(rows) ? rows : [];
+  const minRows = Number(field?.minRows) || 0;
+  const numeric = (c) => c.type === 'currency' || c.type === 'number';
+  const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
+  const body = list
+    .map((row) => `<tr>${columns
+      .map((c) => `<td${numeric(c) ? ' class="num"' : ''}>${escapeHtml(formatCell(row?.[c.key], c.type))}</td>`)
+      .join('')}</tr>`)
+    .join('');
+  const filler = Array.from({ length: Math.max(0, minRows - list.length) })
+    .map(() => `<tr>${columns.map(() => '<td>&nbsp;</td>').join('')}</tr>`)
+    .join('');
+  const totals = columns.some((c) => c.total)
+    ? `<tr class="total">${columns
+      .map((c, i) => {
+        if (c.total) return `<td class="num"><b>${escapeHtml(formatCurrency(sumColumn(list, c.key)))}</b></td>`;
+        return i === 0 ? '<td><b>TOTAL</b></td>' : '<td></td>';
+      })
+      .join('')}</tr>`
+    : '';
+  return `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${body}${filler}${totals}</tbody></table>`;
+}
+
+function renderTokens(template, scope, ctx) {
+  return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_, expr) => {
+    const [head, ...filters] = expr.split('|').map((s) => s.trim());
+
+    if (head.startsWith('table:')) {
+      const key = head.slice(6);
+      const field = (ctx.fields || []).find((f) => f.key === key);
+      return renderTable(field, lookup(scope, key));
+    }
+    if (head.startsWith('sum:')) {
+      const [key, column] = head.slice(4).split('.');
+      return escapeHtml(applyFilters(sumColumn(lookup(scope, key), column), filters.length ? filters : ['currency']));
+    }
+    if (head.startsWith('check:')) {
+      return ctx.checklist?.[head.slice(6)] ? '&#9745;' : '&#9744;';
+    }
+    const value = lookup(scope, head);
+    if (value !== null && typeof value === 'object' && !filters.length) return '';
+    return escapeHtml(applyFilters(value ?? '', filters));
+  });
+}
+
+export function renderTemplate(template, ctx = {}) {
+  const base = {
+    ...(ctx.data || {}),
+    controlNo: ctx.controlNo || '',
+    today: ctx.today || new Date().toISOString().slice(0, 10),
+    lgu: ctx.lgu || {},
+    docType: ctx.docType || {},
+    preparedBy: ctx.preparedBy || '',
+  };
+
+  const withLoops = String(template || '').replace(
+    /\{\{#each\s+([\w.]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
+    (_, key, inner) => {
+      const rows = lookup(base, key);
+      const field = (ctx.fields || []).find((f) => f.key === key);
+      const list = Array.isArray(rows) ? [...rows] : [];
+      const minRows = Number(field?.minRows) || 0;
+      while (list.length < minRows) list.push({ __blank: true });
+      // Column keys default to blank so they never fall through to same-named top-level fields.
+      const blanks = Object.fromEntries((field?.columns || []).map((c) => [c.key, '']));
+      return list
+        .map((row, i) => renderTokens(
+          inner,
+          { ...base, ...blanks, ...row, '@no': row.__blank ? '' : i + 1, '@index': i },
+          ctx,
+        ))
+        .join('');
+    },
+  );
+
+  return renderTokens(withLoops, base, ctx);
+}
+
+// Generate a sensible starting template from a document type's fields so an
+// admin always has something printable before customizing the layout.
+export function generateDefaultTemplate(type) {
+  const fields = type?.fields || [];
+  const rows = fields
+    .filter((f) => f.type !== 'table')
+    .map((f) => {
+      const filter = f.type === 'currency' ? '|peso' : f.type === 'date' ? '|date' : '';
+      return `<tr><th style="width:35%">${escapeHtml(f.label)}</th><td>{{${f.key}${filter}}}</td></tr>`;
+    })
+    .join('\n      ');
+  const tables = fields
+    .filter((f) => f.type === 'table')
+    .map((f) => `<h4>${escapeHtml(f.label)}</h4>\n    {{table:${f.key}}}`)
+    .join('\n    ');
+  return `<div class="form">
+  <div class="form-header">
+    <div class="small">Republic of the Philippines</div>
+    <div class="lgu">{{lgu.name}}</div>
+    <div class="small">{{lgu.address}}</div>
+    <h2>${escapeHtml((type?.name || 'DOCUMENT').toUpperCase())}</h2>
+  </div>
+  <table class="grid">
+    <tr><th style="width:35%">Control No.</th><td>{{controlNo}}</td></tr>
+      ${rows}
+  </table>
+    ${tables}
+  <table class="sign">
+    <tr><td>Prepared by:<br><br><b>{{preparedBy|upper}}</b></td><td>Approved by:<br><br><b>&nbsp;</b></td></tr>
+  </table>
+</div>`;
+}
