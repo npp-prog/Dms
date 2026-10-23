@@ -5,6 +5,7 @@ import { deleteDocument, getDocument, getTypeForDocument, setDocumentStatus } fr
 import { missingChecklist } from '../lib/forms.js';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
 export default function DocumentView() {
   const { docId } = useParams();
@@ -14,7 +15,6 @@ export default function DocumentView() {
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [transmit, setTransmit] = useState(null);
 
   const load = async () => {
     try {
@@ -31,22 +31,10 @@ export default function DocumentView() {
   if (error) return <div className="page"><div className="alert">{error}</div></div>;
   if (!docData) return <div className="page"><div className="spinner" /></div>;
 
-  const editable = docData.status !== 'transmitted' && docData.status !== 'cancelled';
+  const editable = docData.status !== 'cancelled';
   const run = async (fn) => {
     setBusy(true);
     try { await fn(); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
-  };
-
-  const markTransmitted = (e) => {
-    e.preventDefault();
-    run(async () => {
-      await setDocumentStatus(docId, 'transmitted', actor, docData.history, {
-        dmsRefNo: transmit.refNo.trim(),
-        dmsRecipient: transmit.recipient.trim(),
-        transmittedAt: new Date().toISOString(),
-      }, `DMS ${transmit.refNo.trim()} → ${transmit.recipient.trim()}`);
-      setTransmit(null);
-    });
   };
 
   const remove = () => {
@@ -65,11 +53,8 @@ export default function DocumentView() {
           <p className="muted">{docData.title} · Prepared by {docData.createdByName}</p>
         </div>
         <div className="row gap wrap">
-          <button className="btn btn-ghost" onClick={() => window.print()}>Print</button>
+          <button className="btn btn-primary" onClick={() => window.print()}>Print</button>
           {editable && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
-          {docData.status === 'complete' && (
-            <button className="btn btn-primary" onClick={() => setTransmit({ refNo: '', recipient: '' })}>Transmit via DMS</button>
-          )}
           {editable && (
             <button className="btn btn-ghost" disabled={busy}
               onClick={() => window.confirm('Cancel this document?') && run(() => setDocumentStatus(docId, 'cancelled', actor, docData.history))}>
@@ -80,40 +65,27 @@ export default function DocumentView() {
         </div>
       </div>
 
-      {transmit && (
-        <form className="card no-print transmit" onSubmit={markTransmitted}>
-          <h3>Transmit via DMS</h3>
-          <p className="small muted">FTS does not route documents. Print the document, attach the checklist requirements, and
-            create the transmittal in the Document Management System. Then record the DMS reference number here.</p>
-          {settings.dmsUrl && (
-            <a className="btn btn-ghost btn-sm" href={settings.dmsUrl} target="_blank" rel="noreferrer">Open DMS ↗</a>
-          )}
-          <div className="fields">
-            <div className="field">
-              <label className="field-label">DMS Tracking / Reference No. <span className="req">*</span></label>
-              <input required value={transmit.refNo} onChange={(e) => setTransmit({ ...transmit, refNo: e.target.value })} />
-            </div>
-            <div className="field">
-              <label className="field-label">Transmitted to (office) <span className="req">*</span></label>
-              <input required value={transmit.recipient} onChange={(e) => setTransmit({ ...transmit, recipient: e.target.value })} />
-            </div>
-          </div>
-          <div className="row gap">
-            <button className="btn btn-primary" disabled={busy}>Record transmittal</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setTransmit(null)}>Cancel</button>
-          </div>
-        </form>
+      {docData.status === 'draft' && (
+        <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
+      )}
+      {docData.status === 'complete' && (
+        <div className="alert alert-ok no-print"><b>Encoding complete.</b> Print the document, have it signed, attach the
+          requirements, and process it by following the steps under <b>How to process this document</b>.</div>
       )}
 
       <div className="split">
         <div className="no-print">
+          {type && (
+            <section className="card guide-card">
+              <h3>How to process this document</h3>
+              <ProcessingGuide type={type} />
+            </section>
+          )}
           <section className="card">
             <h3>Details</h3>
             <dl className="details">
               <dt>Control No.</dt><dd>{docData.controlNo}</dd>
               <dt>Format version</dt><dd>v{docData.typeVersion || 1}</dd>
-              <dt>DMS Ref. No.</dt><dd>{docData.dmsRefNo || '—'}</dd>
-              {docData.dmsRecipient && (<><dt>Transmitted to</dt><dd>{docData.dmsRecipient}</dd></>)}
             </dl>
           </section>
           {type && (

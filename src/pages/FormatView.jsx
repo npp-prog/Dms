@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { getDocumentType } from '../lib/api.js';
 import { buildSteps } from '../lib/forms.js';
 import DocumentPreview from '../components/DocumentPreview.jsx';
+import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
 export default function FormatView() {
   const { typeId } = useParams();
@@ -36,7 +37,7 @@ export default function FormatView() {
       <div className="split">
         <div className="no-print">
           <section className="card">
-            <h3>Guided process</h3>
+            <h3>Guided encoding</h3>
             <ol className="steps-list">
               {buildSteps(type).map((s) => (
                 <li key={s.id}>
@@ -46,8 +47,12 @@ export default function FormatView() {
                 </li>
               ))}
               <li><b>Checklist of requirements</b></li>
-              <li><b>Review, print and transmit via DMS</b></li>
+              <li><b>Review, save and print</b></li>
             </ol>
+          </section>
+          <section className="card guide-card">
+            <h3>How to process this document</h3>
+            <ProcessingGuide type={type} />
           </section>
           <section className="card">
             <h3>Checklist of requirements</h3>

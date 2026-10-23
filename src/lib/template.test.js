@@ -64,5 +64,7 @@ test('starter types are consistent and render', () => {
     for (const r of refs) assert.ok(known.has(r), `${type.code} template references unknown "${r}"`);
     assert.ok(renderTemplate(type.template, { fields: type.fields }).length > 100);
     assert.match(generateDefaultTemplate(type), /\{\{controlNo\}\}/);
+    assert.ok(type.processing.length >= 3, `${type.code} needs a processing guide`);
+    for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
   }
 });

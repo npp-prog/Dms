@@ -7,6 +7,7 @@ import {
 import { buildSteps, initialData, missingChecklist, missingFields } from '../lib/forms.js';
 import FieldInput from '../components/FieldInput.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
+import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
 function TypePicker() {
   const [types, setTypes] = useState(null);
@@ -56,7 +57,7 @@ function Wizard({ typeId, docId }) {
         if (docId) {
           const d = await getDocument(docId);
           if (!d) throw new Error('Document not found.');
-          if (d.status === 'transmitted' && !isAdmin) throw new Error('This document was already transmitted via DMS and can no longer be edited.');
+          if (d.status === 'cancelled' && !isAdmin) throw new Error('This document was cancelled and can no longer be edited.');
           const t = await getTypeForDocument(d);
           if (!t) throw new Error('The document type of this document no longer exists.');
           setExisting(d);
@@ -80,7 +81,7 @@ function Wizard({ typeId, docId }) {
     return [
       ...buildSteps(type),
       { id: '__checklist', title: 'Checklist', instructions: 'Confirm that each requirement is attached/complied with. Required items must be checked before the document can be marked complete.' },
-      { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete to print and transmit via DMS.' },
+      { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete when everything is encoded. Then print it and process it as shown below.' },
     ];
   }, [type]);
 
@@ -179,6 +180,8 @@ function Wizard({ typeId, docId }) {
                 <button className="btn btn-primary" disabled={busy || allMissing.length > 0 || checklistMissing.length > 0}
                   onClick={() => save('complete')}>Mark complete</button>
               </div>
+              <h4 style={{ marginTop: '1.4rem' }}>After saving: how to process this document</h4>
+              <ProcessingGuide type={type} compact />
             </div>
           )}
 

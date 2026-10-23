@@ -88,7 +88,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid;
       allow update: if isActive()
         && (isAdmin() || (resource.data.createdBy == request.auth.uid
-                          && !(resource.data.status in ['transmitted', 'cancelled'])))
+                          && resource.data.status != 'cancelled'))
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot']);
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid

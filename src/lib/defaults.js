@@ -71,6 +71,14 @@ const DV = {
     { id: 'tax', label: 'BIR forms / computation of taxes withheld', required: false },
     { id: 'id', label: 'Payee valid ID / authority to receive payment', required: false },
   ],
+  processing: [
+    { id: "p1", office: "Requesting Office", action: "Sign Box A and attach the requirements", details: "The head of the requesting office signs Box A. Attach the approved ObR and every supporting document in the checklist, in the order listed." },
+    { id: "p2", office: "Municipal Accounting Office", action: "Pre-audit, DV No. and accounting entry", details: "Accounting checks that the supporting documents are complete and the amount is proper, assigns the DV No., fills in the accounting entry (Box B) and signs Box C." },
+    { id: "p3", office: "Municipal Treasurer's Office", action: "Cash availability and check/ADA preparation", details: "The Treasurer certifies that cash is available and prepares the check or ADA." },
+    { id: "p4", office: "Office of the Municipal Mayor", action: "Approval for payment", details: "The Local Chief Executive (or authorized representative) signs Box D, Approved for Payment." },
+    { id: "p5", office: "Municipal Treasurer's Office", action: "Release of payment", details: "The payee signs Box E (Receipt of Payment) and issues an Official Receipt where required. The check/ADA number and date are written on the DV." },
+    { id: "p6", office: "Municipal Accounting Office", action: "Recording and filing", details: "Accounting records the JEV and keeps the paid DV with its attachments for submission to COA." },
+  ],
   template: `${header('DISBURSEMENT VOUCHER')}
   <table class="pmeta-t"><tr><td>Fund: <b>{{fundCluster}}</b></td><td class="r">DV No.: <b>{{dvNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr>
     <tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
@@ -148,6 +156,11 @@ const OBR = {
     { id: 'pr', label: 'Purchase Request / Request for payroll / Billing attached', required: true },
     { id: 'allotment', label: 'Verified that allotment balance is sufficient', required: false },
   ],
+  processing: [
+    { id: "p1", office: "Requesting Office", action: "Sign Box A and attach the basis", details: "The head of the requesting office signs Box A. Attach the Purchase Request, payroll, billing or other basis of the obligation." },
+    { id: "p2", office: "Municipal Budget Office", action: "Verify the appropriation and sign Box B", details: "Budget checks the charging (account code / F.P.P.) against the available allotment, assigns the ObR No., records it in the Registry of Appropriations and Obligations (RAO) and signs Box B." },
+    { id: "p3", office: "Requesting Office", action: "Attach the approved ObR to the next document", details: "The approved ObR goes with the PO, contract or DV that it supports. A DV cannot be processed without an approved ObR." },
+  ],
   template: `${header('OBLIGATION REQUEST')}
   <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b></td><td class="r">ObR No.: <b>{{obrNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr>
     <tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
@@ -208,6 +221,12 @@ const PR = {
     { id: 'ppmp', label: 'Items are in the approved PPMP / APP', required: true },
     { id: 'specs', label: 'Technical specifications / Terms of Reference attached', required: false },
     { id: 'canvass', label: 'Price reference (canvass / market survey) attached', required: false },
+  ],
+  processing: [
+    { id: "p1", office: "End-User / Requesting Office", action: "Sign \"Requested by\"", details: "Check that every item is in the approved PPMP / APP, attach the specifications or price reference, and have the head of office sign." },
+    { id: "p2", office: "Municipal Budget Office", action: "Certify availability of funds", details: "Budget verifies that there is an appropriation for the items and prepares or earmarks the ObR." },
+    { id: "p3", office: "Office of the Municipal Mayor", action: "Approval", details: "The approving authority signs \"Approved by\"." },
+    { id: "p4", office: "BAC Secretariat / GSO", action: "Procurement", details: "The approved PR is the start of procurement: canvass / RFQ or bidding according to the mode of procurement. A Purchase Order follows after award." },
   ],
   template: `${header('PURCHASE REQUEST')}
   <table class="pmeta-t"><tr><td>Entity Name: <b>{{lgu.name}}</b></td><td class="r">Fund: <b>{{fund}}</b></td></tr></table>
@@ -272,6 +291,13 @@ const PO = {
     { id: 'obr', label: 'Approved ObR/ORS', required: true },
     { id: 'pr', label: 'Approved Purchase Request', required: true },
   ],
+  processing: [
+    { id: "p1", office: "BAC Secretariat / GSO", action: "Prepare the PO after award", details: "Prepare the PO only after the BAC Resolution / Notice of Award. Items, quantities and prices must match the awarded quotation or bid." },
+    { id: "p2", office: "Municipal Accounting Office", action: "Certify funds available", details: "Accounting checks the approved ObR and signs \"Funds Available\"." },
+    { id: "p3", office: "Office of the Municipal Mayor", action: "Sign the PO", details: "The authorized official signs the PO." },
+    { id: "p4", office: "Supplier", action: "Conforme", details: "The supplier signs the Conforme and dates it. The delivery period starts on the date of receipt." },
+    { id: "p5", office: "Inspection Committee / GSO", action: "Delivery, inspection and acceptance", details: "On delivery, the items are inspected and accepted (IAR). The PO, IAR, delivery receipt and invoice then support the Disbursement Voucher for payment." },
+  ],
   template: `${header('PURCHASE ORDER')}
   <table class="pmeta-t"><tr><td>Entity Name: <b>{{lgu.name}}</b></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
   <table class="pt">
@@ -322,7 +348,6 @@ export const COLUMN_TYPES = [
 
 export const STATUSES = {
   draft: { label: 'Draft', className: 'badge-gray' },
-  complete: { label: 'Complete', className: 'badge-blue' },
-  transmitted: { label: 'Transmitted via DMS', className: 'badge-green' },
+  complete: { label: 'Complete', className: 'badge-green' },
   cancelled: { label: 'Cancelled', className: 'badge-red' },
 };

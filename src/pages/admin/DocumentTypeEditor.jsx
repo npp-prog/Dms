@@ -9,10 +9,10 @@ import DocumentPreview from '../../components/DocumentPreview.jsx';
 
 const EMPTY = {
   code: '', name: '', category: '', description: '', active: true,
-  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], template: '',
+  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], processing: [], template: '',
 };
 
-const TABS = ['General', 'Guided Steps', 'Fields', 'Checklist', 'Format / Template'];
+const TABS = ['General', 'Guided Steps', 'Fields', 'Checklist', 'Processing Guide', 'Format / Template'];
 
 const uid = (p) => `${p}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -82,6 +82,7 @@ export default function DocumentTypeEditor() {
     if (new Set(keys).size !== keys.length) list.push('Field keys must be unique.');
     if (keys.some((k) => k && !/^[A-Za-z_][\w]*$/.test(k))) list.push('Field keys may only contain letters, numbers and underscores.');
     if (type.checklist.some((c) => !c.label.trim())) list.push('Every checklist item needs a label.');
+    if (type.processing.some((p) => !p.office.trim() || !p.action.trim())) list.push('Every processing step needs an office and an action.');
     return list;
   }, [type]);
 
@@ -241,6 +242,28 @@ export default function DocumentTypeEditor() {
             </div>
           ))}
           <button className="btn btn-ghost" onClick={() => patch({ checklist: [...type.checklist, { id: uid('c'), label: '', required: false }] })}>+ Add requirement</button>
+        </section>
+      )}
+
+      {tab === 'Processing Guide' && (
+        <section className="card">
+          <p className="muted small">Tell the end user how to process the document after encoding and printing: which office
+            receives it, in what order, and what each office does. FTS does not route the document; this is a guide.</p>
+          {type.processing.map((p, i) => (
+            <div key={p.id} className="editor-block">
+              <div className="editor-row">
+                <span className="step-num">{i + 1}</span>
+                <input placeholder="Office (e.g. Municipal Accounting Office)" value={p.office}
+                  onChange={(e) => setItem('processing', i, { office: e.target.value })} />
+                <input placeholder="Action (e.g. Pre-audit and sign Box C)" value={p.action}
+                  onChange={(e) => setItem('processing', i, { action: e.target.value })} />
+                <RowActions list={type.processing} i={i} onChange={setList('processing')} />
+              </div>
+              <textarea rows={2} placeholder="Details shown to the user (what to attach, who signs, what to watch out for)"
+                value={p.details || ''} onChange={(e) => setItem('processing', i, { details: e.target.value })} />
+            </div>
+          ))}
+          <button className="btn btn-ghost" onClick={() => patch({ processing: [...type.processing, { id: uid('p'), office: '', action: '', details: '' }] })}>+ Add processing step</button>
         </section>
       )}
 

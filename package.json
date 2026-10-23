@@ -6,11 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "local": "node scripts/local.mjs",
+    "local:reset": "node -e \"require('fs').rmSync('.emulator-data',{recursive:true,force:true});console.log('Local data cleared.')\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test src/lib/*.test.js",
-    "emulators": "firebase emulators:start --only auth,firestore --project demo-fts",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes"
+    "emulators": "npx -y firebase-tools@15.34.1 emulators:start --only auth,firestore --project demo-fts",
+    "deploy:rules": "npx -y firebase-tools@15.34.1 deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
     "dompurify": "^3.4.17",

@@ -24,7 +24,7 @@ export default function Documents() {
     const q = filters.q.toLowerCase();
     return (!filters.status || d.status === filters.status)
       && (!filters.type || d.typeCode === filters.type)
-      && (!q || `${d.controlNo} ${d.title} ${d.createdByName} ${d.dmsRefNo || ''}`.toLowerCase().includes(q));
+      && (!q || `${d.controlNo} ${d.title} ${d.createdByName}`.toLowerCase().includes(q));
   }), [docs, filters]);
 
   return (
@@ -34,7 +34,7 @@ export default function Documents() {
         <Link to="/new" className="btn btn-primary">+ Prepare document</Link>
       </div>
       <div className="filters">
-        <input className="search" placeholder="Search control no., payee, DMS ref…" value={filters.q}
+        <input className="search" placeholder="Search control no., payee, subject…" value={filters.q}
           onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
           <option value="">All types</option>
@@ -51,10 +51,10 @@ export default function Documents() {
         <div className="card table-card">
           <table className="data-table">
             <thead>
-              <tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Prepared by</th>}<th>Status</th><th>DMS Ref.</th><th>Updated</th></tr>
+              <tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Prepared by</th>}<th>Status</th><th>Updated</th></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={7} className="muted">No documents found.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={6} className="muted">No documents found.</td></tr>}
               {shown.map((d) => (
                 <tr key={d.id}>
                   <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
@@ -62,7 +62,6 @@ export default function Documents() {
                   <td>{d.title}</td>
                   {isAdmin && <td>{d.createdByName}</td>}
                   <td><StatusBadge status={d.status} /></td>
-                  <td>{d.dmsRefNo || '—'}</td>
                   <td className="small">{fmt(d.updatedAt)}</td>
                 </tr>
               ))}

@@ -4,7 +4,7 @@ import { saveSettings } from '../../lib/api.js';
 
 export default function Settings() {
   const { settings, setSettings } = useAuth();
-  const [form, setForm] = useState({ lguName: '', lguAddress: '', province: '', sealUrl: '', dmsUrl: '', ...settings });
+  const [form, setForm] = useState({ lguName: '', lguAddress: '', province: '', sealUrl: '', ...settings });
   const [status, setStatus] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -37,9 +37,6 @@ export default function Settings() {
           <div className="field field-wide"><label className="field-label">Seal / logo image URL</label>
             <input value={form.sealUrl} onChange={set('sealUrl')} placeholder="/municipal-seal.png" />
             <div className="help">Printed on document headers as <code>{'{{lgu.seal}}'}</code>. Leave blank to use the municipal seal.</div></div>
-          <div className="field field-wide"><label className="field-label">DMS (Document Management System) URL</label>
-            <input type="url" value={form.dmsUrl} onChange={set('dmsUrl')} placeholder="https://dms.example.gov.ph" />
-            <div className="help">Users are linked here when transmitting a completed document.</div></div>
         </div>
         <div className="row gap">
           <button className="btn btn-primary">Save settings</button>

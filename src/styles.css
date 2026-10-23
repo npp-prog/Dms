@@ -325,7 +325,6 @@ button.badge { cursor: pointer; }
 .history li::before { content: ""; position: absolute; left: -1.6rem; top: .32rem; width: 12px; height: 12px; border-radius: 50%; background: var(--ok); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--ok); }
 .history li:first-child::before { background: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .history .small { text-transform: none; }
-.transmit { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 
 /* Admin editor */
 .editor-block { border: 1px solid var(--line); border-radius: 12px; padding: .85rem .95rem; margin-bottom: .75rem; display: flex; flex-direction: column; gap: .55rem; background: #fbfcfe; }
@@ -412,3 +411,14 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .flow div b { display: block; color: var(--ink); font-size: .88rem; font-weight: 650; }
 .flow div.now { background: var(--gold-soft); border-color: var(--gold-soft-2); box-shadow: inset 3px 0 0 var(--gold); }
 .flow div.now b { color: var(--gold-ink); }
+
+/* Processing guide (routing after encoding) */
+.process { list-style: none; margin: 0; padding: 0; position: relative; }
+.process li { display: flex; gap: .85rem; padding: 0 0 1rem; position: relative; }
+.process li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 30px; bottom: 2px; width: 2px; background: var(--line); }
+.process .pn { width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: .8rem; flex: none; box-shadow: 0 0 0 3px var(--gold-soft-2); }
+.process .po { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--gold-ink); }
+.process b { color: var(--ink); font-weight: 650; display: block; line-height: 1.35; }
+.process p { margin: .2rem 0 0; font-size: .87rem; color: var(--muted); }
+.process.compact li { padding-bottom: .6rem; }
+.guide-card { border-left: 4px solid var(--gold); }
