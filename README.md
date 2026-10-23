@@ -18,9 +18,9 @@ Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netl
 |---|---|
 | Document Formats | Browse and search every format by category. View the guided steps, the processing guide (with the copies to print) and the checklist, and print a blank form. |
 | Checklists | The disbursement and liquidation checklist library, searchable by number or words. Each checklist can be printed blank. Admins load, edit and add checklists. |
-| Prepare Document | Step-by-step wizard with per-step instructions and required-field checks, then the checklist (transaction picker for DV, Payroll and LR) and a review. Totals, net pay and amounts to be reimbursed are computed. A live print preview updates as you type. |
+| Prepare Document | Step-by-step wizard with per-step instructions and required-field checks, then the checklist (transaction picker for DV, Payroll and LR) and a review. Totals, net pay and amounts to be reimbursed are computed. A live print preview updates as you type. When printed, each form is scaled to fit one page. |
 | Documents | Each document gets an automatic control number, e.g. `DV-2026-10-0001`. Status goes Draft → Complete, or Cancelled. Each document shows **How to process this document**. You can filter, search, print and see the history of each document. |
-| Document Types (admin) | Field builder (text, long text, number, amount, date, dropdown, line-item tables with computed columns and totals), steps builder, checklist builder, processing-guide builder, and template editor with live preview. Import/export as JSON. Ten starter formats are included (DV, CAFOA, FURS, Payroll, PCV, LR, IT, PR, PO, JO), with paper sizes including Long (8.5 × 13). |
+| Document Types (admin) | Field builder (text, long text, number, amount, date, dropdown, line-item tables with computed columns and totals), steps builder, checklist builder, processing-guide builder, and template editor with live preview. Import/export as JSON. Ten starter formats are included (DV, CAFOA, FURS, Payroll, PCV, LR, IT, PR, PO, JO), printed **fit to page**: the DV on Folio (8.5 × 13 in), everything else on A4. |
 | Users (admin) | New accounts wait for approval. Admins approve or deactivate users. Only the superadmin grants admin/superadmin. |
 | Settings (superadmin) | LGU name, address, seal and **signatories** (Mayor, Accountant, Budget Officer, Treasurer, SB Secretary), printed on the forms. |
 
@@ -112,7 +112,7 @@ Form CSS classes (same as the PMS-IMS printed forms): `ph` header with `l1` / `l
 ```
 users/{uid}           email, displayName, office, role, active
 documentTypes/{id}    code, name, category, description, active, version,
-                      paperSize (A4 | Long | Letter | Legal), orientation, steps[], fields[],
+                      paperSize (A4 | Folio | Letter | Legal), orientation, steps[], fields[],
                       checklistSource (own | disbursement | liquidation), checklist[],
                       processing[] {office, action, details}, copies[] {to, count, original}, template
 checklists/{code}     code, kind (disbursement | liquidation), category, title, description,

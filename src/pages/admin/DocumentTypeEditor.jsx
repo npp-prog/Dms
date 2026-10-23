@@ -5,6 +5,7 @@ import { getDocumentType, saveDocumentType } from '../../lib/api.js';
 import { COLUMN_TYPES, FIELD_TYPES } from '../../lib/defaults.js';
 import { slugKey } from '../../lib/forms.js';
 import { CHECKLIST_SOURCES } from '../../lib/checklists.js';
+import { PAPER_SIZES } from '../../lib/paper.js';
 import { generateDefaultTemplate } from '../../lib/template.js';
 import DocumentPreview from '../../components/DocumentPreview.jsx';
 
@@ -151,8 +152,8 @@ export default function DocumentTypeEditor() {
                 <option value="yes">Active (available to users)</option><option value="no">Inactive</option>
               </select></div>
             <div className="field"><label className="field-label">Paper size</label>
-              <select value={type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
-                <option>A4</option><option value="Long">Long (8.5 × 13)</option><option>Letter</option><option>Legal</option>
+              <select value={type.paperSize === 'Long' ? 'Folio' : type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
+                {Object.entries(PAPER_SIZES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select></div>
             <div className="field"><label className="field-label">Orientation</label>
               <select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>

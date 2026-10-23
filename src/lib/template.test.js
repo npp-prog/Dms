@@ -8,6 +8,7 @@ import {
   checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
+import { fitScale, pageSize } from './paper.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -83,6 +84,8 @@ test('starter types are consistent and render', () => {
     assert.ok(type.processing.length >= 3, `${type.code} needs a processing guide`);
     for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
     assert.ok(type.copies.some((c) => c.original), `${type.code} needs an original copy`);
+    assert.doesNotMatch(html, /Appendix/i, `${type.code} still prints an appendix number`);
+    assert.equal(type.paperSize, type.code === 'DV' ? 'Folio' : 'A4', `${type.code} paper size`);
   }
 });
 
@@ -129,4 +132,20 @@ test('checklist library data is complete', () => {
   const c1613 = LIBRARY.find((c) => c.code === '1613');
   assert.equal(c1613.items.length, 15);
   assert.equal(c1613.items.filter((i) => i.required).length, 8);
+});
+
+test('paper sizes and fit to page', () => {
+  assert.deepEqual(pageSize('Folio'), { key: 'Folio', w: 215.9, h: 330.2, css: '215.9mm 330.2mm' });
+  assert.equal(pageSize('Long').key, 'Folio');
+  assert.equal(pageSize('A4', 'landscape').css, '297mm 210mm');
+  assert.equal(pageSize('Unknown').key, 'A4');
+  // Content that already fits is not enlarged.
+  assert.equal(fitScale(() => 100, 190, 277), 1);
+  // Content twice as tall as the page; laying it out wider makes it a bit shorter.
+  const heightAt = (w) => 554 * (190 / w) ** 0.3;
+  const s = fitScale(heightAt, 190, 277);
+  assert.ok(s < 1 && s > 0.45);
+  assert.ok(heightAt(190 / s) * s <= 277);
+  // Never below the minimum scale.
+  assert.equal(fitScale(() => 5000, 190, 277, 0.8), 0.8);
 });

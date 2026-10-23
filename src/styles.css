@@ -348,12 +348,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 
 /* ---------- Paper preview ---------- */
 .print-area { overflow-x: auto; }
-.paper { background: #fff; box-shadow: var(--shadow-lg); border-radius: 4px; margin: 0 auto; padding: 10mm; width: 210mm; min-height: 297mm; max-width: 100%; }
-.paper-letter { width: 216mm; min-height: 279mm; }
-.paper-legal { width: 216mm; min-height: 356mm; }
-.paper.landscape { width: 297mm; min-height: 210mm; }
-.paper-letter.landscape { width: 279mm; min-height: 216mm; }
-.paper-legal.landscape { width: 356mm; min-height: 216mm; }
+.paper { background: #fff; box-shadow: var(--shadow-lg); border-radius: 4px; margin: 0 auto; max-width: 100%; box-sizing: border-box; }
 
 /* ---------- Official forms (same as PMS-IMS print styles) ----------
    Template classes: ph (header: img, l1, l2, l3), pmeta-t (meta lines), pt (bordered table),
@@ -401,7 +396,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
   .layout { background: none; display: block; min-height: 0; }
   .main, .page { padding: 0; margin: 0; max-width: none; animation: none; }
   .split { display: block; }
-  .paper { box-shadow: none; padding: 0; width: auto; min-height: 0; border-radius: 0; }
+  .paper { box-shadow: none; padding: 0 !important; width: auto !important; min-height: 0 !important; border-radius: 0; }
   .doc-render .pt th, .doc-render table.grid th, .doc-render .pt td.lbl { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
@@ -465,5 +460,3 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .view-toggle { margin-bottom: .6rem; }
 .copies { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: .87rem; margin-bottom: 1rem; padding: .6rem .8rem; background: var(--sunken); border-radius: 10px; }
 .copies .copy { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: .1rem .6rem; font-size: .8rem; }
-.paper-long { width: 216mm; min-height: 330mm; }
-.paper-long.landscape { width: 330mm; min-height: 216mm; }

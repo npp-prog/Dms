@@ -1,13 +1,13 @@
 // Starter document types, modeled on the Municipal Government of Candoni's
 // Appendix Forms (GAM for LGUs): DV, CAFOA, FURS, PR, PO, JO, PCV, LR, IT and Payroll.
 // Admins load them from Admin > Document Types > "Load starter formats" and can edit freely.
-// Paper sizes and the copies to print follow the "Table" sheet of Appendix_Forms.xlsx.
+// Copies to print follow the "Table" sheet of Appendix_Forms.xlsx. Every form prints on A4
+// scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
 
 export const FUNDS = ['General Fund', 'Special Education Fund', 'Trust Fund', '20% Development Fund', 'LDRRMF'];
 
 // Official form header: seal, LGU, address, form title.
-const header = (title, appendix) => `${appendix ? `<div class="r" style="font-size:9px;font-style:italic">Appendix ${appendix}</div>` : ''}
-  <div class="ph"><img src="{{lgu.seal}}" alt="">
+const header = (title) => `<div class="ph"><img src="{{lgu.seal}}" alt="">
     <div class="l2">Republic of the Philippines</div>
     <div class="l1">{{lgu.name|upper}}</div>
     <div class="l2">{{lgu.address}}</div>
@@ -21,13 +21,13 @@ const fundField = (step, extra = {}) => ({ key: 'fund', label: 'Fund', type: 'se
 
 const blankRows = (cols, n) => Array.from({ length: n }, () => `<tr class="blank">${'<td></td>'.repeat(cols)}</tr>`).join('\n    ');
 
-// ---------------------------------------------------------------- DV (Appendix 31)
+// ---------------------------------------------------------------- DV
 const DV = {
   code: 'DV',
   name: 'Disbursement Voucher',
   category: 'Disbursement',
   description: 'Payment of an obligation: suppliers, salaries and benefits, cash advances, reimbursements, fund transfers and remittances. The checklist depends on the type of transaction.',
-  paperSize: 'Long',
+  paperSize: 'Folio',
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
@@ -70,7 +70,7 @@ const DV = {
     { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
     { id: 'p6', office: 'Municipal Accounting Office', action: 'Recording and filing', details: 'Accounting records the disbursement and keeps the original DV with its attachments for COA.' },
   ],
-  template: `${header('DISBURSEMENT VOUCHER', 31)}
+  template: `${header('DISBURSEMENT VOUCHER')}
   <table class="pt">
     <tr><td class="lbl" rowspan="2">Payee</td><td rowspan="2" class="c"><b>{{payee|upper}}</b></td><td colspan="2">Disbursement No.: <b>{{dvNo}}</b><br>Date: <b>{{date|date}}</b></td></tr>
     <tr><td>Fund<br><b>{{fund|upper}}</b></td><td>CAFOA No.<br><b>{{cafoaNo}}</b></td></tr>
@@ -111,7 +111,7 @@ const DV = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- CAFOA (Appendix 28)
+// ---------------------------------------------------------------- CAFOA
 const CAFOA = {
   code: 'CAFOA',
   name: 'Certification on Appropriations, Funds and Obligation of Allotment',
@@ -157,7 +157,7 @@ const CAFOA = {
     { id: 'p4', office: 'Municipal Accounting Office', action: 'Certify the allotment and obligate', details: 'The Accountant certifies that the allotment is available for obligation, assigns the Obligation No., enters the Amount Approved and records it in the RAAO.' },
     { id: 'p5', office: 'Requesting Office', action: 'Attach to the DV or payroll', details: 'Use the CAFOA No. when you prepare the Disbursement Voucher or Payroll.' },
   ],
-  template: `${header('CERTIFICATION ON APPROPRIATIONS, FUNDS AND OBLIGATION OF ALLOTMENT', 28)}
+  template: `${header('CERTIFICATION ON APPROPRIATIONS, FUNDS AND OBLIGATION OF ALLOTMENT')}
   <table class="pt">
     <tr>
       <td style="width:58%;padding:6px">
@@ -192,7 +192,7 @@ const CAFOA = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- FURS (Appendix 29)
+// ---------------------------------------------------------------- FURS
 const FURS = {
   code: 'FURS',
   name: 'Fund Utilization Request and Status',
@@ -240,7 +240,7 @@ const FURS = {
     { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and recording', details: 'The Accountant certifies that funds are available and utilized for the purpose, assigns the FURS No., and records it in the Registry of Special Trust Fund (RSTF).' },
     { id: 'p3', office: 'Requesting Office', action: 'Attach to the DV', details: 'Use the FURS No. on the Disbursement Voucher.' },
   ],
-  template: `${header('FUND UTILIZATION REQUEST AND STATUS', 29)}
+  template: `${header('FUND UTILIZATION REQUEST AND STATUS')}
   <table class="pt">
     <tr><td class="lbl">Payee</td><td><b>{{payee|upper}}</b></td><td style="width:28%">FURS No.: <b>{{fursNo}}</b></td></tr>
     <tr><td class="lbl">Office</td><td>{{office}}</td><td>Date: <b>{{date|date}}</b></td></tr>
@@ -269,7 +269,7 @@ const FURS = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- PR (Appendix 47)
+// ---------------------------------------------------------------- PR
 const PR = {
   code: 'PR',
   name: 'Purchase Request',
@@ -322,7 +322,7 @@ const PR = {
     { id: 'p3', office: 'Office of the Municipal Mayor', action: 'Approval', details: 'The Mayor signs "Approved by".' },
     { id: 'p4', office: 'BAC Secretariat / GSO', action: 'Procurement', details: 'The approved PR starts procurement by the applicable mode. A Purchase Order or Job Order follows after award.' },
   ],
-  template: `${header('PURCHASE REQUEST', 47)}
+  template: `${header('PURCHASE REQUEST')}
   <table class="pmeta-t"><tr><td></td><td class="r">Fund: <b>{{fund}}</b></td></tr></table>
   <table class="pt">
     <tr><td>Department: <b>{{department}}</b></td><td>PR No.: <b>{{prNo}}</b></td><td>Date: <b>{{date|date}}</b></td></tr>
@@ -364,7 +364,7 @@ const deliveryFields = (step) => [
   { key: 'paymentTerm', label: 'Payment Term', type: 'text', step },
 ];
 
-// ---------------------------------------------------------------- PO (Appendix 49)
+// ---------------------------------------------------------------- PO
 const PO = {
   code: 'PO',
   name: 'Purchase Order',
@@ -418,7 +418,7 @@ const PO = {
     { id: 'p4', office: 'Supplier', action: 'Conforme', details: 'The supplier signs and dates the Conforme. The delivery period counts from the date of receipt.' },
     { id: 'p5', office: 'Inspection / GSO', action: 'Delivery and acceptance', details: 'On delivery the items are inspected and accepted (AIR in PMS-IMS). The PO, AIR, invoice and delivery receipt then support the DV (checklist 16xx for payment to supplier).' },
   ],
-  template: `${header('PURCHASE ORDER', 49)}
+  template: `${header('PURCHASE ORDER')}
   <table class="pt">
     <tr><td style="width:55%">Supplier: <b>{{supplier}}</b></td><td>P.O. No.: <b>{{poNo}}</b></td></tr>
     <tr><td>Address: {{address}}</td><td>Date: <b>{{date|date}}</b></td></tr>
@@ -438,7 +438,7 @@ const PO = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- JO (Appendix 69)
+// ---------------------------------------------------------------- JO
 const JO = {
   code: 'JO',
   name: 'Job Order',
@@ -490,7 +490,7 @@ const JO = {
     { id: 'p4', office: 'Supplier', action: 'Conforme and service', details: 'The supplier signs the Conforme and performs the services within the period in the JO.' },
     { id: 'p5', office: 'Inspection / GSO', action: 'Inspection and payment', details: 'After the services are inspected and accepted, the JO supports the DV (checklist 1614 or 1615 for payment to supplier).' },
   ],
-  template: `${header('JOB ORDER', 69)}
+  template: `${header('JOB ORDER')}
   <table class="pt">
     <tr><td style="width:58%">Supplier: <b>{{supplier}}</b><br>Address: {{address}}<br><br>TIN: {{tin}}</td><td>J.O. No.: <b>{{joNo}}</b><br>Date: <b>{{date|date}}</b><br><br>PR No./s: <b>{{prNos}}</b></td></tr>
     <tr><td colspan="2">Gentlemen:<br>Per your quotation(s) on <b>{{quotationDate|date}}</b> please cause the services for our office of the following:</td></tr>
@@ -511,7 +511,7 @@ const JO = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- PCV (Appendix 33)
+// ---------------------------------------------------------------- PCV
 const PCV = {
   code: 'PCV',
   name: 'Petty Cash Voucher',
@@ -562,7 +562,7 @@ const PCV = {
     { id: 'p3', office: 'Payee', action: 'Liquidate', details: 'Submit the OR/invoice to the custodian. Fill in Part II in FTS (edit this PCV) and reprint.' },
     { id: 'p4', office: 'Petty Cash Custodian', action: 'Boxes C and D: refund or reimbursement', details: 'The custodian receives any refund or pays the reimbursement and marks the liquidation submitted. Paid PCVs support the replenishment of petty cash (checklist 1902).' },
   ],
-  template: `${header('PETTY CASH VOUCHER', 33)}
+  template: `${header('PETTY CASH VOUCHER')}
   <table class="pt">
     <tr><td rowspan="3" style="width:66%">Fund: <b>{{fund}}</b><br>Payee/Office: <b>{{payee}}</b><br>Address: {{address}}</td><td>No.: <b>{{pcvNo}}</b></td></tr>
     <tr><td>Date: <b>{{date|date}}</b></td></tr>
@@ -586,7 +586,7 @@ const PCV = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- LR (Appendix 35)
+// ---------------------------------------------------------------- LR
 const LR = {
   code: 'LR',
   name: 'Liquidation Report',
@@ -638,7 +638,7 @@ const LR = {
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Refund (if any)', details: 'Return any unspent cash to the Treasury and write the OR No. and date on the LR.' },
     { id: 'p4', office: 'Municipal Accounting Office', action: 'Box C and recording', details: 'The Accountant checks the documents against the checklist, certifies Box C, assigns the Serial No. and records the liquidation. Any amount to be reimbursed is paid through a DV (checklist 1407).' },
   ],
-  template: `${header('LIQUIDATION REPORT', 35)}
+  template: `${header('LIQUIDATION REPORT')}
   <table class="pt">
     <tr><td style="width:24%" class="r">Period Covered:</td><td><b>{{periodCovered}}</b></td><td style="width:26%">Serial No.: <b>{{serialNo}}</b></td></tr>
     <tr><td class="r">Fund:</td><td><b>{{fund}}</b></td><td>Date: <b>{{date|date}}</b></td></tr>
@@ -662,7 +662,7 @@ const LR = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- IT (Appendix 46)
+// ---------------------------------------------------------------- IT
 const IT = {
   code: 'IT',
   name: 'Itinerary of Travel',
@@ -715,8 +715,7 @@ const IT = {
     { id: 'p3', office: 'Office of the Municipal Mayor', action: 'Approve', details: 'The agency head or authorized representative approves.' },
     { id: 'p4', office: 'Traveler', action: 'Use for the cash advance and liquidation', details: 'Attach to the DV for the cash advance for local travel (checklist 1229). After the travel, a revised IT is needed if the itinerary was not followed (liquidation checklist 2002).' },
   ],
-  template: `<div class="r" style="font-size:9px;font-style:italic">Appendix 46</div>
-  <div class="ph"><img src="{{lgu.seal}}" alt=""><div class="l1">{{lgu.name|upper}}</div><div class="l3" style="margin-top:0">ITINERARY OF TRAVEL</div></div>
+  template: `<div class="ph"><img src="{{lgu.seal}}" alt=""><div class="l1">{{lgu.name|upper}}</div><div class="l3" style="margin-top:0">ITINERARY OF TRAVEL</div></div>
   <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b></td><td class="r">No.: <b>{{itNo}}</b></td></tr></table>
   <table class="pt">
     <tr><td style="width:52%">Name: <b>{{name|upper}}</b></td><td>Date of Travel: <b>{{dateOfTravel|date}}</b></td></tr>
@@ -738,13 +737,13 @@ const IT = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- Payroll (Appendix 32)
+// ---------------------------------------------------------------- Payroll
 const PAYROLL = {
   code: 'PAYROLL',
   name: 'Payroll',
   category: 'Disbursement',
   description: 'Group payment of salaries, wages, allowances and benefits. The checklist depends on the type of payroll (10xx through ATM, 12xx cash advance).',
-  paperSize: 'Long',
+  paperSize: 'A4',
   orientation: 'landscape',
   active: true,
   checklistSource: 'disbursement',
@@ -787,8 +786,7 @@ const PAYROLL = {
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
     { id: 'p5', office: 'Treasury / Disbursing Officer', action: 'Payment and Box E', details: 'Salaries are credited (ATM) or paid; employees paid in cash sign opposite their names. The disbursing officer certifies Box E; the check/ADA details are filled in (F).' },
   ],
-  template: `<div class="r" style="font-size:9px;font-style:italic">Appendix 32</div>
-  <div class="ph"><img src="{{lgu.seal}}" alt=""><div class="l2">Republic of the Philippines</div><div class="l1">{{lgu.name|upper}}</div><div class="l2">{{lgu.address}}</div>
+  template: `<div class="ph"><img src="{{lgu.seal}}" alt=""><div class="l2">Republic of the Philippines</div><div class="l1">{{lgu.name|upper}}</div><div class="l2">{{lgu.address}}</div>
     <div class="l3">PAYROLL</div><div class="l2">For the period <b>{{period}}</b></div></div>
   <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b> &nbsp; Office: <b>{{office}}</b></td><td class="r">Payroll No.: <b>{{payrollNo}}</b></td></tr>
     <tr><td colspan="2">We acknowledge receipt of cash shown opposite our name as full compensation for services rendered for the period covered.</td></tr></table>

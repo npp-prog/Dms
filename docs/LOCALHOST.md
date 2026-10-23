@@ -145,11 +145,11 @@ FTS then loads that checklist:
 
 ### Print and process
 
-The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
+The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Every form is scaled to **fit one page**: the DV on Folio (8.5 × 13 in), everything else on A4. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
 
 ![Completed document](images/12-dv-document.png)
 
-| The DV (Long bond paper) | The checklist cover sheet, filled in |
+| The DV (Folio, 8.5 × 13 in) | The checklist cover sheet, filled in (A4) |
 |---|---|
 | ![DV printout](images/13-dv-print.png) | ![Checklist printout](images/14-dv-checklist-print.png) |
 
@@ -184,7 +184,7 @@ The editor shows the printed checklist as you edit. Each item is either **Always
 
 ### Document types
 
-Each document type has six tabs: **General** (code, name, paper size including **Long 8.5 × 13**), **Guided Steps**, **Fields**, **Checklist**, **Processing Guide** and **Format / Template**.
+Each document type has six tabs: **General** (code, name, paper size: **A4**, **Folio (8.5 × 13 in)**, Letter or Legal), **Guided Steps**, **Fields**, **Checklist**, **Processing Guide** and **Format / Template**.
 
 In the **Checklist** tab, **Checklist source** decides where the checklist comes from:
 

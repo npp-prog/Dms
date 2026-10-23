@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { groupItems, headerValue, isChecked } from '../lib/checklists.js';
+import PrintPage from './PrintPage.jsx';
 
 // The paper checklist, as issued by the Municipal Accounting Office:
 // header boxes (DV Number, OBR/FURS Number, Payee), then Y | N/A | Required Documents.
@@ -66,10 +67,6 @@ export default function ChecklistSheet({ checklist, state, data, settings = {}, 
     </div>
   );
   if (!paper) return sheet;
-  return (
-    <div className="print-area">
-      <style>{'@media print { @page { size: A4 portrait; margin: 12mm; } }'}</style>
-      <div className="paper">{sheet}</div>
-    </div>
-  );
+  // Long checklists (e.g. competitive bidding) keep a readable size and continue on a second page.
+  return <PrintPage paperSize="A4" minScale={0.8}>{sheet}</PrintPage>;
 }
