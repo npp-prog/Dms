@@ -43,7 +43,7 @@ Firestore security rules (`firestore.rules`) enforce all of this on the server.
 1. Create a project at <https://console.firebase.google.com>.
 2. **Authentication → Sign-in method →** enable **Email/Password**.
 3. **Firestore Database →** create a database (production mode).
-4. **Project settings → Your apps →** add a Web app and copy its config values.
+4. **Project settings → Your apps →** add a Web app, copy its `firebaseConfig`, and paste the values into **`src/firebase-config.js`**, the same way as in PMS-IMS. These values are not secret: access is controlled by Authentication and the Firestore rules. Commit and push.
 5. Deploy the security rules (required):
    ```bash
    npx firebase-tools login
@@ -63,19 +63,15 @@ npm run local        # local Firebase emulators + demo data + app at http://loca
 
 Demo logins: `admin@fts.local` / `admin123` (superadmin) and `user@fts.local` / `user123` (end user). See [docs/LOCALHOST.md](docs/LOCALHOST.md).
 
-**Against your real Firebase project:**
-
-```bash
-cp .env.example .env.local   # fill in the VITE_FIREBASE_* values
-npm run dev
-```
+**Against your real Firebase project:** paste the config into `src/firebase-config.js` (step 1), then `npm run dev`.
 
 ### 3. Netlify
 
 1. Push this repo to GitHub, then in Netlify choose **Add new site → Import an existing project** and pick the repo.
-2. `netlify.toml` already sets the build command (`npm run build`), the publish directory (`dist`), and the SPA redirect.
-3. Under **Site configuration → Environment variables**, add every `VITE_FIREBASE_*` variable from `.env.example`.
-4. Deploy. Then add your Netlify domain under **Firebase → Authentication → Settings → Authorized domains**.
+2. That's all: `netlify.toml` already sets the build command (`npm run build`), the publish directory (`dist`) and the SPA redirect. **No environment variables are needed**, because the Firebase config is in `src/firebase-config.js`.
+3. Deploy. Then add your Netlify domain under **Firebase → Authentication → Settings → Authorized domains**.
+
+After that, every push to the branch Netlify watches redeploys the site by itself.
 
 ### 4. First run
 
