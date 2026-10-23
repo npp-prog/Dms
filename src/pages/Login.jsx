@@ -7,6 +7,9 @@ const MESSAGES = {
   'auth/email-already-in-use': 'An account with this email already exists.',
   'auth/weak-password': 'Password must be at least 6 characters.',
   'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/configuration-not-found': 'Sign-in is not set up yet in Firebase. An administrator must open Firebase → Authentication → Get started and enable Email/Password.',
+  'auth/operation-not-allowed': 'Email/Password sign-in is turned off in Firebase. An administrator must enable it under Firebase → Authentication → Sign-in method.',
+  'auth/network-request-failed': 'Cannot reach the server. Check your internet connection and try again.',
 };
 
 const FEATURES = ['DV, OBR, PR, PO and more', 'Guided, step-by-step preparation', 'Checklist of requirements', 'How to process each document'];
