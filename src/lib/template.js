@@ -76,7 +76,7 @@ export function renderTable(field, rows) {
   const align = (c) => (c.type === 'currency' || c.type === 'number' ? ' class="r"' : c.type === 'date' ? ' class="c"' : '');
   const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
   const body = list
-    .map((row) => `<tr>${columns
+    .map((row) => `<tr class="blank">${columns
       .map((c) => `<td${align(c)}>${escapeHtml(formatCell(row?.[c.key], c.type))}</td>`)
       .join('')}</tr>`)
     .join('');
@@ -92,7 +92,8 @@ export function renderTable(field, rows) {
       })
       .join('')}</tr>`
     : '';
-  return `<table class="pt"><thead><tr>${head}</tr></thead><tbody>${body}${nothing}${filler}${totals}</tbody></table>`;
+  // data-grow: when printed, the empty rows stretch so the form fills the page.
+  return `<table class="pt" data-grow><thead><tr>${head}</tr></thead><tbody>${body}${nothing}${filler}${totals}</tbody></table>`;
 }
 
 function renderTokens(template, scope, ctx) {

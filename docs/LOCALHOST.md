@@ -54,7 +54,7 @@ You should see this in the terminal:
 [FTS] Demo data loaded:
       Superadmin  admin@fts.local / admin123
       End user    user@fts.local / user123
-      Formats     DV, CAFOA, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO
+      Formats     DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO
       Checklists  210 (disbursement and liquidation)
 [FTS] Starting the app at http://localhost:5173 …
 ```
@@ -90,7 +90,7 @@ The dashboard shows:
 
 ### Document formats
 
-**Document Formats** lists every form: DV, CAFOA, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO.
+**Document Formats** lists every form: DV, OBR, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO.
 
 ![Document formats](images/03-formats.png)
 
@@ -145,7 +145,11 @@ FTS then loads that checklist:
 
 ### Print and process
 
-The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Every form is scaled to **fit one page**: the DV on Folio (8.5 × 13 in), everything else on A4. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
+The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Printing is automatic:
+
+- **Portrait, one page.** Every form prints portrait on one page: the DV on Folio (8.5 × 13 in), everything else on A4. Forms that are too tall (many lines) or too wide (many columns) are scaled down to fit.
+- **Fills the page.** When there is room left, the main table (particulars, items, employees) stretches to the bottom of the page, like a pre-printed form.
+- **What you see is what prints.** The preview is the printed page, scaled to fit your screen. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
 
 ![Completed document](images/12-dv-document.png)
 

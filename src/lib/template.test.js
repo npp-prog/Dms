@@ -8,7 +8,7 @@ import {
   checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
-import { fitScale, pageSize } from './paper.js';
+import { fitPage, pageSize } from './paper.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -86,6 +86,7 @@ test('starter types are consistent and render', () => {
     assert.ok(type.copies.some((c) => c.original), `${type.code} needs an original copy`);
     assert.doesNotMatch(html, /Appendix/i, `${type.code} still prints an appendix number`);
     assert.equal(type.paperSize, type.code === 'DV' ? 'Folio' : 'A4', `${type.code} paper size`);
+    assert.equal(type.orientation, 'portrait', `${type.code} orientation`);
   }
 });
 
@@ -108,7 +109,7 @@ test('checklist helpers', () => {
   assert.deepEqual(groupItems(items).map((g) => [g.group, g.items.length]), [['', 1], ['Award', 2]]);
   assert.deepEqual(checklistProgress(items, { i1: 'Y', i2: 'NA' }), { answered: 2, total: 3 });
   assert.equal(headerValue('DV Number', { dvNo: '101' }), '101');
-  assert.equal(headerValue('OBR/FURS Number', { cafoaNo: 'C-1' }), 'C-1');
+  assert.equal(headerValue('OBR/FURS Number', { obrNo: '100-26-10-001' }), '100-26-10-001');
   assert.equal(headerValue('Payee', { claimant: 'Ana' }), 'Ana');
   assert.equal(headerValue('Liquidation Report No.', { serialNo: 'LR-9' }), 'LR-9');
   const lib = [{ code: '1613', kind: 'disbursement', title: 'Payment to Supplier - Direct Acquisition', category: 'x' }, { code: '2002', kind: 'liquidation', title: 'Local Travel', category: 'y' }];
@@ -140,12 +141,18 @@ test('paper sizes and fit to page', () => {
   assert.equal(pageSize('A4', 'landscape').css, '297mm 210mm');
   assert.equal(pageSize('Unknown').key, 'A4');
   // Content that already fits is not enlarged.
-  assert.equal(fitScale(() => 100, 190, 277), 1);
-  // Content twice as tall as the page; laying it out wider makes it a bit shorter.
-  const heightAt = (w) => 554 * (190 / w) ** 0.3;
-  const s = fitScale(heightAt, 190, 277);
-  assert.ok(s < 1 && s > 0.45);
-  assert.ok(heightAt(190 / s) * s <= 277);
+  assert.deepEqual(fitPage(() => ({ w: 190, h: 100 }), 190, 277), { scale: 1, width: 190 });
+  // Twice as tall as the page; laying it out wider makes it a bit shorter.
+  const tall = (w) => ({ w, h: 554 * (190 / w) ** 0.3 });
+  const t = fitPage(tall, 190, 277);
+  assert.ok(t.scale < 1 && t.scale > 0.45);
+  assert.ok(tall(t.width).h * t.scale <= 277);
+  assert.ok(Math.abs(t.width * t.scale - 190) < 3, 'still fills the width');
+  // Too wide (a table needing 260 mm) but short: scaled to fit the width.
+  const wide = (w) => ({ w: Math.max(w, 260), h: 120 });
+  const d = fitPage(wide, 190, 277);
+  assert.ok(Math.abs(d.scale - (190 / 260) * 0.985) < 0.01);
+  assert.ok(d.width >= 260 && d.width * d.scale <= 190.5);
   // Never below the minimum scale.
-  assert.equal(fitScale(() => 5000, 190, 277, 0.8), 0.8);
+  assert.equal(fitPage(() => ({ w: 190, h: 5000 }), 190, 277, 0.8).scale, 0.8);
 });

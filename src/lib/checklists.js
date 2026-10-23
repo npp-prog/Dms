@@ -58,7 +58,7 @@ export function searchChecklists(list, query, kind) {
 // taken from the encoded document where the document has them.
 const HEADER_KEYS = [
   [/^dv\b|disbursement/i, ['dvNo']],
-  [/obr|furs|cafoa|obligation/i, ['cafoaNo', 'fursNo', 'obrNo', 'obligationNo']],
+  [/obr|furs|obligation/i, ['obrNo', 'fursNo', 'obligationNo']],
   [/payee|claimant/i, ['payee', 'claimant', 'name']],
   [/^lr\b|liquidation/i, ['lrNo', 'serialNo']],
 ];

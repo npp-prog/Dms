@@ -347,8 +347,10 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 }
 
 /* ---------- Paper preview ---------- */
-.print-area { overflow-x: auto; }
-.paper { background: #fff; box-shadow: var(--shadow-lg); border-radius: 4px; margin: 0 auto; max-width: 100%; box-sizing: border-box; }
+.print-area { overflow: hidden; }
+.paper { background: #fff; box-shadow: var(--shadow-lg); border-radius: 4px; box-sizing: border-box; transform-origin: top left; }
+.paper-holder { margin: 0 auto; }
+.fit { box-sizing: border-box; }
 
 /* ---------- Official forms (same as PMS-IMS print styles) ----------
    Template classes: ph (header: img, l1, l2, l3), pmeta-t (meta lines), pt (bordered table),
@@ -396,7 +398,9 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
   .layout { background: none; display: block; min-height: 0; }
   .main, .page { padding: 0; margin: 0; max-width: none; animation: none; }
   .split { display: block; }
-  .paper { box-shadow: none; padding: 0 !important; width: auto !important; min-height: 0 !important; border-radius: 0; }
+  .paper { box-shadow: none; padding: 0 !important; width: auto !important; min-height: 0 !important; border-radius: 0; transform: none !important; }
+  .paper-holder { width: auto !important; height: auto !important; }
+  .print-area { overflow: visible; }
   .doc-render .pt th, .doc-render table.grid th, .doc-render .pt td.lbl { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 

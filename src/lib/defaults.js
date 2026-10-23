@@ -1,8 +1,8 @@
 // Starter document types, modeled on the Municipal Government of Candoni's
-// Appendix Forms (GAM for LGUs): DV, CAFOA, FURS, PR, PO, JO, PCV, LR, IT and Payroll.
+// Appendix Forms (GAM for LGUs): DV, OBR, FURS, PR, PO, JO, PCV, LR, IT and Payroll.
 // Admins load them from Admin > Document Types > "Load starter formats" and can edit freely.
 // Copies to print follow the "Table" sheet of Appendix_Forms.xlsx. Every form prints on A4
-// scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
+// portrait, scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
 
 export const FUNDS = ['General Fund', 'Special Education Fund', 'Trust Fund', '20% Development Fund', 'LDRRMF'];
 
@@ -38,7 +38,7 @@ const DV = {
     { to: 'Payee', count: 1 },
   ],
   steps: [
-    { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved CAFOA/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
+    { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period). Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
     { id: 's3', title: 'Box A', instructions: 'The head of the requesting office (or authorized representative) certifies Box A. Boxes B, C and D print the Accountant, Treasurer and Mayor from Settings.' },
   ],
@@ -47,7 +47,7 @@ const DV = {
     { key: 'address', label: 'Address', type: 'text', step: 's1' },
     { key: 'tinNo', label: 'TIN No.', type: 'text', step: 's1' },
     fundField('s1'),
-    { key: 'cafoaNo', label: 'CAFOA / FURS No.', type: 'text', required: true, step: 's1', help: 'The obligation must be approved before the DV is prepared.' },
+    { key: 'obrNo', label: 'OBR / FURS No.', type: 'text', required: true, step: 's1', help: 'The obligation must be approved before the DV is prepared.' },
     { key: 'respCenter', label: 'Responsibility Center', type: 'text', step: 's1', placeholder: 'e.g. 1011' },
     { key: 'dvNo', label: 'Disbursement No. (Accounting)', type: 'text', step: 's1' },
     { key: 'date', label: 'Date', type: 'date', step: 's1' },
@@ -63,7 +63,7 @@ const DV = {
   ],
   checklist: [],
   processing: [
-    { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved CAFOA/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
+    { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved OBR/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
     { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and prepares the Journal Entry Voucher (Box F).' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: funds available', details: 'The Treasurer certifies that funds are available and prepares the check or ADA.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
@@ -73,10 +73,10 @@ const DV = {
   template: `${header('DISBURSEMENT VOUCHER')}
   <table class="pt">
     <tr><td class="lbl" rowspan="2">Payee</td><td rowspan="2" class="c"><b>{{payee|upper}}</b></td><td colspan="2">Disbursement No.: <b>{{dvNo}}</b><br>Date: <b>{{date|date}}</b></td></tr>
-    <tr><td>Fund<br><b>{{fund|upper}}</b></td><td>CAFOA No.<br><b>{{cafoaNo}}</b></td></tr>
+    <tr><td>Fund<br><b>{{fund|upper}}</b></td><td>OBR No.<br><b>{{obrNo}}</b></td></tr>
     <tr><td class="lbl">Address</td><td>{{address}}</td><td>TIN No.<br><b>{{tinNo}}</b></td><td>Responsibility Center<br><b>{{respCenter}}</b></td></tr>
   </table>
-  <table class="pt">
+  <table class="pt" data-grow>
     <thead><tr><th>Particulars</th><th style="width:22%">Amount</th></tr></thead>
     <tbody>
     {{#each particulars}}<tr class="blank"><td>{{explanation}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
@@ -111,84 +111,78 @@ const DV = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-// ---------------------------------------------------------------- CAFOA
-const CAFOA = {
-  code: 'CAFOA',
-  name: 'Certification on Appropriations, Funds and Obligation of Allotment',
+// ---------------------------------------------------------------- OBR
+const OBR = {
+  code: 'OBR',
+  name: 'Obligation Request',
   category: 'Budget',
-  description: 'Obligates the allotment before an expense is incurred. Certified by the Budget Officer (appropriation), the Treasurer (funds) and the Accountant (allotment). The approved CAFOA supports the DV.',
+  description: 'Obligates the appropriation before an expense is incurred. Certified by the requesting office (Box A) and the Budget Officer (Box B). The approved OBR supports the DV or payroll.',
   paperSize: 'A4',
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
   copies: [
-    { to: 'COA', count: 2 },
+    { to: 'COA (attached to the DV)', count: 1, original: true },
+    { to: 'Budget (MBO)', count: 1 },
     { to: 'Accounting', count: 1 },
-    { to: 'Treasury (MTO)', count: 1 },
-    { to: 'Budget (MBO)', count: 1, original: true },
     { to: 'Requesting Office', count: 1 },
   ],
   steps: [
-    { id: 's1', title: 'Request', instructions: 'Encode the payee and the charging: function (responsibility center), allotment class, expense (account) code and amount. One line per charge.' },
-    { id: 's2', title: 'Requesting Official', instructions: 'Enter the requesting official. The Budget Officer, Treasurer and Accountant certifications print the officials in Settings. The Obligation No. is assigned by Accounting.' },
+    { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The OBR No. is assigned by the Budget Office; leave it blank.' },
+    { id: 's2', title: 'Particulars', instructions: 'One line per charge: responsibility center, particulars, F.P.P. (function/program/project), account code and amount. The total is computed.' },
+    { id: 's3', title: 'Box A', instructions: 'The head of the requesting office certifies Box A. Box B prints the Budget Officer from Settings.' },
   ],
   fields: [
     { key: 'payee', label: 'Payee', type: 'text', required: true, step: 's1' },
+    { key: 'office', label: 'Office', type: 'text', required: true, step: 's1' },
+    { key: 'address', label: 'Address', type: 'text', step: 's1' },
+    fundField('s1'),
+    { key: 'obrNo', label: 'OBR No. (Budget Office)', type: 'text', step: 's1' },
+    { key: 'date', label: 'Date', type: 'date', step: 's1' },
     {
-      key: 'charges', label: 'Charges', type: 'table', required: true, step: 's1', minRows: 8,
+      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 10,
       columns: [
-        { key: 'function', label: 'Function', type: 'text' },
-        { key: 'allotmentClass', label: 'Allotment Class', type: 'text' },
-        { key: 'expenseCode', label: 'Expense Code', type: 'text' },
+        { key: 'respCenter', label: 'Responsibility Center', type: 'text' },
+        { key: 'particulars', label: 'Particulars', type: 'text' },
+        { key: 'fpp', label: 'F.P.P.', type: 'text' },
+        { key: 'accountCode', label: 'Account Code', type: 'text' },
         { key: 'amount', label: 'Amount', type: 'currency', total: true },
       ],
     },
-    { key: 'requestingOfficial', label: 'Requesting Official (name)', type: 'text', required: true, step: 's2' },
-    { key: 'obligationNo', label: 'Obligation No. (Accounting)', type: 'text', step: 's2' },
+    { key: 'certA', label: 'Box A — Printed name (Head of Office)', type: 'text', required: true, step: 's3' },
+    { key: 'certAPos', label: 'Box A — Position', type: 'text', step: 's3' },
   ],
   checklist: [
     { id: 'c1', label: 'The expense is in the approved budget / AIP / PPMP of the office', required: true },
     { id: 'c2', label: 'Basis of the obligation attached (PR, payroll, billing, travel order, contract)', required: true },
   ],
   processing: [
-    { id: 'p1', office: 'Requesting Office', action: 'Sign as requesting official', details: 'The head of office signs and dates the request. Attach the basis of the obligation.' },
-    { id: 'p2', office: 'Municipal Budget Office', action: 'Certify the existence of appropriations', details: 'The Budget Officer checks the charging against the appropriation and signs the first certification.' },
-    { id: 'p3', office: "Municipal Treasurer's Office", action: 'Certify the availability of funds', details: 'The Treasurer signs the second certification.' },
-    { id: 'p4', office: 'Municipal Accounting Office', action: 'Certify the allotment and obligate', details: 'The Accountant certifies that the allotment is available for obligation, assigns the Obligation No., enters the Amount Approved and records it in the RAAO.' },
-    { id: 'p5', office: 'Requesting Office', action: 'Attach to the DV or payroll', details: 'Use the CAFOA No. when you prepare the Disbursement Voucher or Payroll.' },
+    { id: 'p1', office: 'Requesting Office', action: 'Box A', details: 'The head of the requesting office signs Box A: charges to appropriation/allotment are necessary, lawful and under their direct supervision. Attach the basis of the obligation.' },
+    { id: 'p2', office: 'Municipal Budget Office', action: 'Box B: existence of available appropriation', details: 'The Budget Officer checks the charging against the appropriation and allotment, assigns the OBR No. and signs Box B.' },
+    { id: 'p3', office: 'Municipal Accounting Office', action: 'Recording', details: 'The obligation is recorded in the Registry of Appropriations, Allotment and Obligation (RAAO).' },
+    { id: 'p4', office: 'Requesting Office', action: 'Attach to the DV or payroll', details: 'Use the OBR No. when you prepare the Disbursement Voucher or Payroll, and attach the approved OBR.' },
   ],
-  template: `${header('CERTIFICATION ON APPROPRIATIONS, FUNDS AND OBLIGATION OF ALLOTMENT')}
+  template: `${header('OBLIGATION REQUEST')}
+  <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b></td><td class="r">No.: <b>{{obrNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr></table>
+  <table class="pt">
+    <tr><td class="lbl">Payee</td><td><b>{{payee|upper}}</b></td></tr>
+    <tr><td class="lbl">Office</td><td>{{office}}</td></tr>
+    <tr><td class="lbl">Address</td><td>{{address}}</td></tr>
+  </table>
+  <table class="pt" data-grow>
+    <thead><tr><th style="width:15%">Responsibility Center</th><th>Particulars</th><th style="width:10%">F.P.P.</th><th style="width:14%">Account Code</th><th style="width:16%">Amount</th></tr></thead>
+    <tbody>{{#each items}}<tr class="blank"><td class="c">{{respCenter}}</td><td>{{particulars}}</td><td class="c">{{fpp}}</td><td class="c">{{accountCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
+    <tr><td colspan="4" class="r"><b>TOTAL</b></td><td class="r"><b>{{sum:items.amount|currency}}</b></td></tr>
+    <tr><td colspan="5"><i>{{sum:items.amount|words}}</i></td></tr></tbody>
+  </table>
   <table class="pt">
     <tr>
-      <td style="width:58%;padding:6px">
-        <div class="c"><b>REQUEST</b></div><br>
-        Payee: <b>{{payee|upper}}</b>
-        <table class="pt" style="margin-top:8px">
-          <thead><tr><th>Function</th><th>Allotment Class</th><th>Expense Code</th><th>Amount</th></tr></thead>
-          <tbody>{{#each charges}}<tr class="blank"><td class="c">{{function}}</td><td class="c">{{allotmentClass}}</td><td class="c">{{expenseCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}</tbody>
-        </table>
-        <table class="pt"><tr><td>Total Amount Requested</td><td class="r" style="width:34%"><b>PHP {{sum:charges.amount|currency}}</b></td></tr>
-          <tr><td colspan="2">Amount in Words: <i>{{sum:charges.amount|words}}</i></td></tr></table>
-        <br>Requesting Official:
-        <table style="margin-top:22px"><tr><td style="width:65%"><div class="pf-signame" style="margin-top:0">{{requestingOfficial|upper}}</div><div class="cap">Name &amp; Signature</div></td><td><div class="pf-signame" style="margin-top:0">&nbsp;</div><div class="cap">Date</div></td></tr></table>
-      </td>
-      <td style="padding:6px">
-        Obligation No.: <b>{{obligationNo}}</b><br><br>Amount Approved: ______________<br><br>
-        <b>Certification:</b><div class="cap" style="text-align:left">I hereby certify as to the existence of appropriations for the expenditures in amount specified herein:</div>
-        ${signBlock('{{sig.budget|upper}}', '{{sig.budgetPosition}}', 'Date: ____________')}<br>
-        <b>Certification:</b><div class="cap" style="text-align:left">I hereby certify as to the availability of funds for the expenditures in the amount specified herein:</div>
-        ${signBlock('{{sig.treasurer|upper}}', '{{sig.treasurerPosition}}', 'Date: ____________')}<br>
-        <b>Certification:</b><div class="cap" style="text-align:left">I hereby certify that the allotments are available for obligation in the amount specified herein:</div>
-        ${signBlock('{{sig.accountant|upper}}', '{{sig.accountantPosition}}', 'Date: ____________')}
-      </td>
+      <td class="pf-cell" style="width:50%"><b>A. Certified:</b> Charges to appropriation/allotment necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.
+        ${signBlock('{{certA|upper}}', '{{certAPos}}', 'Head, Requesting Office/Authorized Representative')}<div>Date: __________</div></td>
+      <td class="pf-cell"><b>B. Certified:</b> Existence of available appropriation.
+        ${signBlock('{{sig.budget|upper}}', '{{sig.budgetPosition}}', 'Head, Budget Unit/Authorized Representative')}<div>Date: __________</div></td>
     </tr>
   </table>
-  <table class="pt">
-    <tr><th colspan="5">SUBSIDIARY LEDGER</th></tr>
-    <tr><th>Date</th><th>Particulars/ Reference</th><th>Liquidations</th><th>Obligations Increase/ (Decrease)</th><th>Balance</th></tr>
-    ${blankRows(5, 4)}
-  </table>
-  <table class="pmeta-t"><tr><td>Encoded by: __________</td><td>Recorded in RAAO: <span class="pf-box"></span> Active <span class="pf-box"></span> Inactive &nbsp; DV Ref: ________ &nbsp; Check Ref: ________</td></tr></table>
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
@@ -246,7 +240,7 @@ const FURS = {
     <tr><td class="lbl">Office</td><td>{{office}}</td><td>Date: <b>{{date|date}}</b></td></tr>
     <tr><td class="lbl">Address</td><td>{{address}}</td><td>Fund: <b>{{fund}}</b></td></tr>
   </table>
-  <table class="pt">
+  <table class="pt" data-grow>
     <thead><tr><th style="width:22%">Project/Purpose</th><th>Particulars</th><th style="width:16%">Account Code</th><th style="width:16%">Amount</th></tr></thead>
     <tbody>{{#each items}}<tr class="blank"><td>{{purpose}}</td><td>{{particulars}}</td><td class="c">{{accountCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
     <tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>{{sum:items.amount|currency}}</b></td></tr></tbody>
@@ -409,7 +403,7 @@ const PO = {
     { id: 'c1', label: 'BAC Resolution / Notice of Award (or Authority from HoPE for direct acquisition)', required: true },
     { id: 'c2', label: 'Approved Purchase Request', required: true },
     { id: 'c3', label: 'Abstract of Canvass / Bids', required: false },
-    { id: 'c4', label: 'Approved CAFOA', required: false },
+    { id: 'c4', label: 'Approved Obligation Request (OBR)', required: false },
   ],
   processing: [
     { id: 'p1', office: 'BAC Secretariat / GSO', action: 'Prepare the PO after award', details: 'Prepare the PO from the award. Attach the approved PR and the award documents.' },
@@ -496,7 +490,7 @@ const JO = {
     <tr><td colspan="2">Gentlemen:<br>Per your quotation(s) on <b>{{quotationDate|date}}</b> please cause the services for our office of the following:</td></tr>
     <tr><td>Place of Delivery: {{placeOfDelivery}}<br>Date of Delivery: {{dateOfDelivery}}</td><td>Delivery Term: {{deliveryTerm}}<br>Payment Term: {{paymentTerm}}</td></tr>
   </table>
-  <table class="pt">
+  <table class="pt" data-grow>
     <thead><tr><th rowspan="2">DESCRIPTION OF JOB / SERVICE DESIRED</th><th rowspan="2" style="width:15%">Service/ Labor</th><th colspan="2">Charges</th></tr>
       <tr><th style="width:14%">Spare Parts</th><th style="width:14%">Materials</th></tr></thead>
     <tbody>{{#each items}}<tr class="blank"><td>{{description}}</td><td class="r">{{labor|currency}}</td><td class="r">{{spareParts|currency}}</td><td class="r">{{materials|currency}}</td></tr>{{/each}}
@@ -571,7 +565,7 @@ const PCV = {
   <table class="pt">
     <tr><th style="width:55%;text-align:left"><i>I. To be filled out upon request</i></th><th style="text-align:left"><i>II. To be filled out upon liquidation</i></th></tr>
     <tr><td style="padding:0">
-        <table class="pt" style="margin:0"><thead><tr><th>Particulars</th><th style="width:32%">Amount</th></tr></thead>
+        <table class="pt" data-grow style="margin:0"><thead><tr><th>Particulars</th><th style="width:32%">Amount</th></tr></thead>
         <tbody>{{#each items}}<tr class="blank"><td>{{particulars}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}</tbody></table></td>
       <td style="padding:8px">Total Amount Granted: <b>{{totalGranted|peso}}</b><br><br>Total Amount Paid per OR/Invoice No. <b>{{orNo}}</b>: <b>{{totalPaid|peso}}</b><br><br>Amount Refunded/ (Reimbursed): <b>{{refund|peso}}</b></td></tr>
     <tr><td class="pf-cell"><b>A.</b> <i>Requested by:</i>${signBlock('{{requestor|upper}}', 'Signature over Printed Name', 'Requestor')}
@@ -644,7 +638,7 @@ const LR = {
     <tr><td class="r">Fund:</td><td><b>{{fund}}</b></td><td>Date: <b>{{date|date}}</b></td></tr>
     <tr><td class="r">Department/Office:</td><td><b>{{office}}</b></td><td>Function/Program/Project:<br><b>{{fpp}}</b></td></tr>
   </table>
-  <table class="pt">
+  <table class="pt" data-grow>
     <thead><tr><th style="letter-spacing:4px">PARTICULARS</th><th style="width:26%">Amount</th></tr></thead>
     <tbody>{{#each items}}<tr class="blank"><td>{{particulars}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
     <tr><td>TOTAL AMOUNT SPENT</td><td class="r"><b>{{totalSpent|currency}}</b></td></tr>
@@ -722,7 +716,7 @@ const IT = {
     <tr><td>Position: <b>{{position|upper}}</b></td><td rowspan="2">Purpose of Travel:<br><b>{{purpose|upper}}</b></td></tr>
     <tr><td>Official Station: <b>{{station|upper}}</b></td></tr>
   </table>
-  <table class="pt" style="font-size:9.5px">
+  <table class="pt" data-grow style="font-size:9.5px">
     <thead><tr><th rowspan="2">Date</th><th rowspan="2">Places to be visited (Destination)</th><th colspan="2">TIME</th><th rowspan="2">Means of Transportation</th><th rowspan="2">Transpor- tation</th><th rowspan="2">Per Diem</th><th rowspan="2">Others</th><th rowspan="2">Total Amount</th></tr>
       <tr><th>Departure</th><th>Arrival</th></tr></thead>
     <tbody>{{#each legs}}<tr class="blank"><td>{{date|date}}</td><td>{{place}}</td><td class="c">{{departure}}</td><td class="c">{{arrival}}</td><td>{{means}}</td><td class="r">{{fare|currency}}</td><td class="r">{{perDiem|currency}}</td><td class="r">{{others|currency}}</td><td class="r">{{total|currency}}</td></tr>{{/each}}
@@ -744,7 +738,7 @@ const PAYROLL = {
   category: 'Disbursement',
   description: 'Group payment of salaries, wages, allowances and benefits. The checklist depends on the type of payroll (10xx through ATM, 12xx cash advance).',
   paperSize: 'A4',
-  orientation: 'landscape',
+  orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
   copies: [
@@ -754,7 +748,7 @@ const PAYROLL = {
     { to: 'Requesting Office', count: 1 },
   ],
   steps: [
-    { id: 's1', title: 'Payroll', instructions: 'The period covered, fund, office and the approved CAFOA No. The Payroll No. is assigned by Accounting.' },
+    { id: 's1', title: 'Payroll', instructions: 'The period covered, fund, office and the approved OBR No. The Payroll No. is assigned by Accounting.' },
     { id: 's2', title: 'Employees', instructions: 'One line per employee: name, position, employee no., gross amount earned and total deductions. The net amount due is computed.' },
     { id: 's3', title: 'Box A', instructions: 'The authorized official certifies that services were duly rendered. Boxes B, C and D print the Accountant, Treasurer and Mayor from Settings.' },
   ],
@@ -762,7 +756,7 @@ const PAYROLL = {
     { key: 'period', label: 'For the period', type: 'text', required: true, step: 's1', placeholder: 'e.g. October 1-15, 2026' },
     fundField('s1'),
     { key: 'office', label: 'Office', type: 'text', required: true, step: 's1' },
-    { key: 'cafoaNo', label: 'CAFOA No.', type: 'text', required: true, step: 's1' },
+    { key: 'obrNo', label: 'OBR No.', type: 'text', required: true, step: 's1' },
     { key: 'payrollNo', label: 'Payroll No. (Accounting)', type: 'text', step: 's1' },
     {
       key: 'employees', label: 'Employees', type: 'table', required: true, step: 's2', minRows: 10,
@@ -780,7 +774,7 @@ const PAYROLL = {
   ],
   checklist: [],
   processing: [
-    { id: 'p1', office: 'Requesting Office', action: 'Box A and attachments', details: 'The authorized official certifies that services were duly rendered. Attach the approved CAFOA and the documents on the printed checklist (checklist on top).' },
+    { id: 'p1', office: 'Requesting Office', action: 'Box A and attachments', details: 'The authorized official certifies that services were duly rendered. Attach the approved OBR and the documents on the printed checklist (checklist on top).' },
     { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and accounting entries', details: 'Accounting checks the documents against the checklist, certifies Box B, assigns the Payroll No. and fills in the accounting entries (G).' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: cash available', details: 'The Treasurer certifies that cash is available.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
@@ -790,7 +784,7 @@ const PAYROLL = {
     <div class="l3">PAYROLL</div><div class="l2">For the period <b>{{period}}</b></div></div>
   <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b> &nbsp; Office: <b>{{office}}</b></td><td class="r">Payroll No.: <b>{{payrollNo}}</b></td></tr>
     <tr><td colspan="2">We acknowledge receipt of cash shown opposite our name as full compensation for services rendered for the period covered.</td></tr></table>
-  <table class="pt" style="font-size:9.5px">
+  <table class="pt" data-grow style="font-size:9.5px">
     <thead><tr><th style="width:4%">Serial No.</th><th>Name</th><th>Position</th><th>Employee No.</th><th>Gross Amount Earned</th><th>Total Deductions</th><th>Net Amount Due</th><th style="width:14%">Signature of Recipient</th></tr></thead>
     <tbody>{{#each employees}}<tr class="blank"><td class="c">{{@no}}</td><td>{{name|upper}}</td><td>{{position}}</td><td class="c">{{employeeNo}}</td><td class="r">{{gross|currency}}</td><td class="r">{{deductions|currency}}</td><td class="r">{{net|currency}}</td><td></td></tr>{{/each}}
       <tr><td colspan="4" class="r"><b>TOTAL</b></td><td class="r"><b>{{sum:employees.gross|currency}}</b></td><td class="r"><b>{{sum:employees.deductions|currency}}</b></td><td class="r"><b>{{sum:employees.net|currency}}</b></td><td></td></tr></tbody>
@@ -804,7 +798,7 @@ const PAYROLL = {
     <tr>
       <td class="pf-cell"><b>D</b> APPROVED FOR PAYMENT: <b>{{sum:employees.net|peso}}</b>${signBlock('{{sig.mayor|upper}}', 'Signature over Printed Name/Position', 'Local Chief Executive')}</td>
       <td class="pf-cell"><b>E</b> CERTIFIED: Each employee whose name appears on the payroll has been paid the amount as indicated opposite his/her name.${signBlock('{{disbursingOfficer|upper}}', 'Signature over Printed Name', 'Disbursing Officer')}</td>
-      <td class="pf-cell"><b>F</b><br>CAFOA No.: <b>{{cafoaNo}}</b><br>Date: __________<br><br>Check No.: __________<br>Date: __________</td>
+      <td class="pf-cell"><b>F</b><br>OBR No.: <b>{{obrNo}}</b><br>Date: __________<br><br>Check No.: __________<br>Date: __________</td>
     </tr>
   </table>
   <table class="pt">
@@ -816,7 +810,7 @@ const PAYROLL = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
-export const STARTER_TYPES = [DV, CAFOA, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO];
+export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO];
 
 export const FIELD_TYPES = [
   { value: 'text', label: 'Text' },

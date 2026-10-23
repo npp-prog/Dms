@@ -17,16 +17,28 @@ export function pageSize(paperSize, orientation) {
   return { key, w: pw, h: ph, css: `${pw}mm ${ph}mm` };
 }
 
-// Scale that makes content fit the printable area of one page.
-// heightAt(widthMm) returns the content height (mm) when laid out at that width;
-// the content is laid out wider by 1/scale so that, once scaled, it fills the width.
-export function fitScale(heightAt, printableW, printableH, minScale = 0) {
+// Fit to page, in both directions. measure(widthMm) lays the content out at that
+// width and returns { w, h } in mm: the width it actually needs (wide tables can
+// overflow) and its height. The content is laid out wider by 1/scale so that, once
+// scaled, it fills the printable width; if it needs more width than that (too many
+// columns), it is laid out at the width it needs and scaled down to fit.
+// Returns { scale, width } where width is the layout width in mm.
+export function fitPage(measure, printableW, printableH, minScale = 0) {
   let s = 1;
-  for (let i = 0; i < 5; i++) {
-    const next = Math.min(1, printableH / heightAt(printableW / s));
-    if (Math.abs(next - s) < 0.002) { s = next; break; }
+  let width = printableW;
+  for (let i = 0; i < 6; i++) {
+    width = printableW / s;
+    let m = measure(width);
+    if (m.w > width + 0.5) {
+      width = m.w;
+      m = measure(width);
+    }
+    const next = Math.min(1, printableW / width, printableH / m.h);
+    const done = Math.abs(next - s) < 0.002;
     s = next;
+    if (done) break;
   }
-  // A hair of slack so rounding never pushes a fitted page onto a second sheet.
-  return Math.max(minScale, s < 1 ? s * 0.995 : 1);
+  // About 1.5% of slack: print layout can come out a little taller than on screen.
+  const scale = Math.max(minScale, s < 1 ? s * 0.985 : 1);
+  return { scale, width: Math.max(width, printableW / scale) };
 }
