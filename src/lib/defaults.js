@@ -810,6 +810,21 @@ const PAYROLL = {
   <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
 };
 
+// Settings filled in on a new site (Settings page can change them): the LGU and the
+// signatories as printed on the Appendix Forms of the Municipal Government of Candoni.
+export const DEFAULT_SETTINGS = {
+  lguName: 'Municipal Government of Candoni',
+  lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
+  province: 'Negros Occidental',
+  signatories: {
+    mayor: 'CICERO D. BORROMEO', mayorPosition: 'Municipal Mayor',
+    accountant: 'NEIL P. PRIOLO, CPA', accountantPosition: 'Municipal Accountant',
+    budget: 'RAQUEL C. MATA', budgetPosition: 'Municipal Budget Officer',
+    treasurer: 'MA. DYMPHNA T. SARMOY', treasurerPosition: 'Acting - Municipal Treasurer',
+    sbSecretary: 'BENJIE M. OROT, LPT', sbSecretaryPosition: 'Secretary to the Sanggunian',
+  },
+};
+
 export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO];
 
 export const FIELD_TYPES = [

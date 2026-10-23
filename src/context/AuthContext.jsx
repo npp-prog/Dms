@@ -5,7 +5,7 @@ import {
   signInWithRedirect, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase.js';
-import { ensureUserProfile, getSettings } from '../lib/api.js';
+import { ensureUserProfile, getSettings, setupIfEmpty } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 
@@ -19,9 +19,16 @@ export function AuthProvider({ children }) {
   // Registration details waiting for the auth listener to create the profile.
   const pendingProfile = useRef(null);
 
+  const [setupNotice, setSetupNotice] = useState([]);
+
   const loadProfile = useCallback(async (firebaseUser) => {
     const p = await ensureUserProfile(firebaseUser, pendingProfile.current || {});
     pendingProfile.current = null;
+    if (p.active && ['admin', 'superadmin'].includes(p.role)) {
+      // New site: install the starter formats, checklists and settings once.
+      const installed = await setupIfEmpty({ uid: firebaseUser.uid }).catch(() => []);
+      if (installed.length) setSetupNotice(installed);
+    }
     setProfile(p);
     if (p.active) setSettings(await getSettings().catch(() => ({})));
     return p;
@@ -53,6 +60,8 @@ export function AuthProvider({ children }) {
     profile,
     settings,
     setSettings,
+    setupNotice,
+    dismissSetupNotice: () => setSetupNotice([]),
     loading,
     error,
     isAdmin: profile?.active && ['admin', 'superadmin'].includes(profile.role),

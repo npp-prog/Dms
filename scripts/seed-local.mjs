@@ -8,7 +8,7 @@ import {
   collection, connectFirestoreEmulator, doc, getFirestore, serverTimestamp, setDoc, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
-import { STARTER_TYPES } from '../src/lib/defaults.js';
+import { DEFAULT_SETTINGS, STARTER_TYPES } from '../src/lib/defaults.js';
 import { SUPERADMIN_EMAILS } from '../src/lib/owner.js';
 
 const CHECKLISTS = JSON.parse(readFileSync(new URL('../src/data/checklists.json', import.meta.url)));
@@ -50,19 +50,7 @@ async function main() {
   });
 
   // 2. Settings and starter formats.
-  // Signatories as printed on the Appendix Forms of the Municipal Government of Candoni (change in Settings).
-  await setDoc(doc(db, 'meta', 'settings'), {
-    lguName: 'Municipal Government of Candoni',
-    lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
-    province: 'Negros Occidental',
-    signatories: {
-      mayor: 'CICERO D. BORROMEO', mayorPosition: 'Municipal Mayor',
-      accountant: 'NEIL P. PRIOLO, CPA', accountantPosition: 'Municipal Accountant',
-      budget: 'RAQUEL C. MATA', budgetPosition: 'Municipal Budget Officer',
-      treasurer: 'MA. DYMPHNA T. SARMOY', treasurerPosition: 'Acting - Municipal Treasurer',
-      sbSecretary: 'BENJIE M. OROT, LPT', sbSecretaryPosition: 'Secretary to the Sanggunian',
-    },
-  });
+  await setDoc(doc(db, 'meta', 'settings'), DEFAULT_SETTINGS);
   const types = writeBatch(db);
   for (const t of STARTER_TYPES) {
     types.set(doc(collection(db, 'documentTypes')), {

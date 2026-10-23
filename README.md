@@ -75,10 +75,8 @@ After that, every push to the branch Netlify watches redeploys the site by itsel
 ### 4. First run
 
 1. Open the site and sign in with **Continue with Google** using `npp@mgocandoniaccounting.org`. That account becomes the **superadmin** right away. If you register with email and password instead, open the verification link that is emailed to you, then click **Check again**.
-2. Go to **Settings** and enter the LGU name, address and signatories.
-3. Go to **Document Types** and click **Load starter formats**, then adjust them. Or create your own.
-4. Go to **Checklists** and click **Load checklist library**.
-5. Other staff register themselves. Approve them under **Users**.
+2. On that first sign-in FTS sets itself up: it installs the 10 starter formats (**DV, OBR, PR, PO**, FURS, Payroll, PCV, LR, IT, JO), the 210 checklists, and the LGU settings with the signatories. Only empty parts are filled; nothing you have edited is overwritten. Review them under **Document Types**, **Checklists** and **Settings**.
+3. Other staff register themselves (Google or email). Approve them under **Users**.
 
 ## Template reference
 

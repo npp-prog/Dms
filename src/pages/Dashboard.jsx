@@ -25,7 +25,7 @@ function InboxRow({ icon, tone = '', title, sub, n, to }) {
 }
 
 export default function Dashboard() {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, setupNotice, dismissSetupNotice } = useAuth();
   const [types, setTypes] = useState([]);
   const [docs, setDocs] = useState([]);
   const [pendingUsers, setPendingUsers] = useState(0);
@@ -73,6 +73,12 @@ export default function Dashboard() {
         <Link to="/new" className="btn btn-gold">+ Prepare document</Link>
       </div>
       {error && <div className="alert">{error}</div>}
+      {setupNotice.length > 0 && (
+        <div className="alert alert-ok row gap" style={{ justifyContent: 'space-between' }}>
+          <span><b>FTS is set up.</b> Installed {setupNotice.join(', ')}. Review them under Document Types, Checklists and Settings.</span>
+          <button className="btn btn-sm" onClick={dismissSetupNotice}>OK</button>
+        </div>
+      )}
 
       <div className="flow">
         <div className="now"><b>1. Choose the format</b>DV, OBR, PR, PO and more</div>

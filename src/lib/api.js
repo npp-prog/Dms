@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
+import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 
 // ---------- Users ----------
 
@@ -134,6 +135,30 @@ export async function importChecklists(list, user) {
 // Loaded on demand so it is not part of the main bundle.
 export async function loadBundledChecklists() {
   return (await import('../data/checklists.json')).default;
+}
+
+// ---------- First-run setup ----------
+
+// On a new site, the first admin to sign in installs what FTS needs to be usable:
+// the starter formats (DV, OBR, PR, PO, ...), the checklist library and the LGU
+// settings. Only empty parts are filled; nothing existing is overwritten.
+export async function setupIfEmpty(user) {
+  const installed = [];
+  if ((await getDocs(query(collection(db, 'documentTypes'), limit(1)))).empty) {
+    await importDocumentTypes(STARTER_TYPES, user);
+    installed.push(`${STARTER_TYPES.length} document formats (${STARTER_TYPES.map((t) => t.code).join(', ')})`);
+  }
+  if ((await getDocs(query(collection(db, 'checklists'), limit(1)))).empty) {
+    const library = await loadBundledChecklists();
+    await importChecklists(library, user);
+    installed.push(`${library.length} checklists`);
+  }
+  const settings = await getSettings();
+  if (!settings.lguName) {
+    await saveSettings({ ...DEFAULT_SETTINGS, ...settings });
+    installed.push('LGU settings and signatories');
+  }
+  return installed;
 }
 
 // ---------- Documents ----------
