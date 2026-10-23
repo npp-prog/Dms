@@ -7,6 +7,7 @@ import {
 import { buildSteps, computeFields, initialData, missingFields } from '../lib/forms.js';
 import { effectiveChecklist, missingRequired } from '../lib/checklists.js';
 import ChecklistStep from '../components/ChecklistStep.jsx';
+import TransactionStep from '../components/TransactionStep.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
 import { signatoriesFrom } from '../lib/signatories.js';
 import FieldInput from '../components/FieldInput.jsx';
@@ -84,13 +85,21 @@ function Wizard({ typeId, docId }) {
 
   const steps = useMemo(() => {
     if (!type) return [];
+    const fromLibrary = type.checklistSource && type.checklistSource !== 'own';
     return [
+      // DV, Payroll and LR start with the type of transaction, so the user knows
+      // which documents to prepare before encoding anything.
+      ...(fromLibrary ? [{
+        id: '__transaction',
+        title: 'Type of Transaction',
+        instructions: 'Choose the type of transaction first. FTS shows the checklist of the Municipal Accounting Office for it: the documents you need to prepare and attach.',
+      }] : []),
       ...buildSteps(type),
       {
         id: '__checklist',
         title: 'Checklist',
-        instructions: type.checklistSource && type.checklistSource !== 'own'
-          ? 'Choose the type of transaction. FTS loads its checklist from the Municipal Accounting Office. Attach each document, then tick Y (or N/A if it does not apply). Items marked required must be ticked before the document can be marked complete.'
+        instructions: fromLibrary
+          ? 'Attach each document on the checklist, then tick Y (or N/A if it does not apply). Items marked required must be ticked before the document can be marked complete.'
           : 'Confirm that each requirement is attached or complied with. Items marked required must be ticked before the document can be marked complete.',
       },
       { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete when everything is encoded. Then print it and process it as shown below.' },
@@ -109,7 +118,7 @@ function Wizard({ typeId, docId }) {
   const needsTransaction = library && !transaction;
 
   const next = () => {
-    if (stepMissing.length) { setShowErrors(true); return; }
+    if (stepMissing.length || (step.id === '__transaction' && !transaction)) { setShowErrors(true); return; }
     setShowErrors(false);
     setStepIndex((i) => Math.min(i + 1, steps.length - 1));
   };
@@ -164,9 +173,18 @@ function Wizard({ typeId, docId }) {
             </div>
           )}
 
+          {step.id === '__transaction' && (
+            <TransactionStep kind={type.checklistSource} transaction={transaction}
+              onTransaction={(t) => {
+                if (transaction?.code !== t.code) setChecklist({});
+                setTransaction(t);
+                setShowErrors(false);
+              }} />
+          )}
+
           {step.id === '__checklist' && (
-            <ChecklistStep type={type} transaction={transaction} onTransaction={setTransaction}
-              state={checklist} onState={setChecklist} />
+            <ChecklistStep type={type} transaction={transaction} state={checklist} onState={setChecklist}
+              onChangeTransaction={() => setStepIndex(0)} />
           )}
 
           {step.id === '__review' && (
@@ -193,6 +211,9 @@ function Wizard({ typeId, docId }) {
             </div>
           )}
 
+          {showErrors && step.id === '__transaction' && !transaction && (
+            <div className="alert">Choose the type of transaction to continue.</div>
+          )}
           {showErrors && stepMissing.length > 0 && (
             <div className="alert">Please fill in: {stepMissing.map((f) => f.label).join(', ')}</div>
           )}
@@ -204,10 +225,14 @@ function Wizard({ typeId, docId }) {
         </section>
 
         <div className="preview-col">
-          {step.id === '__checklist' && activeChecklist ? (
+          {(step.id === '__checklist' || step.id === '__transaction') && activeChecklist ? (
             <>
-              <div className="preview-label no-print">Checklist preview</div>
-              <ChecklistSheet checklist={activeChecklist} state={checklist} data={data} settings={settings} />
+              <div className="preview-label no-print row gap" style={{ justifyContent: 'space-between' }}>
+                <span>Checklist {activeChecklist.code}</span>
+                <button type="button" className="btn btn-sm" onClick={() => window.print()}>Print checklist</button>
+              </div>
+              <ChecklistSheet checklist={activeChecklist} state={step.id === '__checklist' ? checklist : undefined}
+                data={data} settings={settings} />
             </>
           ) : (
             <>

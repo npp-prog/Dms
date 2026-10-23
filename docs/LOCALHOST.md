@@ -115,33 +115,43 @@ Open a checklist to read it or print a blank copy:
 
 ![Checklist 1613](images/05-checklist-1613.png)
 
-### Encode a Disbursement Voucher
+### Step 1 for a DV, Payroll or Liquidation Report: choose the type of transaction
 
-Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
+Click **Prepare this document**, or go to **Prepare Document** and pick a format. For a **DV**, **Payroll** or **Liquidation Report**, the first step asks **"What type of transaction is this?"**, before you encode anything. Type a checklist number or some words (e.g. `1613` or `direct acquisition`) and pick one. **Next** doesn't work until you've chosen.
 
-![DV step 1](images/07-dv-step1.png)
+![Choosing the type of transaction](images/07-dv-transaction-picker.png)
+
+FTS then shows every document the transaction requires, marked **Required** or **If applicable**, together with the description and the legal basis. The checklist itself appears on the right. Click **Print checklist** to keep a blank copy while you gather the documents.
+
+![Requirements of the chosen transaction](images/08-dv-transaction-requirements.png)
+
+For a liquidation it works the same way, for example **2002 – Liquidation of Cash Advance for Local Travel**:
+
+![Liquidation: type of transaction](images/16-lr-transaction.png)
+
+### Encode the details
+
+Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
+
+![DV payee](images/09-dv-payee.png)
 
 For line items, click **+ Add row**. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due and the amount in words fill in automatically. Signatories in boxes B, C and D come from Settings.
 
-![DV particulars](images/08-dv-particulars.png)
+![DV particulars](images/10-dv-particulars.png)
 
-### Checklist step: choose the type of transaction
+### Checklist step: tick what you attached
 
-For a DV, Payroll or Liquidation Report, FTS first asks **"What type of transaction is this?"**. Type a checklist number or some words (e.g. `1613` or `direct acquisition`) and pick one.
-
-![Transaction picker](images/09-dv-transaction-picker.png)
-
-FTS then loads that checklist:
+The checklist of the transaction you chose in step 1 is shown. If you picked the wrong transaction, click **Change** to go back to step 1; the answers you already gave are cleared.
 
 - tick **Y** for each document you attached;
 - tick **N/A** for items that don't apply (always-required items have no N/A);
-- the preview on the right shows the checklist as it will print.
+- the preview on the right shows the checklist as it will print, with your answers.
 
-![Checklist step](images/10-dv-checklist.png)
+![Checklist step](images/11-dv-checklist.png)
 
 **Review & Save** tells you what is still missing. **Mark complete** stays disabled until every required field and every always-required checklist item is done.
 
-![Review](images/11-dv-review.png)
+![Review](images/12-dv-review.png)
 
 ### Print and process
 
@@ -151,21 +161,21 @@ The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above
 - **Fills the page.** When there is room left, the main table (particulars, items, employees) stretches to the bottom of the page, like a pre-printed form.
 - **What you see is what prints.** The preview is the printed page, scaled to fit your screen. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
 
-![Completed document](images/12-dv-document.png)
+![Completed document](images/13-dv-document.png)
 
 | The DV (Folio, 8.5 × 13 in) | The checklist cover sheet, filled in (A4) |
 |---|---|
-| ![DV printout](images/13-dv-print.png) | ![Checklist printout](images/14-dv-checklist-print.png) |
+| ![DV printout](images/14-dv-print.png) | ![Checklist printout](images/15-dv-checklist-print.png) |
 
 The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from the document. The DV Number box stays blank until Accounting assigns the number.
 
 ### Computed amounts (example: Liquidation Report)
 
-Totals are computed as you type. On the Liquidation Report, for example, FTS computes the total amount spent and the amount to be reimbursed (total spent − cash advance + refund). For the checklist, you pick the liquidation type, e.g. **2002 – Local Travel**.
+Totals are computed as you type. On the Liquidation Report, for example, FTS computes the total amount spent and the amount to be reimbursed (total spent − cash advance + refund). (The liquidation type, e.g. **2002 – Local Travel**, was chosen in step 1.)
 
-![LR computed amounts](images/15-lr-computed.png)
+![LR computed amounts](images/17-lr-computed.png)
 
-![LR checklist](images/16-lr-checklist.png)
+![LR checklist](images/18-lr-checklist.png)
 
 ---
 
@@ -184,7 +194,7 @@ On **Checklists**, an administrator can:
 
 The editor shows the printed checklist as you edit. Each item is either **Always required (Y)** or **If applicable (Y / N/A)** and can have a group heading (e.g. *Progress Payment*, *Final Payment*).
 
-![Checklist editor](images/17-admin-checklist-editor.png)
+![Checklist editor](images/19-admin-checklist-editor.png)
 
 ### Document types
 
@@ -193,13 +203,13 @@ Each document type has six tabs: **General** (code, name, paper size: **A4**, **
 In the **Checklist** tab, **Checklist source** decides where the checklist comes from:
 
 - **Own checklist**: a fixed list you write here;
-- **Disbursement library** or **Liquidation library**: the user picks the transaction type, as shown above.
+- **Disbursement library** or **Liquidation library**: the wizard starts with *Type of Transaction*, as shown above.
 
-![Checklist source](images/18-admin-checklist-source.png)
+![Checklist source](images/20-admin-checklist-source.png)
 
 The **Processing Guide** tab has the routing steps and the **copies to print** (who gets the original and who gets copies).
 
-![Processing guide editor](images/19-admin-processing-guide.png)
+![Processing guide editor](images/21-admin-processing-guide.png)
 
 Fields can be **computed**: in a table column or a field, the formula combines other keys with `+`, `-` and `*`, and `sum:table.column` adds up a table column. For example, `qty*unitCost`, `gross-deductions` or `sum:items.amount-cashAdvance`.
 
@@ -210,7 +220,7 @@ Fields can be **computed**: in a table column or a field, the formula combines o
 - the LGU name, address and seal;
 - the **signatories**: Mayor, Accountant, Budget Officer, Treasurer and Secretary to the Sanggunian. These are printed where the official forms pre-print a name. Each document keeps the signatories that were set when it was prepared.
 
-![Settings](images/20-admin-settings.png)
+![Settings](images/22-admin-settings.png)
 
 **Users** is where you approve new accounts. Only the superadmin can make someone an administrator.
 
