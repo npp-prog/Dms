@@ -14,7 +14,15 @@ export default function Pending({ error }) {
         <div className="auth-box">
           <h2>{error ? 'Unable to load your account' : ownerUnverified ? 'Verify your email' : 'Waiting for approval'}</h2>
           {error ? (
-            <div className="alert">{error}</div>
+            <>
+              <div className="alert">{error}</div>
+              {/permission/i.test(error) && (
+                <p className="small muted">The database rules are not published yet, or an older version is published.
+                  An administrator must open Firebase → Firestore Database → <b>Rules</b>, replace everything with the
+                  contents of <code>firestore.rules</code> from the FTS repository, and click <b>Publish</b>. Then click
+                  <b> Check again</b>.</p>
+              )}
+            </>
           ) : ownerUnverified ? (
             <>
               <p className="muted">{user.email} is the FTS superadmin. To protect it, Firebase must first confirm you own this
