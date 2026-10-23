@@ -1,40 +1,77 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import Icon, { Avatar } from './Icon.jsx';
+
+const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
 export default function Layout() {
   const { profile, settings, isAdmin, isSuper, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  const groups = [
+    { items: [['/', 'home', 'Dashboard', true]] },
+    {
+      label: 'Documents',
+      items: [
+        ['/formats', 'formats', 'Document Formats'],
+        ['/new', 'new', 'Prepare Document'],
+        ['/documents', 'documents', isAdmin ? 'All Documents' : 'My Documents'],
+      ],
+    },
+    isAdmin && {
+      label: 'Administration',
+      items: [
+        ['/admin/types', 'types', 'Document Types'],
+        ['/admin/users', 'users', 'Users'],
+        isSuper && ['/admin/settings', 'settings', 'Settings'],
+      ].filter(Boolean),
+    },
+  ].filter(Boolean);
+
   return (
-    <div className="app">
-      <aside className="sidebar no-print">
+    <div className={open ? 'nav-open' : ''}>
+      <header className="topbar">
+        <button className="icon-btn menu-btn" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <Icon name="menu" />
+        </button>
+        <img className="seal" src="/municipal-seal.png" alt="" />
         <div className="brand">
-          <div className="brand-mark">FTS</div>
-          <div>
-            <div className="brand-name">Financial Transaction System</div>
-            <div className="brand-sub">{settings.lguName || 'Document Format Repository'}</div>
-          </div>
+          <b>FTS</b>
+          <span>Financial Transaction System · {settings.lguName || 'Municipal Government of Candoni'}</span>
         </div>
-        <nav>
-          <NavLink to="/" end>Dashboard</NavLink>
-          <NavLink to="/formats">Document Formats</NavLink>
-          <NavLink to="/new">Prepare Document</NavLink>
-          <NavLink to="/documents">{isAdmin ? 'All Documents' : 'My Documents'}</NavLink>
-          {isAdmin && <div className="nav-section">Administration</div>}
-          {isAdmin && <NavLink to="/admin/types">Document Types</NavLink>}
-          {isAdmin && <NavLink to="/admin/users">Users</NavLink>}
-          {isSuper && <NavLink to="/admin/settings">Settings</NavLink>}
-        </nav>
-        <div className="sidebar-foot">
+        <div className="spacer" />
+        <div className="me">
+          <Avatar name={profile?.displayName || profile?.email} size="sm" />
           <div className="who">
-            <b>{profile?.displayName}</b>
-            <span>{profile?.office || profile?.email}</span>
-            <span className="role">{profile?.role}</span>
+            <div>{profile?.displayName}</div>
+            <div className="role">{ROLE_NAMES[profile?.role] || profile?.role}</div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={logout}>Sign out</button>
         </div>
-      </aside>
-      <main className="content">
-        <Outlet />
-      </main>
+        <button className="icon-btn" title="Log out" onClick={logout}>
+          <Icon name="logout" /><span className="lo-txt">Log out</span>
+        </button>
+      </header>
+      <div className="layout">
+        <nav className="side" aria-label="Main">
+          {groups.map((g, gi) => (
+            <div key={gi}>
+              {g.label && <div className="group">{g.label}</div>}
+              {g.items.map(([to, icon, label, end]) => (
+                <NavLink key={to} to={to} end={end}>
+                  <Icon name={icon} className="nav-ic" /><span className="lbl">{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="scrim" onClick={() => setOpen(false)} />
+        <main className="main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

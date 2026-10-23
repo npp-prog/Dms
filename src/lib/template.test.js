@@ -24,8 +24,15 @@ test('table, sum, each, check and context values', () => {
   const each = renderTemplate('{{#each items}}[{{@no}}:{{description}}:{{amount}}]{{/each}}', ctx);
   assert.equal(each, '[1:Pens:100][2:Paper:250.25][::]');
   const table = renderTemplate('{{table:items}}', ctx);
-  assert.match(table, /<td class="num">250.25<\/td>/);
+  assert.match(table, /<td class="r">250.25<\/td>/);
+  assert.match(table, /NOTHING FOLLOWS/);
   assert.match(table, /<b>350.25<\/b>/);
+});
+
+test('conditional blocks', () => {
+  const ctx = { data: { mode: 'ADA', empty: '' } };
+  assert.equal(renderTemplate('[{{#if mode=ADA}}x{{/if}}][{{#if mode=MDS Check}}x{{/if}}]', ctx), '[x][]');
+  assert.equal(renderTemplate('{{#if mode}}has{{/if}}{{#if empty}}no{{/if}}', ctx), 'has');
 });
 
 test('amount in words', () => {
@@ -52,7 +59,7 @@ test('starter types are consistent and render', () => {
     const stepIds = new Set(type.steps.map((s) => s.id));
     for (const f of type.fields) assert.ok(stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
     assert.equal(buildSteps(type).length, type.steps.length);
-    const refs = [...type.template.matchAll(/\{\{\s*(?:table:|sum:)?([\w]+)/g)].map((m) => m[1]);
+    const refs = [...type.template.matchAll(/\{\{\s*(?:#if\s+|table:|sum:)?([\w]+)/g)].map((m) => m[1]);
     const known = new Set([...keys, 'controlNo', 'lgu', 'today', 'preparedBy', 'docType']);
     for (const r of refs) assert.ok(known.has(r), `${type.code} template references unknown "${r}"`);
     assert.ok(renderTemplate(type.template, { fields: type.fields }).length > 100);

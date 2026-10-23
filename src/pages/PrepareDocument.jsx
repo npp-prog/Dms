@@ -193,7 +193,7 @@ function Wizard({ typeId, docId }) {
         </section>
 
         <div className="preview-col">
-          <div className="small muted no-print">Live preview</div>
+          <div className="preview-label no-print">Live preview</div>
           <DocumentPreview type={type} data={data} checklist={checklist} settings={settings}
             controlNo={existing?.controlNo || '(assigned on save)'} preparedBy={existing?.createdByName || actor.displayName} />
         </div>

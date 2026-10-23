@@ -9,6 +9,8 @@ import { amountToWords } from './numberToWords.js';
 //   {{table:items}}             auto-rendered HTML table for a table field
 //   {{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}
 //   {{check:itemId}}            checkbox mark for a checklist item
+//   {{#if field}}...{{/if}}     shown only when the field has a value
+//   {{#if field=Value}}...{{/if}} shown only when the field equals Value (e.g. tick a box)
 
 export function escapeHtml(value) {
   return String(value ?? '')
@@ -68,25 +70,26 @@ export function renderTable(field, rows) {
   const columns = field?.columns || [];
   const list = Array.isArray(rows) ? rows : [];
   const minRows = Number(field?.minRows) || 0;
-  const numeric = (c) => c.type === 'currency' || c.type === 'number';
+  const align = (c) => (c.type === 'currency' || c.type === 'number' ? ' class="r"' : c.type === 'date' ? ' class="c"' : '');
   const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
   const body = list
     .map((row) => `<tr>${columns
-      .map((c) => `<td${numeric(c) ? ' class="num"' : ''}>${escapeHtml(formatCell(row?.[c.key], c.type))}</td>`)
+      .map((c) => `<td${align(c)}>${escapeHtml(formatCell(row?.[c.key], c.type))}</td>`)
       .join('')}</tr>`)
     .join('');
-  const filler = Array.from({ length: Math.max(0, minRows - list.length) })
-    .map(() => `<tr>${columns.map(() => '<td>&nbsp;</td>').join('')}</tr>`)
+  const nothing = list.length ? `<tr class="nothing"><td colspan="${columns.length}">*** NOTHING FOLLOWS ***</td></tr>` : '';
+  const filler = Array.from({ length: Math.max(0, minRows - list.length - (list.length ? 1 : 0)) })
+    .map(() => `<tr class="blank">${columns.map(() => '<td></td>').join('')}</tr>`)
     .join('');
   const totals = columns.some((c) => c.total)
     ? `<tr class="total">${columns
       .map((c, i) => {
-        if (c.total) return `<td class="num"><b>${escapeHtml(formatCurrency(sumColumn(list, c.key)))}</b></td>`;
-        return i === 0 ? '<td><b>TOTAL</b></td>' : '<td></td>';
+        if (c.total) return `<td class="r"><b>${escapeHtml(formatCurrency(sumColumn(list, c.key)))}</b></td>`;
+        return i === 0 ? '<td class="r"><b>TOTAL</b></td>' : '<td></td>';
       })
       .join('')}</tr>`
     : '';
-  return `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${body}${filler}${totals}</tbody></table>`;
+  return `<table class="pt"><thead><tr>${head}</tr></thead><tbody>${body}${nothing}${filler}${totals}</tbody></table>`;
 }
 
 function renderTokens(template, scope, ctx) {
@@ -121,7 +124,18 @@ export function renderTemplate(template, ctx = {}) {
     preparedBy: ctx.preparedBy || '',
   };
 
-  const withLoops = String(template || '').replace(
+  const withIfs = String(template || '').replace(
+    /\{\{#if\s+([\w.]+)\s*(?:=\s*([^}]*?))?\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
+    (_, key, expected, inner) => {
+      const value = lookup(base, key);
+      const shown = expected === undefined
+        ? value !== undefined && value !== null && String(value).trim() !== '' && !(Array.isArray(value) && !value.length)
+        : String(value ?? '').trim() === expected.trim();
+      return shown ? inner : '';
+    },
+  );
+
+  const withLoops = withIfs.replace(
     /\{\{#each\s+([\w.]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
     (_, key, inner) => {
       const rows = lookup(base, key);
@@ -152,27 +166,25 @@ export function generateDefaultTemplate(type) {
     .filter((f) => f.type !== 'table')
     .map((f) => {
       const filter = f.type === 'currency' ? '|peso' : f.type === 'date' ? '|date' : '';
-      return `<tr><th style="width:35%">${escapeHtml(f.label)}</th><td>{{${f.key}${filter}}}</td></tr>`;
+      return `<tr><td class="lbl">${escapeHtml(f.label)}</td><td>{{${f.key}${filter}}}</td></tr>`;
     })
-    .join('\n      ');
+    .join('\n    ');
   const tables = fields
     .filter((f) => f.type === 'table')
-    .map((f) => `<h4>${escapeHtml(f.label)}</h4>\n    {{table:${f.key}}}`)
-    .join('\n    ');
-  return `<div class="form">
-  <div class="form-header">
-    <div class="small">Republic of the Philippines</div>
-    <div class="lgu">{{lgu.name}}</div>
-    <div class="small">{{lgu.address}}</div>
-    <h2>${escapeHtml((type?.name || 'DOCUMENT').toUpperCase())}</h2>
-  </div>
-  <table class="grid">
-    <tr><th style="width:35%">Control No.</th><td>{{controlNo}}</td></tr>
-      ${rows}
+    .map((f) => `{{table:${f.key}}}`)
+    .join('\n  ');
+  return `<div class="ph"><img src="{{lgu.seal}}" alt="">
+    <div class="l2">Republic of the Philippines</div>
+    <div class="l1">{{lgu.name|upper}}</div>
+    <div class="l2">{{lgu.address}}</div>
+    <div class="l3">${escapeHtml((type?.name || 'DOCUMENT').toUpperCase())}</div></div>
+  <table class="pmeta-t"><tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
+  <table class="pt">
+    ${rows}
   </table>
-    ${tables}
-  <table class="sign">
-    <tr><td>Prepared by:<br><br><b>{{preparedBy|upper}}</b></td><td>Approved by:<br><br><b>&nbsp;</b></td></tr>
-  </table>
-</div>`;
+  ${tables}
+  <div class="sig2">
+    <div class="col"><div class="who">Prepared by:</div><div class="name">{{preparedBy|upper}}</div><div class="cap">Signature over Printed Name</div></div>
+    <div class="col"><div class="who">Approved by:</div><div class="name">&nbsp;</div><div class="cap">Signature over Printed Name</div></div>
+  </div>`;
 }

@@ -8,6 +8,8 @@ FTS is a web app that stores the official formats of LGU financial documents. It
 
 Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netlify.
 
+**Look:** the same design as PMS-IMS (TOSCAN layout: top bar and sidebar, a dashboard with "Needs your attention" and "At a glance", the Inter and Plus Jakarta Sans typefaces, official-form print layout with the municipal seal) in **navy blue and gold** instead of green and gold.
+
 ## Features
 
 | Area | What it does |
@@ -17,7 +19,7 @@ Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netl
 | Documents | Each document gets an automatic control number, e.g. `DV-2026-10-0001`. Status goes Draft → Complete → Transmitted via DMS, or Cancelled. You can filter, search, print and see the history of each document. |
 | Document Types (admin) | Field builder (text, long text, number, amount, date, dropdown, line-item tables with computed columns and totals), steps builder, checklist builder, and template editor with live preview. Import/export as JSON. Starter DV/OBR/PR/PO formats are included. |
 | Users (admin) | New accounts wait for approval. Admins approve or deactivate users. Only the superadmin grants admin/superadmin. |
-| Settings (superadmin) | LGU name and address (printed on headers) and the DMS URL. |
+| Settings (superadmin) | LGU name, address and seal (printed on headers) and the DMS URL. |
 
 Each document stores a frozen copy of its format. A document therefore always prints the way it was prepared, even after an admin revises the document type.
 
@@ -86,8 +88,10 @@ Formats are HTML with placeholders:
 | `{{sum:items.amount\|peso}}` | Total of a table column |
 | `{{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}` | Custom row layout |
 | `{{check:obr}}` | ☑ / ☐ for a checklist item |
+| `{{#if mode=ADA}}&#10003;{{/if}}` | Shown only when a field equals a value (or `{{#if field}}` when it has any value) |
+| `{{lgu.seal}}` | Seal image URL (Settings, default `/municipal-seal.png`) |
 
-Useful CSS classes: `grid` (bordered table), `sign`, `sig` (signature line), `sig-label`, `num`, `small`, `form-header`, `lgu`. The rendered HTML is sanitized with DOMPurify.
+Form CSS classes (same as the PMS-IMS printed forms): `ph` header with `l1` / `l2` / `l3` lines, `pmeta-t` (unbordered meta lines), `pt` (bordered table), `lbl` (shaded label cell), `pf-box` (checkbox), `pf-cell`, `pf-signame` (signature line), `cap` (caption), `sig2` signature columns (`col`, `who`, `name`, `pos`), `r` / `c` alignment. "Generate from fields" in the template editor produces a starting layout with these. The rendered HTML is sanitized with DOMPurify.
 
 ## Data model (Firestore)
 
@@ -99,7 +103,7 @@ documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, con
                       data{}, checklist{}, status, title, dmsRefNo, dmsRecipient,
                       createdBy, createdByName, history[], createdAt, updatedAt
 counters/{CODE_YYYY-MM}  value  (control number sequence)
-meta/settings         lguName, lguAddress, province, dmsUrl
+meta/settings         lguName, lguAddress, province, sealUrl, dmsUrl
 meta/bootstrap        superadmin uid (claimed once by the first account)
 ```
 

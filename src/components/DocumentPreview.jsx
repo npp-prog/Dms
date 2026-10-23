@@ -12,7 +12,12 @@ export default function DocumentPreview({ type, data = {}, checklist = {}, contr
     preparedBy,
     fields: type?.fields,
     docType: { code: type?.code, name: type?.name },
-    lgu: { name: settings.lguName || '', address: settings.lguAddress || '', province: settings.province || '' },
+    lgu: {
+      name: settings.lguName || 'Municipal Government of Candoni',
+      address: settings.lguAddress || '',
+      province: settings.province || '',
+      seal: settings.sealUrl || '/municipal-seal.png',
+    },
   })), [type, data, checklist, controlNo, preparedBy, settings]);
 
   const size = `${type?.paperSize || 'A4'} ${type?.orientation || 'portrait'}`;

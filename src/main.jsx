@@ -10,7 +10,7 @@ function NotConfigured() {
   return (
     <div className="center-screen">
       <div className="card narrow">
-        <h2>Firebase is not configured</h2>
+        <h2>Firebase is not connected yet</h2>
         <p>Set the <code>VITE_FIREBASE_*</code> environment variables (see <code>.env.example</code>) in
           <code>.env.local</code> for local development, or in Netlify&rsquo;s site environment variables, then rebuild.</p>
       </div>

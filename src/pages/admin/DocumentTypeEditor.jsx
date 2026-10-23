@@ -261,7 +261,8 @@ export default function DocumentTypeEditor() {
                 <li><code>{'{{controlNo}}'}</code> <code>{'{{today|date}}'}</code> <code>{'{{preparedBy}}'}</code> <code>{'{{lgu.name}}'}</code> <code>{'{{lgu.address}}'}</code></li>
                 <li><code>{'{{table:key}}'}</code> auto table · <code>{'{{sum:key.column|peso}}'}</code> column total</li>
                 <li><code>{'{{#each key}}<tr><td>{{@no}}</td><td>{{column}}</td></tr>{{/each}}'}</code> custom rows</li>
-                <li><code>{'{{check:id}}'}</code> checklist box · CSS classes: <code>grid</code>, <code>sign</code>, <code>sig</code>, <code>sig-label</code>, <code>num</code>, <code>small</code>, <code>form-header</code></li>
+                <li><code>{'{{check:id}}'}</code> checklist box · <code>{'{{#if key=Value}}✓{{/if}}'}</code> conditional</li>
+                <li><code>{'{{lgu.seal}}'}</code> seal image · CSS classes: <code>ph</code> (header: <code>l1</code> <code>l2</code> <code>l3</code>), <code>pmeta-t</code>, <code>pt</code>, <code>lbl</code>, <code>pf-box</code>, <code>pf-cell</code>, <code>pf-signame</code>, <code>cap</code>, <code>sig2</code>, <code>r</code>, <code>c</code></li>
               </ul>
               <div>Field keys: {type.fields.map((f) => <code key={f.key}>{f.key}</code>)}</div>
             </details>

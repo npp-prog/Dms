@@ -1,14 +1,16 @@
 // Starter document types. Superadmins/admins can load these from
 // Admin > Document Types > "Load starter formats" and then edit freely.
 
-const header = (title, extra = '') => `
-  <div class="form-header">
-    <div class="small">Republic of the Philippines</div>
-    <div class="lgu">{{lgu.name}}</div>
-    <div class="small">{{lgu.address}}</div>
-    <h2>${title}</h2>
-    ${extra}
-  </div>`;
+// Header and blocks follow the PMS-IMS official form layout (seal, LGU, form title).
+const header = (title) => `<div class="ph"><img src="{{lgu.seal}}" alt="">
+    <div class="l2">Republic of the Philippines</div>
+    <div class="l1">{{lgu.name|upper}}</div>
+    <div class="l2">{{lgu.address}}</div>
+    <div class="l3">${title}</div></div>`;
+
+const sig = (who, name, pos, cap = 'Signature over Printed Name') => `<div class="col"><div class="who">${who}</div>
+      <div class="name">{{${name}|upper}}</div><div class="cap">${cap}</div>
+      <div class="pos">{{${pos}}}</div><div class="cap">Position/Office</div></div>`;
 
 const DV = {
   code: 'DV',
@@ -69,32 +71,41 @@ const DV = {
     { id: 'tax', label: 'BIR forms / computation of taxes withheld', required: false },
     { id: 'id', label: 'Payee valid ID / authority to receive payment', required: false },
   ],
-  template: `<div class="form">
-  ${header('DISBURSEMENT VOUCHER', '<div class="small">Fund: <b>{{fundCluster}}</b> &nbsp; | &nbsp; FTS Control No.: <b>{{controlNo}}</b></div>')}
-  <table class="grid">
-    <tr><th style="width:20%">Mode of Payment</th><td colspan="3">{{modeOfPayment}}</td></tr>
-    <tr><th>Payee</th><td>{{payee}}</td><th style="width:18%">TIN/Employee No.</th><td>{{tin}}</td></tr>
-    <tr><th>Address</th><td>{{address}}</td><th>ObR/ORS No.</th><td>{{obrNo}}</td></tr>
-    <tr><th>Office</th><td>{{office}}</td><th>DV No. / Date</th><td>{{dvNo}} &nbsp; {{date|date}}</td></tr>
+  template: `${header('DISBURSEMENT VOUCHER')}
+  <table class="pmeta-t"><tr><td>Fund: <b>{{fundCluster}}</b></td><td class="r">DV No.: <b>{{dvNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr>
+    <tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
+  <table class="pt">
+    <tr><td class="lbl">Mode of Payment</td><td colspan="3">
+      <span class="pf-box">{{#if modeOfPayment=MDS Check}}&#10003;{{/if}}</span> MDS Check &nbsp;
+      <span class="pf-box">{{#if modeOfPayment=Commercial Check}}&#10003;{{/if}}</span> Commercial Check &nbsp;
+      <span class="pf-box">{{#if modeOfPayment=ADA}}&#10003;{{/if}}</span> ADA &nbsp;
+      <span class="pf-box">{{#if modeOfPayment=Others}}&#10003;{{/if}}</span> Others</td></tr>
+    <tr><td class="lbl">Payee</td><td><b>{{payee}}</b></td><td class="lbl">TIN/Employee No.</td><td>{{tin}}</td></tr>
+    <tr><td class="lbl">Address</td><td>{{address}}</td><td class="lbl">ObR/ORS No.</td><td>{{obrNo}}</td></tr>
+    <tr><td class="lbl">Office</td><td colspan="3">{{office}}</td></tr>
   </table>
   {{table:particulars}}
-  <table class="grid">
+  <table class="pt">
     <tr><td colspan="2"><b>Amount Due:</b> {{sum:particulars.amount|peso}} &mdash; <i>{{sum:particulars.amount|words}}</i></td></tr>
     <tr>
-      <td style="width:50%"><b>A.</b> Certified: Expenses/Cash Advance necessary, lawful and incurred under my direct supervision.<br><br>
-        <div class="sig">{{certA|upper}}</div><div class="sig-label">{{certAPos}}</div></td>
-      <td><b>B.</b> Accounting Entry {{table:entries}}</td>
+      <td class="pf-cell" style="width:50%"><b>A.</b> Certified: Expenses/Cash Advance necessary, lawful and incurred under my direct supervision.
+        <div class="pf-signame">{{certA|upper}}</div><div class="cap">{{certAPos}}</div></td>
+      <td class="pf-cell"><b>B.</b> Accounting Entry {{table:entries}}</td>
     </tr>
     <tr>
-      <td><b>C.</b> Certified: Cash available &#9744; &nbsp; Subject to Authority to Debit Account &#9744; &nbsp; Supporting documents complete and amount claimed proper &#9744;<br><br>
-        <div class="sig">{{certC|upper}}</div><div class="sig-label">{{certCPos}}</div></td>
-      <td><b>D.</b> Approved for Payment<br><br><br>
-        <div class="sig">{{approver|upper}}</div><div class="sig-label">{{approverPos}}</div></td>
+      <td class="pf-cell"><b>C.</b> Certified:
+        <div><span class="pf-box"></span> Cash available</div>
+        <div><span class="pf-box"></span> Subject to Authority to Debit Account (when applicable)</div>
+        <div><span class="pf-box"></span> Supporting documents complete and amount claimed proper</div>
+        <div class="pf-signame">{{certC|upper}}</div><div class="cap">{{certCPos}}</div></td>
+      <td class="pf-cell"><b>D.</b> Approved for Payment
+        <div class="pf-signame">{{approver|upper}}</div><div class="cap">{{approverPos}}</div></td>
     </tr>
-    <tr><td colspan="2"><b>E.</b> Receipt of Payment &mdash; Check/ADA No.: ________ &nbsp; Date: ________ &nbsp; Bank: ______________ &nbsp; JEV No.: ________<br><br>
-      Signature: ______________________ &nbsp; Printed Name: ______________________ &nbsp; OR/Other Document: ______________</td></tr>
+    <tr><td colspan="2"><b>E.</b> Receipt of Payment<br>
+      Check/ADA No.: ____________ &nbsp; Date: ____________ &nbsp; Bank Name &amp; Account No.: ______________________ &nbsp; JEV No.: ____________<br><br>
+      Signature: ______________________ &nbsp; Printed Name: ______________________ &nbsp; Date: __________ &nbsp; OR/Other Document: ______________</td></tr>
   </table>
-</div>`,
+  <div class="pf-foot">Prepared in FTS by {{preparedBy}}</div>`,
 };
 
 const OBR = {
@@ -137,23 +148,24 @@ const OBR = {
     { id: 'pr', label: 'Purchase Request / Request for payroll / Billing attached', required: true },
     { id: 'allotment', label: 'Verified that allotment balance is sufficient', required: false },
   ],
-  template: `<div class="form">
-  ${header('OBLIGATION REQUEST', '<div class="small">No.: <b>{{obrNo}}</b> &nbsp; | &nbsp; FTS Control No.: <b>{{controlNo}}</b></div>')}
-  <table class="grid">
-    <tr><th style="width:18%">Payee</th><td colspan="3">{{payee}}</td></tr>
-    <tr><th>Office</th><td>{{office}}</td><th style="width:12%">Fund</th><td>{{fund}}</td></tr>
-    <tr><th>Address</th><td>{{address}}</td><th>Date</th><td>{{date|date}}</td></tr>
+  template: `${header('OBLIGATION REQUEST')}
+  <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b></td><td class="r">ObR No.: <b>{{obrNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr>
+    <tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
+  <table class="pt">
+    <tr><td class="lbl">Payee</td><td><b>{{payee}}</b></td></tr>
+    <tr><td class="lbl">Office</td><td>{{office}}</td></tr>
+    <tr><td class="lbl">Address</td><td>{{address}}</td></tr>
   </table>
   {{table:items}}
-  <table class="grid">
+  <table class="pt">
     <tr>
-      <td style="width:50%"><b>A.</b> Certified: Charges to appropriation/allotment necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.<br><br>
-        <div class="sig">{{requestedBy|upper}}</div><div class="sig-label">{{requestedByPos}}</div></td>
-      <td><b>B.</b> Certified: Existence of available appropriation.<br><br><br>
-        <div class="sig">{{budgetOfficer|upper}}</div><div class="sig-label">{{budgetOfficerPos}}</div></td>
+      <td class="pf-cell" style="width:50%"><b>A.</b> Certified: Charges to appropriation/allotment necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.
+        <div class="pf-signame">{{requestedBy|upper}}</div><div class="cap">{{requestedByPos}}</div><div class="cap">Head, Requesting Office/Authorized Representative</div></td>
+      <td class="pf-cell"><b>B.</b> Certified: Existence of available appropriation.
+        <div class="pf-signame">{{budgetOfficer|upper}}</div><div class="cap">{{budgetOfficerPos}}</div><div class="cap">Head, Budget Unit/Authorized Representative</div></td>
     </tr>
   </table>
-</div>`,
+  <div class="pf-foot">Prepared in FTS by {{preparedBy}}</div>`,
 };
 
 const PR = {
@@ -197,20 +209,19 @@ const PR = {
     { id: 'specs', label: 'Technical specifications / Terms of Reference attached', required: false },
     { id: 'canvass', label: 'Price reference (canvass / market survey) attached', required: false },
   ],
-  template: `<div class="form">
-  ${header('PURCHASE REQUEST', '<div class="small">FTS Control No.: <b>{{controlNo}}</b></div>')}
-  <table class="grid">
-    <tr><th style="width:18%">Office/Section</th><td>{{office}}</td><th style="width:16%">PR No.</th><td>{{prNo}}</td></tr>
-    <tr><th>Fund</th><td>{{fund}}</td><th>Date</th><td>{{date|date}}</td></tr>
-    <tr><th>Resp. Center Code</th><td colspan="3">{{respCenter}}</td></tr>
+  template: `${header('PURCHASE REQUEST')}
+  <table class="pmeta-t"><tr><td>Entity Name: <b>{{lgu.name}}</b></td><td class="r">Fund: <b>{{fund}}</b></td></tr></table>
+  <table class="pt">
+    <tr><td class="lbl">Office/Section</td><td>{{office}}</td><td class="lbl">PR No.</td><td>{{prNo}}</td><td class="lbl">Date</td><td>{{date|date}}</td></tr>
+    <tr><td class="lbl">Resp. Center Code</td><td colspan="3">{{respCenter}}</td><td class="lbl">FTS No.</td><td>{{controlNo}}</td></tr>
   </table>
   {{table:items}}
-  <table class="grid">
-    <tr><th style="width:18%">Purpose</th><td colspan="2">{{purpose}}</td></tr>
-    <tr><td></td><td style="width:41%"><b>Requested by:</b><br><br><div class="sig">{{requestedBy|upper}}</div><div class="sig-label">{{requestedByPos}}</div></td>
-      <td><b>Approved by:</b><br><br><div class="sig">{{approvedBy|upper}}</div><div class="sig-label">{{approvedByPos}}</div></td></tr>
-  </table>
-</div>`,
+  <table class="pt"><tr><td class="lbl">Purpose</td><td>{{purpose}}</td></tr></table>
+  <div class="sig2">
+    ${sig('Requested by:', 'requestedBy', 'requestedByPos')}
+    ${sig('Approved by:', 'approvedBy', 'approvedByPos')}
+  </div>
+  <div class="pf-foot">Prepared in FTS by {{preparedBy}}</div>`,
 };
 
 const PO = {
@@ -261,30 +272,33 @@ const PO = {
     { id: 'obr', label: 'Approved ObR/ORS', required: true },
     { id: 'pr', label: 'Approved Purchase Request', required: true },
   ],
-  template: `<div class="form">
-  ${header('PURCHASE ORDER', '<div class="small">FTS Control No.: <b>{{controlNo}}</b></div>')}
-  <table class="grid">
-    <tr><th style="width:18%">Supplier</th><td>{{supplier}}</td><th style="width:16%">P.O. No.</th><td>{{poNo}}</td></tr>
-    <tr><th>Address</th><td>{{supplierAddress}}</td><th>Date</th><td>{{date|date}}</td></tr>
-    <tr><th>TIN</th><td>{{tin}}</td><th>Mode of Proc.</th><td>{{modeOfProcurement}}</td></tr>
+  template: `${header('PURCHASE ORDER')}
+  <table class="pmeta-t"><tr><td>Entity Name: <b>{{lgu.name}}</b></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
+  <table class="pt">
+    <tr><td class="lbl">Supplier</td><td><b>{{supplier}}</b></td><td class="lbl">P.O. No.</td><td>{{poNo}}</td></tr>
+    <tr><td class="lbl">Address</td><td>{{supplierAddress}}</td><td class="lbl">Date</td><td>{{date|date}}</td></tr>
+    <tr><td class="lbl">TIN</td><td>{{tin}}</td><td class="lbl">Mode of Procurement</td><td>{{modeOfProcurement}}</td></tr>
     <tr><td colspan="4">Gentlemen: Please furnish this Office the following articles subject to the terms and conditions contained herein:</td></tr>
-    <tr><th>Place of Delivery</th><td>{{placeOfDelivery}}</td><th>Delivery Term</th><td>{{deliveryTerm}}</td></tr>
-    <tr><th>Date of Delivery</th><td>{{dateOfDelivery}}</td><th>Payment Term</th><td>{{paymentTerm}}</td></tr>
+    <tr><td class="lbl">Place of Delivery</td><td>{{placeOfDelivery}}</td><td class="lbl">Delivery Term</td><td>{{deliveryTerm}}</td></tr>
+    <tr><td class="lbl">Date of Delivery</td><td>{{dateOfDelivery}}</td><td class="lbl">Payment Term</td><td>{{paymentTerm}}</td></tr>
   </table>
   {{table:items}}
-  <table class="grid">
+  <table class="pt">
     <tr><td colspan="2"><b>(Total Amount in Words):</b> <i>{{sum:items.amount|words}}</i></td></tr>
-    <tr><td colspan="2" class="small">In case of failure to make the full delivery within the time specified above, a penalty of one-tenth (1/10) of one percent for every day of delay shall be imposed on the undelivered item/s.</td></tr>
+    <tr><td colspan="2" style="font-size:9.5px">In case of failure to make the full delivery within the time specified above, a penalty of one-tenth (1/10) of one percent for every day of delay shall be imposed on the undelivered item/s.</td></tr>
     <tr>
-      <td style="width:50%">Conforme:<br><br><div class="sig">&nbsp;</div><div class="sig-label">Signature over Printed Name of Supplier</div><div class="sig-label">Date: ____________</div></td>
-      <td>Very truly yours,<br><br><div class="sig">{{authorizedOfficial|upper}}</div><div class="sig-label">{{authorizedOfficialPos}}</div></td>
+      <td class="pf-cell" style="width:50%">Conforme:
+        <div class="pf-signame">&nbsp;</div><div class="cap">Signature over Printed Name of Supplier</div><div class="cap">Date: ____________</div></td>
+      <td class="pf-cell">Very truly yours,
+        <div class="pf-signame">{{authorizedOfficial|upper}}</div><div class="cap">Signature over Printed Name of Authorized Official</div><div class="cap">{{authorizedOfficialPos}}</div></td>
     </tr>
     <tr>
-      <td>Fund: {{fund}}<br>ObR/ORS No.: {{obrNo}}<br>Amount: {{sum:items.amount|peso}}</td>
-      <td>Funds Available:<br><br><div class="sig">{{accountant|upper}}</div><div class="sig-label">Chief Accountant / Head of Accounting</div></td>
+      <td class="pf-cell">Fund: <b>{{fund}}</b><br>ObR/ORS No.: <b>{{obrNo}}</b><br>Amount: <b>{{sum:items.amount|peso}}</b></td>
+      <td class="pf-cell">Funds Available:
+        <div class="pf-signame">{{accountant|upper}}</div><div class="cap">Signature over Printed Name of Chief Accountant/Head of Accounting Division/Unit</div></td>
     </tr>
   </table>
-</div>`,
+  <div class="pf-foot">Prepared in FTS by {{preparedBy}}</div>`,
 };
 
 export const STARTER_TYPES = [DV, OBR, PR, PO];
