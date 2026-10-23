@@ -52,7 +52,7 @@ You should see this in the terminal:
 
 ```
 [FTS] Demo data loaded:
-      Superadmin  admin@fts.local / admin123
+      Superadmin  npp@mgocandoniaccounting.org / admin123
       End user    user@fts.local / user123
       Formats     DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO
       Checklists  210 (disbursement and liquidation)
@@ -181,7 +181,7 @@ Totals are computed as you type. On the Liquidation Report, for example, FTS com
 
 ## 5. Using FTS as an administrator
 
-Sign out (top right), then sign in as **admin@fts.local** / **admin123**. On the live site, the first account ever registered becomes the superadmin.
+Sign out (top right), then sign in as **npp@mgocandoniaccounting.org** / **admin123** (local demo password). On the live site, `npp@mgocandoniaccounting.org` is the superadmin: sign in with **Continue with Google**, or register with email and password and open the verification link.
 
 ### Checklists
 

@@ -9,6 +9,7 @@ import {
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
+import { isOwnerEmail } from './owner.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -155,4 +156,14 @@ test('paper sizes and fit to page', () => {
   assert.ok(d.width >= 260 && d.width * d.scale <= 190.5);
   // Never below the minimum scale.
   assert.equal(fitPage(() => ({ w: 190, h: 5000 }), 190, 277, 0.8).scale, 0.8);
+});
+
+test('superadmin email', () => {
+  assert.equal(isOwnerEmail('npp@mgocandoniaccounting.org'), true);
+  assert.equal(isOwnerEmail(' NPP@MgoCandoniAccounting.org '), true);
+  assert.equal(isOwnerEmail('npp@gmail.com'), false);
+  assert.equal(isOwnerEmail(''), false);
+  // firestore.rules must name the same email
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  assert.match(rules, /\['npp@mgocandoniaccounting\.org'\]/);
 });

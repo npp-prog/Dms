@@ -3,35 +3,35 @@ import {
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { isOwnerEmail } from './owner.js';
 
 // ---------- Users ----------
 
-// Creates the profile on first sign-in. The very first account becomes the
-// superadmin (claimed atomically via meta/bootstrap); everyone else starts
-// inactive until approved by an admin.
+// Creates the profile on first sign-in. The owner's email (lib/owner.js), once
+// verified by Firebase, is the superadmin; everyone else starts inactive until an
+// admin approves them. The Firestore rules enforce the same.
 export async function ensureUserProfile(user, extra = {}) {
   const ref = doc(db, 'users', user.uid);
+  const owner = isOwnerEmail(user.email) && user.emailVerified;
   const existing = await getDoc(ref);
-  if (existing.exists()) return { id: user.uid, ...existing.data() };
-
-  const bootstrapRef = doc(db, 'meta', 'bootstrap');
-  return runTransaction(db, async (tx) => {
-    const boot = await tx.get(bootstrapRef);
-    const again = await tx.get(ref);
-    if (again.exists()) return { id: user.uid, ...again.data() };
-    const first = !boot.exists();
-    const profile = {
-      email: user.email,
-      displayName: extra.displayName || user.displayName || user.email,
-      office: extra.office || '',
-      role: first ? 'superadmin' : 'user',
-      active: first,
-      createdAt: serverTimestamp(),
-    };
-    tx.set(ref, profile);
-    if (first) tx.set(bootstrapRef, { superadmin: user.uid, at: serverTimestamp() });
-    return { id: user.uid, ...profile };
-  });
+  if (existing.exists()) {
+    const p = existing.data();
+    if (owner && (p.role !== 'superadmin' || !p.active)) {
+      await updateDoc(ref, { role: 'superadmin', active: true });
+      return { id: user.uid, ...p, role: 'superadmin', active: true };
+    }
+    return { id: user.uid, ...p };
+  }
+  const profile = {
+    email: user.email,
+    displayName: extra.displayName || user.displayName || user.email,
+    office: extra.office || '',
+    role: owner ? 'superadmin' : 'user',
+    active: owner,
+    createdAt: serverTimestamp(),
+  };
+  await setDoc(ref, profile);
+  return { id: user.uid, ...profile };
 }
 
 export async function listUsers() {

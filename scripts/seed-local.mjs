@@ -9,11 +9,13 @@ import {
 } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { STARTER_TYPES } from '../src/lib/defaults.js';
+import { SUPERADMIN_EMAILS } from '../src/lib/owner.js';
 
 const CHECKLISTS = JSON.parse(readFileSync(new URL('../src/data/checklists.json', import.meta.url)));
 
 export const DEMO = {
-  admin: { email: 'admin@fts.local', password: 'admin123', displayName: 'Maria Santos', office: 'Municipal Accounting Office' },
+  // The superadmin is the owner's email (src/lib/owner.js, firestore.rules). Local emulator only.
+  admin: { email: SUPERADMIN_EMAILS[0], password: 'admin123', displayName: 'Maria Santos', office: 'Municipal Accounting Office' },
   user: { email: 'user@fts.local', password: 'user123', displayName: 'Juan Dela Cruz', office: 'Municipal Engineering Office' },
 };
 
@@ -32,16 +34,20 @@ async function main() {
     // not seeded yet
   }
 
-  // 1. Superadmin (first account claims the bootstrap document, as in the app).
+  // 1. Superadmin: the owner's email, marked verified (as after Google sign-in or the email link).
   const a = await createUserWithEmailAndPassword(auth, DEMO.admin.email, DEMO.admin.password);
   await updateProfile(a.user, { displayName: DEMO.admin.displayName });
-  const boot = writeBatch(db);
-  boot.set(doc(db, 'users', a.user.uid), {
+  await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-fts/accounts:update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+    body: JSON.stringify({ localId: a.user.uid, emailVerified: true }),
+  });
+  await a.user.reload();
+  await a.user.getIdToken(true);
+  await setDoc(doc(db, 'users', a.user.uid), {
     email: DEMO.admin.email, displayName: DEMO.admin.displayName, office: DEMO.admin.office,
     role: 'superadmin', active: true, createdAt: serverTimestamp(),
   });
-  boot.set(doc(db, 'meta', 'bootstrap'), { superadmin: a.user.uid, at: serverTimestamp() });
-  await boot.commit();
 
   // 2. Settings and starter formats.
   // Signatories as printed on the Appendix Forms of the Municipal Government of Candoni (change in Settings).

@@ -470,3 +470,9 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .req-list li { display: flex; gap: .7rem; align-items: flex-start; padding: .55rem .75rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: .88rem; }
 .req-list li .badge { flex: none; margin-top: .1rem; min-width: 92px; justify-content: center; }
 .req-list li .t { white-space: pre-line; }
+
+/* Google sign-in (same as PMS-IMS) */
+.gbtn { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: .6rem; padding: .7rem; border: 1px solid var(--line-2); border-radius: 12px; background: #fff; font-weight: 600; transition: background .15s, border-color .15s, box-shadow .15s; }
+.gbtn:hover { background: var(--hover); border-color: #b6bdca; box-shadow: var(--shadow); }
+.or { display: flex; align-items: center; gap: .7rem; color: var(--muted); font-size: .8rem; margin: 1.1rem 0; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }

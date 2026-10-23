@@ -30,7 +30,7 @@ Each document stores a frozen copy of its format. A document therefore always pr
 
 | Role | Can |
 |---|---|
-| `superadmin` | Everything, including assigning roles and changing settings. **The first account registered becomes the superadmin.** |
+| `superadmin` | Everything, including assigning roles and changing settings. **`npp@mgocandoniaccounting.org` is the superadmin**, once Firebase has verified the address (Google sign-in, or the verification link sent on registration). Set in `src/lib/owner.js` and `firestore.rules`. |
 | `admin` | Manage document types, approve/deactivate regular users, view all documents |
 | `user` | View formats, prepare documents, see only their own documents |
 
@@ -41,7 +41,7 @@ Firestore security rules (`firestore.rules`) enforce all of this on the server.
 ### 1. Firebase
 
 1. Create a **new Firebase project for FTS** at <https://console.firebase.google.com> (e.g. `candoni-fts`). Don't reuse the project of PMS-IMS or another app: FTS has its own users, rules and data.
-2. **Authentication → Sign-in method →** enable **Email/Password**.
+2. **Authentication → Sign-in method →** enable **Email/Password** and **Google**.
 3. **Firestore Database →** create a database (production mode).
 4. **Project settings → Your apps →** add a Web app, copy its `firebaseConfig`, and paste the values into **`src/firebase-config.js`**. These values are not secret: access is controlled by Authentication and the Firestore rules. Commit and push.
 5. Deploy the security rules (required):
@@ -60,7 +60,7 @@ npm install
 npm run local        # local Firebase emulators + demo data + app at http://localhost:5173
 ```
 
-Demo logins: `admin@fts.local` / `admin123` (superadmin) and `user@fts.local` / `user123` (end user). See [docs/LOCALHOST.md](docs/LOCALHOST.md).
+Demo logins: `npp@mgocandoniaccounting.org` / `admin123` (superadmin, local demo only) and `user@fts.local` / `user123` (end user). See [docs/LOCALHOST.md](docs/LOCALHOST.md).
 
 **Against your real Firebase project:** paste the config into `src/firebase-config.js` (step 1), then `npm run dev`.
 
@@ -74,7 +74,7 @@ After that, every push to the branch Netlify watches redeploys the site by itsel
 
 ### 4. First run
 
-1. Open the site and **create an account**. The first account becomes the **superadmin**.
+1. Open the site and sign in with **Continue with Google** using `npp@mgocandoniaccounting.org`. That account becomes the **superadmin** right away. If you register with email and password instead, open the verification link that is emailed to you, then click **Check again**.
 2. Go to **Settings** and enter the LGU name, address and signatories.
 3. Go to **Document Types** and click **Load starter formats**, then adjust them. Or create your own.
 4. Go to **Checklists** and click **Load checklist library**.
@@ -118,7 +118,6 @@ documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, con
                       createdBy, createdByName, history[], createdAt, updatedAt
 counters/{CODE_YYYY-MM}  value  (control number sequence)
 meta/settings         lguName, lguAddress, province, sealUrl, signatories{}
-meta/bootstrap        superadmin uid (claimed once by the first account)
 ```
 
 ## Scripts
