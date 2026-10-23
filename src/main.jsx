@@ -11,7 +11,7 @@ function NotConfigured() {
     <div className="center-screen">
       <div className="card narrow">
         <h2>Firebase is not connected yet</h2>
-        <p>Open <code>src/firebase-config.js</code> and paste your Firebase project&rsquo;s web config
+        <p>Open <code>src/firebase-config.js</code> and paste the web config of the FTS Firebase project
           (Firebase console → Project settings → Your apps → Web app), then commit and push. Netlify redeploys
           by itself. The README walks through it step by step.</p>
       </div>

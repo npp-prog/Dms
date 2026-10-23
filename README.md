@@ -40,10 +40,10 @@ Firestore security rules (`firestore.rules`) enforce all of this on the server.
 
 ### 1. Firebase
 
-1. Create a project at <https://console.firebase.google.com>.
+1. Create a **new Firebase project for FTS** at <https://console.firebase.google.com> (e.g. `candoni-fts`). Don't reuse the project of PMS-IMS or another app: FTS has its own users, rules and data.
 2. **Authentication → Sign-in method →** enable **Email/Password**.
 3. **Firestore Database →** create a database (production mode).
-4. **Project settings → Your apps →** add a Web app, copy its `firebaseConfig`, and paste the values into **`src/firebase-config.js`**, the same way as in PMS-IMS. These values are not secret: access is controlled by Authentication and the Firestore rules. Commit and push.
+4. **Project settings → Your apps →** add a Web app, copy its `firebaseConfig`, and paste the values into **`src/firebase-config.js`**. These values are not secret: access is controlled by Authentication and the Firestore rules. Commit and push.
 5. Deploy the security rules (required):
    ```bash
    npx firebase-tools login

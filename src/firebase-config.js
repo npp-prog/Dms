@@ -1,6 +1,7 @@
-// Your Firebase project's web config: Firebase console → Project settings → General → Your apps → Web app.
-// Paste the values below (the same way as in PMS-IMS). These values are not secret;
-// access is controlled by Authentication and firestore.rules.
+// FTS's own Firebase project (a separate project just for FTS, not another LGU app's).
+// Firebase console → FTS project → Project settings → General → Your apps → Web app.
+// Paste the values below. They are not secret; access is controlled by Authentication
+// and firestore.rules.
 export const firebaseConfig = {
   apiKey: 'PASTE_API_KEY',
   authDomain: 'PASTE_PROJECT_ID.firebaseapp.com',
