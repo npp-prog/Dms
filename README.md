@@ -10,7 +10,7 @@ FTS is a web app that stores the official formats of LGU financial documents. It
 
 Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netlify.
 
-**Look:** the same design as PMS-IMS (TOSCAN layout: top bar and sidebar, a dashboard with "Needs your attention" and "At a glance", the Inter and Plus Jakarta Sans typefaces, official-form print layout with the municipal seal) in **navy blue and gold** instead of green and gold.
+**Look:** the same design as PMS-IMS (TOSCAN layout: top bar and sidebar, a dashboard with "Needs your attention" and "At a glance", the Inter and Plus Jakarta Sans typefaces, official-form print layout with the municipal seal) in the same **green and gold** palette.
 
 ## Features
 
