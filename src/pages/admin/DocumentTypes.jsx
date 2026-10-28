@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  deleteDocumentType, importDocumentTypes, listDocumentTypes, saveDocumentType,
+  applyStarterFormat, deleteDocumentType, importDocumentTypes, listDocumentTypes, saveDocumentType,
 } from '../../lib/api.js';
-import { STARTER_TYPES } from '../../lib/defaults.js';
+import { FORMAT_KEYS, STARTER_TYPES } from '../../lib/defaults.js';
 
 function download(filename, content) {
   const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
@@ -31,7 +31,6 @@ export default function DocumentTypes() {
 
   const existingCodes = new Set((types || []).map((t) => t.code));
   // A starter format that FTS has since revised (e.g. the DV redrawn after the official form).
-  const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource'];
   const pick = (t) => JSON.stringify(FORMAT_KEYS.map((k) => t[k] ?? null));
   const newerStarter = (t) => {
     const starter = STARTER_TYPES.find((s) => s.code === t.code);
@@ -39,7 +38,7 @@ export default function DocumentTypes() {
   };
   const updateToStarter = (t, starter) => {
     if (!window.confirm(`Replace the format of ${t.code} with the latest FTS starter format? Your changes to its fields, steps, processing guide and template are replaced. Documents already prepared keep their own copy.`)) return;
-    run(() => saveDocumentType(t.id, { ...t, ...Object.fromEntries(FORMAT_KEYS.map((k) => [k, starter[k]])) }, actor));
+    run(() => applyStarterFormat(t.id, starter));
   };
   const missingStarters = STARTER_TYPES.filter((t) => !existingCodes.has(t.code));
 

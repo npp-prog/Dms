@@ -75,7 +75,7 @@ export default function Dashboard() {
       {error && <div className="alert">{error}</div>}
       {setupNotice.length > 0 && (
         <div className="alert alert-ok row gap" style={{ justifyContent: 'space-between' }}>
-          <span><b>FTS is set up.</b> Installed {setupNotice.join(', ')}. Review them under Document Types, Checklists and Settings.</span>
+          <span><b>FTS is up to date.</b> It {setupNotice.join(', ')}. Review them under Document Types, Checklists and Settings.</span>
           <button className="btn btn-sm" onClick={dismissSetupNotice}>OK</button>
         </div>
       )}

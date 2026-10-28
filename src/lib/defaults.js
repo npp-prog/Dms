@@ -31,6 +31,8 @@ const DV = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
+  // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period). Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
@@ -752,7 +754,15 @@ const PAYROLL = {
 
 // Settings filled in on a new site (Settings page can change them): the LGU and the
 // signatories as printed on the Appendix Forms of the Municipal Government of Candoni.
+// Raised when the bundled checklist library (src/data/checklists.json) changes:
+// 2 = Document Type and Document Details for every item, 1001 from its revised Word file.
+export const CHECKLIST_LIBRARY_VERSION = 2;
+
+// The parts of a document type that make up its format (what a starter update replaces).
+export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource'];
+
 export const DEFAULT_SETTINGS = {
+  checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION,
   lguName: 'Municipal Government of Candoni',
   lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
   province: 'Negros Occidental',

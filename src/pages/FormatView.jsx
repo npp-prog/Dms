@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getDocumentType } from '../lib/api.js';
-import { buildSteps } from '../lib/forms.js';
+import { blankData, buildSteps } from '../lib/forms.js';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
@@ -72,7 +72,7 @@ export default function FormatView() {
             </ul>
           </section>
         </div>
-        <DocumentPreview type={type} settings={settings} />
+        <DocumentPreview type={type} data={blankData(type)} settings={settings} />
       </div>
     </div>
   );

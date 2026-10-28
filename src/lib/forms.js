@@ -48,6 +48,12 @@ export function computeFields(fields, data) {
   return next;
 }
 
+// What a blank form prints: only values the format pre-prints (fields with a default, e.g. the
+// DV's General Fund and "Head of Department/Office"), not today's date.
+export function blankData(type) {
+  return Object.fromEntries((type?.fields || []).filter((f) => f.default != null && f.type !== 'table').map((f) => [f.key, f.default]));
+}
+
 export function initialData(type) {
   const data = {};
   for (const f of type?.fields || []) {

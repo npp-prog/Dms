@@ -128,8 +128,13 @@ test('checklist library data is complete', () => {
   for (const c of LIBRARY) {
     assert.ok(c.title && c.items.length > 0, `${c.code} empty`);
     assert.equal(new Set(c.items.map((i) => i.id)).size, c.items.length, `${c.code} duplicate item ids`);
-    for (const i of c.items) assert.equal(typeof i.required, 'boolean');
-    assert.ok(!c.items.some((i) => /\(deleted\b/i.test(i.label)), `${c.code} has a deleted item`);
+    for (const i of c.items) {
+      assert.equal(typeof i.required, 'boolean');
+      // Document Type: the generic name; Document Details: the instruction that specifies it.
+      assert.ok(i.label && i.label.length <= 60, `${c.code} ${i.id}: document type missing or too long`);
+      assert.equal(typeof i.details, 'string', `${c.code} ${i.id}: no document details field`);
+    }
+    assert.ok(!c.items.some((i) => /\(deleted\b/i.test(`${i.label} ${i.details}`)), `${c.code} has a deleted item`);
   }
   const c1613 = LIBRARY.find((c) => c.code === '1613');
   assert.equal(c1613.items.length, 15);

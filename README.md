@@ -78,7 +78,7 @@ After that, every push to the branch Netlify watches redeploys the site by itsel
 2. On that first sign-in FTS sets itself up: it installs the 10 starter formats (**DV, OBR, PR, PO**, FURS, Payroll, PCV, LR, IT, JO), the 210 checklists, and the LGU settings with the signatories. Only empty parts are filled; nothing you have edited is overwritten. Review them under **Document Types**, **Checklists** and **Settings**.
 3. Other staff register themselves (Google or email). Approve them under **Users**.
 
-When a later version of FTS revises a starter format (for example the DV, redrawn after the Municipal Government of Candoni's 2026 DV), **Document Types** shows **Update format** next to it. Click it to replace that format with the new one. Documents already prepared keep the format they were prepared with.
+When a later version of FTS revises a starter format (for example the DV, redrawn after the Municipal Government of Candoni's 2026 DV) or the checklist library, the next admin sign-in brings the update in by itself: formats nobody has edited and checklists nobody has changed in the editor are replaced, and the dashboard says what was updated. A format you have edited keeps your version; **Document Types** shows **Update format** next to it if you want the new one. Documents already prepared keep the format they were prepared with.
 
 ## Template reference
 

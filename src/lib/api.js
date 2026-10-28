@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
-import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
+import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
 
 // ---------- Users ----------
 
@@ -112,7 +112,8 @@ export async function getChecklist(code) {
 
 export function saveChecklist(checklist, user) {
   const { id, createdAt, ...clean } = checklist;
-  return setDoc(doc(db, 'checklists', clean.code), { ...clean, updatedAt: serverTimestamp(), updatedBy: user.uid });
+  // edited: changed in the editor, so library updates leave it alone.
+  return setDoc(doc(db, 'checklists', clean.code), { ...clean, edited: true, updatedAt: serverTimestamp(), updatedBy: user.uid });
 }
 
 export function deleteChecklist(code) {
@@ -125,7 +126,7 @@ export async function importChecklists(list, user) {
     const batch = writeBatch(db);
     for (const c of list.slice(i, i + 400)) {
       const { id, createdAt, updatedAt, ...clean } = c;
-      batch.set(doc(db, 'checklists', clean.code), { ...clean, updatedAt: serverTimestamp(), updatedBy: user.uid });
+      batch.set(doc(db, 'checklists', clean.code), { ...clean, edited: false, updatedAt: serverTimestamp(), updatedBy: user.uid });
     }
     await batch.commit();
   }
@@ -137,28 +138,60 @@ export async function loadBundledChecklists() {
   return (await import('../data/checklists.json')).default;
 }
 
-// ---------- First-run setup ----------
+// ---------- Setup and updates ----------
 
-// On a new site, the first admin to sign in installs what FTS needs to be usable:
-// the starter formats (DV, OBR, PR, PO, ...), the checklist library and the LGU
-// settings. Only empty parts are filled; nothing existing is overwritten.
-export async function setupIfEmpty(user) {
-  const installed = [];
-  if ((await getDocs(query(collection(db, 'documentTypes'), limit(1)))).empty) {
+// Replaces a document type's format with the starter format FTS ships (e.g. the redrawn DV).
+// Documents already prepared keep their own frozen copy.
+export function applyStarterFormat(id, starter) {
+  return updateDoc(doc(db, 'documentTypes', id), {
+    ...Object.fromEntries(FORMAT_KEYS.map((k) => [k, starter[k] ?? null])),
+    starterVersion: starter.starterVersion || 1,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// Runs when an admin signs in. On a new site it installs what FTS needs: the starter formats
+// (DV, OBR, PR, PO, ...), the checklist library and the LGU settings. On an existing site it
+// brings in what FTS has revised since: starter formats nobody has edited (version 1 = never
+// saved in the editor) and library checklists nobody has edited. Returns what it did.
+export async function setupSite(user) {
+  const done = [];
+  const types = await listDocumentTypes();
+  if (!types.length) {
     await importDocumentTypes(STARTER_TYPES, user);
-    installed.push(`${STARTER_TYPES.length} document formats (${STARTER_TYPES.map((t) => t.code).join(', ')})`);
+    done.push(`installed ${STARTER_TYPES.length} document formats (${STARTER_TYPES.map((t) => t.code).join(', ')})`);
+  } else {
+    const updated = [];
+    for (const t of types) {
+      const starter = STARTER_TYPES.find((s) => s.code === t.code);
+      if (starter && (t.starterVersion || 1) < (starter.starterVersion || 1) && (Number(t.version) || 1) === 1) {
+        await applyStarterFormat(t.id, starter);
+        updated.push(t.code);
+      }
+    }
+    if (updated.length) done.push(`updated the ${updated.join(', ')} format`);
   }
+
+  const settings = await getSettings();
+  const libraryVersion = settings.checklistLibraryVersion || 1;
   if ((await getDocs(query(collection(db, 'checklists'), limit(1)))).empty) {
     const library = await loadBundledChecklists();
     await importChecklists(library, user);
-    installed.push(`${library.length} checklists`);
+    done.push(`installed ${library.length} checklists`);
+  } else if (libraryVersion < CHECKLIST_LIBRARY_VERSION) {
+    const edited = new Set((await listChecklists()).filter((c) => c.edited).map((c) => c.code));
+    const library = (await loadBundledChecklists()).filter((c) => !edited.has(c.code));
+    await importChecklists(library, user);
+    done.push(`updated ${library.length} checklists to the latest version`);
   }
-  const settings = await getSettings();
+
   if (!settings.lguName) {
-    await saveSettings({ ...DEFAULT_SETTINGS, ...settings });
-    installed.push('LGU settings and signatories');
+    await saveSettings({ ...DEFAULT_SETTINGS, ...settings, checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION });
+    done.push('installed the LGU settings and signatories');
+  } else if (libraryVersion < CHECKLIST_LIBRARY_VERSION) {
+    await saveSettings({ checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION });
   }
-  return installed;
+  return done;
 }
 
 // ---------- Documents ----------

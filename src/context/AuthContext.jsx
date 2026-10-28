@@ -5,7 +5,7 @@ import {
   signInWithRedirect, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase.js';
-import { ensureUserProfile, getSettings, setupIfEmpty } from '../lib/api.js';
+import { ensureUserProfile, getSettings, setupSite } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 
@@ -25,8 +25,9 @@ export function AuthProvider({ children }) {
     const p = await ensureUserProfile(firebaseUser, pendingProfile.current || {});
     pendingProfile.current = null;
     if (p.active && ['admin', 'superadmin'].includes(p.role)) {
-      // New site: install the starter formats, checklists and settings once.
-      const installed = await setupIfEmpty({ uid: firebaseUser.uid }).catch(() => []);
+      // New site: install the starter formats, checklists and settings. Existing site:
+      // bring in the formats and checklists FTS has revised since.
+      const installed = await setupSite({ uid: firebaseUser.uid }).catch(() => []);
       if (installed.length) setSetupNotice(installed);
     }
     setProfile(p);

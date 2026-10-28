@@ -113,7 +113,7 @@ Open a checklist to read it or print a blank copy:
 - an item with only a **Y** box (N/A shaded) is always required;
 - an item with **Y** and **N/A** boxes is required only if it applies.
 
-The printout follows the Accounting Office's Word checklist: A4, Times New Roman, numbered items. A revised checklist (such as 1001) has separate **Document Type** and **Document Details** columns; the others print their text across both until they are revised.
+The printout follows the Accounting Office's Word checklist: A4, Times New Roman, numbered items. Every requirement has a **Document Type** (the generic name of the document, e.g. *BAC Resolution*) and **Document Details** (the instruction that specifies it).
 
 ![Checklist 1613](images/05-checklist-1613.png)
 
