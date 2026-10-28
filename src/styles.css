@@ -470,6 +470,97 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .guide-card { border-left: 4px solid var(--gold); }
 
 /* Printed checklist (Municipal Accounting Office format) */
+/* Obligation Request: 28_OBR.xlsx as printed from Google Sheets, at its size and position on the A4
+   page (table 484 pt wide, 49 pt from the left and 52.5 pt from the top; FTS prints 10 mm margins, so
+   the rest is padding, and the bottom padding keeps the printout's white space). --k scales it. */
+.doc-render .obr { --k: 1; width: calc(504.65pt * var(--k)); padding: calc(24.15pt * var(--k)) 0 calc(71.2pt * var(--k)) calc(20.65pt * var(--k)); font-family: "DV Tahoma", "DV Sans", Arial, Helvetica, sans-serif; font-size: calc(9.4pt * var(--k)); line-height: calc(11pt * var(--k)); }
+.doc-render .obr table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: inherit; }
+.doc-render .obr td { border: .75pt solid #000; padding: 0 calc(3.6pt * var(--k)); vertical-align: middle; overflow-wrap: anywhere; }
+.doc-render .obr .c { text-align: center; } .doc-render .obr .r { text-align: right; }
+.doc-render .obr-head td { position: relative; height: calc(64.5pt * var(--k)); text-align: center; vertical-align: top; padding-top: calc(1.5pt * var(--k)); }
+.doc-render .obr-head .b { font-weight: 700; }
+.doc-render .obr-seal { position: absolute; left: calc(36pt * var(--k)); top: calc(4pt * var(--k)); width: calc(57pt * var(--k)); height: calc(57pt * var(--k)); }
+.doc-render .obr-title td { height: calc(33pt * var(--k)); border-bottom: 2pt double #000; }
+.doc-render .obr-title td:first-child { font-weight: 700; font-size: calc(11.3pt * var(--k)); text-align: center; }
+.doc-render .obr-title .obr-no { text-align: center; font-size: calc(13pt * var(--k)); }
+.doc-render .obr-title td:nth-child(2) { padding: 0; white-space: nowrap; }
+.doc-render .obr-payee td { height: calc(29pt * var(--k)); }
+.doc-render .obr-office td { height: calc(22.5pt * var(--k)); }
+.doc-render .obr-addr td { height: calc(25pt * var(--k)); border-bottom: 2pt double #000; }
+.doc-render .obr .obr-val { position: relative; text-align: center; }
+.doc-render .obr-payee .obr-val b { font-size: calc(10.5pt * var(--k)); }
+.doc-render .obr-date { position: absolute; right: calc(36pt * var(--k)); top: 50%; transform: translateY(-50%); font-size: calc(11pt * var(--k)); }
+.doc-render .obr-cols td { height: calc(25.5pt * var(--k)); text-align: center; vertical-align: top; border-bottom: 1.5pt solid #000; }
+.doc-render .obr-cols td:first-child { line-height: calc(13pt * var(--k)); }
+.doc-render .obr tr.obr-item td { border-top: 0; border-bottom: 0; height: calc(18pt * var(--k)); padding-top: calc(3pt * var(--k)); padding-bottom: calc(3pt * var(--k)); }
+.doc-render .obr .obr-rc { text-align: center; font-size: calc(20pt * var(--k)); line-height: 1.15; }
+.doc-render .obr .obr-part { text-align: center; white-space: pre-line; }
+.doc-render .obr .obr-code { text-align: center; }
+.doc-render .obr .obr-code span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); }
+.doc-render .obr .obr-amt { text-align: right; font-weight: 700; font-size: calc(13pt * var(--k)); padding-right: calc(8pt * var(--k)); }
+.doc-render .obr-total td { height: calc(18pt * var(--k)); font-size: calc(11.3pt * var(--k)); border-bottom: 2pt double #000; }
+.doc-render .obr-total td:first-child { border-right: 0; padding-right: calc(2pt * var(--k)); }
+.doc-render .obr-total td:nth-child(2) { border-left: 0; padding-right: calc(2pt * var(--k)); }
+.doc-render .obr-sign td { border-top: 0; }
+.doc-render .obr-sign .obr-b { border-left: 2pt double #000; }
+.doc-render .obr-cert td { height: calc(93pt * var(--k)); vertical-align: top; font-size: calc(8.45pt * var(--k)); padding: calc(.5pt * var(--k)) calc(4pt * var(--k)) 0 calc(8.6pt * var(--k)); border-bottom: 2pt double #000; }
+.doc-render .obr-chk { display: flex; gap: calc(5.6pt * var(--k)); margin: calc(10.5pt * var(--k)) 0 0 calc(2.4pt * var(--k)); }
+.doc-render .obr-chk2 { margin-top: calc(10pt * var(--k)); }
+.doc-render .obr-chkb { margin-left: calc(5.9pt * var(--k)); gap: calc(10.3pt * var(--k)); font-size: calc(9.4pt * var(--k)); }
+.doc-render .obr-box { flex: none; display: inline-block; width: calc(10pt * var(--k)); height: calc(10pt * var(--k)); border: .9pt solid #000; text-align: center; font-weight: 700; font-size: calc(9pt * var(--k)); line-height: calc(10pt * var(--k)); margin-top: calc(.5pt * var(--k)); }
+.doc-render .obr-sig td { height: calc(48pt * var(--k)); }
+.doc-render .obr-pn td { height: calc(16pt * var(--k)); }
+.doc-render .obr-pos td { height: calc(18.5pt * var(--k)); }
+.doc-render .obr-dt td { height: calc(30pt * var(--k)); border-bottom: 1.5pt solid #000; }
+.doc-render .obr-sg td:first-child, .doc-render .obr-sg td.obr-b { white-space: nowrap; }
+.doc-render .obr .obr-clip { overflow: hidden; text-overflow: clip; font-size: calc(8.45pt * var(--k)); }
+.doc-render .obr .obr-name { text-align: center; font-weight: 700; }
+
+/* Liquidation Report: 35_Liquidation_Report.xlsx as printed from Google Sheets, at its size and position
+   (table 493.5 pt wide, 49.5 pt from the left, 52.5 pt from the top). */
+.doc-render .lrf { --k: 1; width: calc(514.65pt * var(--k)); padding: calc(24.15pt * var(--k)) 0 calc(19.7pt * var(--k)) calc(21.15pt * var(--k)); font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: calc(9.5pt * var(--k)); line-height: calc(11pt * var(--k)); }
+.doc-render .lrf table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: inherit; }
+.doc-render .lrf td { border: .75pt solid #000; padding: 0 calc(2.5pt * var(--k)); vertical-align: middle; overflow-wrap: anywhere; }
+.doc-render .lrf .r { text-align: right; }
+.doc-render .lrf-head td { position: relative; height: calc(74pt * var(--k)); border-bottom: 0; text-align: center; vertical-align: top; padding-top: calc(1.5pt * var(--k)); }
+.doc-render .lrf-seal { position: absolute; left: calc(24.5pt * var(--k)); top: calc(4.5pt * var(--k)); width: calc(64pt * var(--k)); height: calc(64pt * var(--k)); }
+.doc-render .lrf-l1 { line-height: calc(13pt * var(--k)); }
+.doc-render .lrf-l2 { font-weight: 700; font-size: calc(11pt * var(--k)); line-height: calc(15pt * var(--k)); }
+.doc-render .lrf-l3 { font-size: calc(7.9pt * var(--k)); line-height: calc(11pt * var(--k)); }
+.doc-render .lrf-title { font-weight: 700; font-size: calc(11pt * var(--k)); margin-top: calc(17pt * var(--k)); }
+.doc-render .lrf-serial td { height: calc(33pt * var(--k)); vertical-align: top; font-size: calc(8.7pt * var(--k)); padding-top: calc(2pt * var(--k)); }
+.doc-render .lrf-serial td.lrf-open { border-top: 0; border-right: 0; }
+.doc-render .lrf-r1 td { height: calc(16.5pt * var(--k)); }
+.doc-render .lrf-r2 td { height: calc(17.5pt * var(--k)); }
+.doc-render .lrf-r3 td { height: calc(15pt * var(--k)); }
+.doc-render .lrf .lrf-val { font-weight: 700; }
+.doc-render .lrf .lrf-fpp { text-align: center; }
+.doc-render .lrf-rule td { height: calc(3pt * var(--k)); padding: 0; }
+.doc-render .lrf-cols td { height: calc(23.5pt * var(--k)); text-align: center; }
+.doc-render .lrf-cols .lrf-pt { font-weight: 700; letter-spacing: .5pt; }
+.doc-render .lrf tr.lrf-line td { border-top: 0; border-bottom: 0; height: calc(14pt * var(--k)); padding: calc(1pt * var(--k)) calc(4pt * var(--k)); white-space: pre-line; }
+.doc-render .lrf-t td { position: relative; padding-left: calc(3pt * var(--k)); white-space: nowrap; }
+.doc-render .lrf-t1 td { height: calc(16pt * var(--k)); }
+.doc-render .lrf-t2 td { height: calc(20pt * var(--k)); }
+.doc-render .lrf-t3 td { height: calc(19pt * var(--k)); }
+.doc-render .lrf-t4 td { height: calc(15.5pt * var(--k)); }
+.doc-render .lrf-u { display: inline-block; border-bottom: .75pt solid #000; text-align: center; font-size: calc(9pt * var(--k)); line-height: calc(10pt * var(--k)); vertical-align: bottom; }
+.doc-render .lrf-u1 { width: calc(124pt * var(--k)); margin: 0 calc(2pt * var(--k)) 0 calc(1pt * var(--k)); }
+.doc-render .lrf-u2 { width: calc(44pt * var(--k)); margin-left: calc(6pt * var(--k)); }
+.doc-render .lrf-u3 { width: calc(158pt * var(--k)); margin: 0 calc(2pt * var(--k)) 0 calc(4pt * var(--k)); }
+.doc-render .lrf-amt { position: absolute; right: calc(4pt * var(--k)); top: 50%; transform: translateY(-50%); font-weight: 700; }
+.doc-render .lrf-sign td { position: relative; border-top: 0; height: calc(118.5pt * var(--k)); vertical-align: top; padding: 0; }
+.doc-render .lrf-txt { display: flex; font-size: calc(8.7pt * var(--k)); line-height: calc(10.5pt * var(--k)); padding-right: calc(22pt * var(--k)); }
+.doc-render .lrf-sign td:first-child .lrf-txt { padding-right: calc(32pt * var(--k)); }
+.doc-render .lrf-lt { flex: none; width: calc(16pt * var(--k)); height: calc(13pt * var(--k)); border-right: .75pt solid #000; border-bottom: .75pt solid #000; padding-left: calc(2pt * var(--k)); margin-right: calc(2.6pt * var(--k)); font-size: calc(9.5pt * var(--k)); line-height: calc(13pt * var(--k)); }
+.doc-render .lrf-txt b { margin-right: .2em; }
+.doc-render .lrf-sig { position: absolute; top: calc(52.5pt * var(--k)); text-align: center; font-size: calc(8.7pt * var(--k)); line-height: calc(13pt * var(--k)); }
+.doc-render .lrf-sa { left: calc(16.5pt * var(--k)); width: calc(145pt * var(--k)); }
+.doc-render .lrf-sb { left: calc(16pt * var(--k)); width: calc(124pt * var(--k)); }
+.doc-render .lrf-sc { left: calc(16pt * var(--k)); width: calc(128pt * var(--k)); }
+.doc-render .lrf-name { height: calc(15pt * var(--k)); border-bottom: .75pt solid #000; font-weight: 700; font-size: calc(9.5pt * var(--k)); display: flex; align-items: flex-end; justify-content: center; margin-bottom: calc(1pt * var(--k)); }
+.doc-render .lrf-date { text-align: left; padding-left: calc(2pt * var(--k)); }
+
 /* Checklist: the Municipal Accounting Office's Word checklist (A4, Times New Roman, margins 0.5 in top,
    1 in at the sides), sizes in points as in the Word file. */
 .checklist-sheet { font-family: "Times New Roman", Times, "Liberation Serif", serif; color: #000; font-size: 10pt; line-height: 11.5pt; padding: 7.7pt 43.6pt 0; }

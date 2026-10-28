@@ -52,7 +52,8 @@ export default function PrintPage({ paperSize, orientation, minScale = 0.5, chil
     let free = room();
     const table = el.querySelector('[data-grow]');
     const lines = table && free > 2 ? [...table.querySelectorAll('tr.blank')] : [];
-    let rows = lines.filter((row) => !row.textContent.trim());
+    // Empty rows grow; so do filled rows marked data-fill (e.g. OBR lines, which share the page).
+    let rows = lines.filter((row) => !row.textContent.trim() || row.hasAttribute('data-fill'));
     if (!rows.length && lines.length) {
       const filler = lines[lines.length - 1].cloneNode(true);
       filler.querySelectorAll('td').forEach((td) => { td.innerHTML = ''; });

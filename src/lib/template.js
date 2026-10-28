@@ -3,7 +3,7 @@ import { amountToWords } from './numberToWords.js';
 // Lightweight template engine for document formats.
 //
 //   {{field}}                   value of a field (HTML-escaped)
-//   {{field|currency}}          filters: currency, peso, acct, number, date, upper, words
+//   {{field|currency}}          filters: currency, peso, acct, number, date, mdy, upper, words
 //   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, controlNo, today, preparedBy)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
@@ -50,6 +50,11 @@ const FILTERS = {
   peso: (v) => (v === '' || v == null ? '' : `₱ ${formatCurrency(v)}`),
   number: (v) => (v === '' || v == null ? '' : toNumber(v).toLocaleString('en-PH')),
   date: (v) => formatDate(v),
+  // 10/27/2026, as on the OBR and LR.
+  mdy: (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''));
+    return m ? `${m[2]}/${m[3]}/${m[1]}` : String(v ?? '');
+  },
   upper: (v) => String(v ?? '').toUpperCase(),
   words: (v) => (v === '' || v == null ? '' : amountToWords(toNumber(v))),
 };

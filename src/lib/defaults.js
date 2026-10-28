@@ -123,6 +123,8 @@ const OBR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // Redrawn after the LGU's form; sites that have not edited it are updated (lib/api.js).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The OBR No. is assigned by the Budget Office; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'One line per charge: responsibility center, particulars, F.P.P. (function/program/project), account code and amount. The total is computed.' },
@@ -136,7 +138,7 @@ const OBR = {
     { key: 'obrNo', label: 'OBR No. (Budget Office)', type: 'text', step: 's1' },
     { key: 'date', label: 'Date', type: 'date', step: 's1' },
     {
-      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 10,
+      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2',
       columns: [
         { key: 'respCenter', label: 'Responsibility Center', type: 'text' },
         { key: 'particulars', label: 'Particulars', type: 'text' },
@@ -158,28 +160,33 @@ const OBR = {
     { id: 'p3', office: 'Municipal Accounting Office', action: 'Recording', details: 'The obligation is recorded in the Registry of Appropriations, Allotment and Obligation (RAAO).' },
     { id: 'p4', office: 'Requesting Office', action: 'Attach to the DV or payroll', details: 'Use the OBR No. when you prepare the Disbursement Voucher or Payroll, and attach the approved OBR.' },
   ],
-  template: `${header('OBLIGATION REQUEST')}
-  <table class="pmeta-t"><tr><td>Fund: <b>{{fund}}</b></td><td class="r">No.: <b>{{obrNo}}</b> &nbsp; Date: <b>{{date|date}}</b></td></tr></table>
-  <table class="pt">
-    <tr><td class="lbl">Payee</td><td><b>{{payee|upper}}</b></td></tr>
-    <tr><td class="lbl">Office</td><td>{{office}}</td></tr>
-    <tr><td class="lbl">Address</td><td>{{address}}</td></tr>
+  // Laid out like the Obligation Request of the Municipal Government of Candoni (28_OBR.xlsx, printed
+  // from Google Sheets), as the Budget Office's system fills it in.
+  template: `<div class="obr"><table class="obr-main" data-grow>
+  <colgroup><col style="width:13.946%"><col style="width:43.802%"><col style="width:7.438%"><col style="width:4.029%"><col style="width:9.401%"><col style="width:21.384%"></colgroup>
+  <tr class="obr-head"><td colspan="6"><img class="obr-seal" src="{{lgu.seal}}" alt="">
+    <div>Republic of the Philippines</div><div class="b">MUNICIPAL GOVERNMENT OF CANDONI</div><div>Municipal Building, Candoni, Negros Occidental 6110</div></td></tr>
+  <tr class="obr-title"><td colspan="3">OBLIGATION REQUEST</td><td class="c">No.</td><td colspan="2" class="obr-no">{{obrNo}}</td></tr>
+  <tr class="obr-r obr-payee"><td>PAYEE</td><td colspan="5" class="obr-val"><b>{{payee|upper}}</b><span class="obr-date">{{date|mdy}}</span></td></tr>
+  <tr class="obr-r obr-office"><td>OFFICE</td><td colspan="5" class="obr-val">{{office|upper}}</td></tr>
+  <tr class="obr-r obr-addr"><td>ADDRESS</td><td colspan="5" class="obr-val">{{address|upper}}</td></tr>
+  <tr class="obr-cols"><td>Responsibility<br>Center</td><td>Particulars</td><td colspan="2">F.P.P.</td><td>Account<br>Code</td><td>Amount</td></tr>
+  {{#each items}}<tr class="blank obr-item" data-fill><td class="obr-rc">{{respCenter}}</td><td class="obr-part">{{particulars}}</td><td colspan="2" class="c">{{fpp}}</td><td class="obr-code"><span>{{accountCode}}</span></td><td class="obr-amt">{{amount|currency}}</td></tr>{{/each}}
+  {{#if !items}}<tr class="blank obr-item"><td></td><td></td><td colspan="2"></td><td></td><td></td></tr>{{/if}}
+  <tr class="obr-total"><td colspan="2" class="r">TOTAL</td><td colspan="3" class="r"><b>P</b></td><td class="obr-amt">{{sum:items.amount|currency}}</td></tr>
   </table>
-  <table class="pt" data-grow>
-    <thead><tr><th style="width:15%">Responsibility Center</th><th>Particulars</th><th style="width:10%">F.P.P.</th><th style="width:14%">Account Code</th><th style="width:16%">Amount</th></tr></thead>
-    <tbody>{{#each items}}<tr class="blank"><td class="c">{{respCenter}}</td><td>{{particulars}}</td><td class="c">{{fpp}}</td><td class="c">{{accountCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
-    <tr><td colspan="4" class="r"><b>TOTAL</b></td><td class="r"><b>{{sum:items.amount|currency}}</b></td></tr>
-    <tr><td colspan="5"><i>{{sum:items.amount|words}}</i></td></tr></tbody>
-  </table>
-  <table class="pt">
-    <tr>
-      <td class="pf-cell" style="width:50%"><b>A. Certified:</b> Charges to appropriation/allotment necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.
-        ${signBlock('{{certA|upper}}', '{{certAPos}}', 'Head, Requesting Office/Authorized Representative')}<div>Date: __________</div></td>
-      <td class="pf-cell"><b>B. Certified:</b> Existence of available appropriation.
-        ${signBlock('{{sig.budget|upper}}', '{{sig.budgetPosition}}', 'Head, Budget Unit/Authorized Representative')}<div>Date: __________</div></td>
-    </tr>
-  </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <table class="obr-sign">
+  <colgroup><col style="width:13.946%"><col style="width:41.736%"><col style="width:9.504%"><col style="width:34.814%"></colgroup>
+  <tr class="obr-cert"><td colspan="2"><div><b>A.</b>&nbsp; CERTIFIED</div>
+      <div class="obr-chk"><span class="obr-box">&#10003;</span><span>Charges to Appropriation/allotment necessary,<br>lawful and under my direct supervision</span></div>
+      <div class="obr-chk obr-chk2"><span class="obr-box">&#10003;</span><span>Supporting documents valid, proper and legal</span></div></td>
+    <td colspan="2" class="obr-b"><div><b>B.</b>&nbsp; CERTIFIED</div>
+      <div class="obr-chk obr-chkb"><span class="obr-box">&#10003;</span><span>Existence of Available Appropriation</span></div></td></tr>
+  <tr class="obr-sg obr-sig"><td>Signature</td><td></td><td class="obr-b">Signature</td><td></td></tr>
+  <tr class="obr-sg obr-pn"><td>Printed Name</td><td class="obr-name">{{certA|upper}}</td><td class="obr-b obr-clip">Printed Name</td><td class="obr-name">{{sig.budget|upper}}</td></tr>
+  <tr class="obr-sg obr-pos"><td>Position</td><td class="c">{{certAPos|upper}}</td><td class="obr-b">Position</td><td class="c">{{sig.budgetPosition|upper}}</td></tr>
+  <tr class="obr-sg obr-dt"><td>Date</td><td></td><td class="obr-b">Date</td><td></td></tr>
+  </table></div>`,
 };
 
 // ---------------------------------------------------------------- FURS
@@ -562,6 +569,8 @@ const LR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'liquidation',
+  // Redrawn after the LGU's form; sites that have not edited it are updated (lib/api.js).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Cash Advance', instructions: 'Encode the period covered, fund, office and function/program/project, and the cash advance being liquidated (amount, DV No. and date).' },
     { id: 's2', title: 'Particulars', instructions: 'List each expense with its amount. The total spent is computed.' },
@@ -578,7 +587,7 @@ const LR = {
     { key: 'dvNo', label: 'Cash Advance DV No.', type: 'text', required: true, step: 's1' },
     { key: 'dvDate', label: 'DV Date', type: 'date', step: 's1' },
     {
-      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 18,
+      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2',
       columns: [
         { key: 'particulars', label: 'Particulars', type: 'text' },
         { key: 'amount', label: 'Amount', type: 'currency', total: true },
@@ -599,28 +608,37 @@ const LR = {
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Refund (if any)', details: 'Return any unspent cash to the Treasury and write the OR No. and date on the LR.' },
     { id: 'p4', office: 'Municipal Accounting Office', action: 'Box C and recording', details: 'The Accountant checks the documents against the checklist, certifies Box C, assigns the Serial No. and records the liquidation. Any amount to be reimbursed is paid through a DV (checklist 1407).' },
   ],
-  template: `${header('LIQUIDATION REPORT')}
-  <table class="pt">
-    <tr><td style="width:24%" class="r">Period Covered:</td><td><b>{{periodCovered}}</b></td><td style="width:26%">Serial No.: <b>{{serialNo}}</b></td></tr>
-    <tr><td class="r">Fund:</td><td><b>{{fund}}</b></td><td>Date: <b>{{date|date}}</b></td></tr>
-    <tr><td class="r">Department/Office:</td><td><b>{{office}}</b></td><td>Function/Program/Project:<br><b>{{fpp}}</b></td></tr>
+  // Laid out like the Liquidation Report of the Municipal Government of Candoni (35_Liquidation_Report.xlsx,
+  // printed from Google Sheets).
+  template: `<div class="lrf"><table class="lrf-main" data-grow>
+  <colgroup><col style="width:32.624%"><col style="width:37.893%"><col style="width:29.483%"></colgroup>
+  <tr class="lrf-head"><td colspan="3"><img class="lrf-seal" src="{{lgu.seal}}" alt="">
+    <div class="lrf-l1">Republic of the Philippines</div><div class="lrf-l2">{{lgu.name|upper}}</div><div class="lrf-l3">{{lgu.address}}</div>
+    <div class="lrf-title">LIQUIDATION REPORT</div></td></tr>
+  <tr class="lrf-serial"><td colspan="2" class="lrf-open"></td><td>Serial No: <b>{{serialNo}}</b></td></tr>
+  <tr class="lrf-r lrf-r1"><td class="r">Period Covered :</td><td class="lrf-val">{{periodCovered|upper}}</td><td>Date: <b>{{date|date}}</b></td></tr>
+  <tr class="lrf-r lrf-r2"><td class="r">Fund:</td><td class="lrf-val">{{fund|upper}}</td><td rowspan="2" class="lrf-fpp">Function/Program/Project<div><b>{{fpp|upper}}</b></div></td></tr>
+  <tr class="lrf-r lrf-r3"><td class="r">Department/Office:</td><td class="lrf-val">{{office|upper}}</td></tr>
+  <tr class="lrf-rule"><td colspan="3"></td></tr>
+  <tr class="lrf-cols"><td colspan="2" class="lrf-pt">P A R T I C U L A R S</td><td>Amount</td></tr>
+  {{#each items}}<tr class="blank lrf-line"><td colspan="2">{{particulars}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
+  <tr class="blank lrf-line"><td colspan="2"></td><td></td></tr>
+  <tr class="lrf-t lrf-t1"><td colspan="3">TOTAL AMOUNT SPENT<span class="lrf-amt">{{totalSpent|currency}}</span></td></tr>
+  <tr class="lrf-t lrf-t2"><td colspan="3">AMOUNT OF CASH ADVANCE PER DV NO.<span class="lrf-u lrf-u1">{{dvNo|upper}}</span>DTD.<span class="lrf-u lrf-u2">{{dvDate|mdy}}</span><span class="lrf-amt">{{cashAdvance|currency}}</span></td></tr>
+  <tr class="lrf-t lrf-t3"><td colspan="3">AMOUNT REFUNDED PER OR NO.<span class="lrf-u lrf-u3">{{refundOrNo|upper}}</span>DTD.<span class="lrf-u lrf-u2">{{refundDate|mdy}}</span><span class="lrf-amt">{{refund|currency}}</span></td></tr>
+  <tr class="lrf-t lrf-t4"><td colspan="3">AMOUNT TO BE REIMBURSED<span class="lrf-amt">{{reimburse|currency}}</span></td></tr>
   </table>
-  <table class="pt" data-grow>
-    <thead><tr><th style="letter-spacing:4px">PARTICULARS</th><th style="width:26%">Amount</th></tr></thead>
-    <tbody>{{#each items}}<tr class="blank"><td>{{particulars}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
-    <tr><td>TOTAL AMOUNT SPENT</td><td class="r"><b>{{totalSpent|currency}}</b></td></tr>
-    <tr><td>AMOUNT OF CASH ADVANCE PER DV NO. <b>{{dvNo}}</b> DTD. <b>{{dvDate|date}}</b></td><td class="r">{{cashAdvance|currency}}</td></tr>
-    <tr><td>AMOUNT REFUNDED PER OR NO. <b>{{refundOrNo}}</b> DTD. <b>{{refundDate|date}}</b></td><td class="r">{{refund|currency}}</td></tr>
-    <tr><td>AMOUNT TO BE REIMBURSED</td><td class="r"><b>{{reimburse|currency}}</b></td></tr></tbody>
-  </table>
-  <table class="pt">
-    <tr>
-      <td class="pf-cell" style="width:33%"><b>A</b> Certified: Correctness of the above data${signBlock('{{claimant|upper}}', 'Signature over Printed Name', 'Claimant')}<div>Date:</div></td>
-      <td class="pf-cell" style="width:33%"><b>B</b> Certified: Purpose of travel/cash advance duly accomplished${signBlock('{{supervisor|upper}}', 'Signature over Printed Name', 'Immediate Supervisor')}<div>Date:</div></td>
-      <td class="pf-cell"><b>C</b> Certified: Supporting documents complete and proper${signBlock('{{sig.accountant|upper}}', 'Signature over Printed Name', '{{sig.accountantPosition}}')}<div>Date:</div></td>
-    </tr>
-  </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <table class="lrf-sign">
+  <colgroup><col style="width:36.170%"><col style="width:31.206%"><col style="width:32.624%"></colgroup>
+  <tr>
+    <td><div class="lrf-txt"><span class="lrf-lt">A</span><span><b>Certified:</b> Correctness of the above data</span></div>
+      <div class="lrf-sig lrf-sa"><div class="lrf-name">{{claimant|upper}}</div><div class="lrf-cap">Signature over Printed Name</div><div class="lrf-cap">Claimant</div><div class="lrf-date">Date:</div></div></td>
+    <td><div class="lrf-txt"><span class="lrf-lt">B</span><span><b>Certified:</b> Purpose of travel/cash advance duly accomplished</span></div>
+      <div class="lrf-sig lrf-sb"><div class="lrf-name">{{supervisor|upper}}</div><div class="lrf-cap">Signature over Printed Name</div><div class="lrf-cap">Immediate Supervisor</div><div class="lrf-date">Date:</div></div></td>
+    <td><div class="lrf-txt"><span class="lrf-lt">C</span><span><b>Certified:</b> Supporting documents complete and proper</span></div>
+      <div class="lrf-sig lrf-sc"><div class="lrf-name">{{sig.accountant|upper}}</div><div class="lrf-cap">Signature over Printed Name</div><div class="lrf-cap">Municipal Accountant</div><div class="lrf-date">Date:</div></div></td>
+  </tr>
+  </table></div>`,
 };
 
 // ---------------------------------------------------------------- IT
