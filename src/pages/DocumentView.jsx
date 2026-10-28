@@ -114,6 +114,12 @@ export default function DocumentView() {
                   return <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}</li>;
                 })}
               </ul>
+              {(docData.additionalDocs || []).length > 0 && (
+                <>
+                  <h4 style={{ marginTop: '.9rem' }}>Additional documents</h4>
+                  <ol className="small">{docData.additionalDocs.map((t, i) => <li key={i}>{t}</li>)}</ol>
+                </>
+              )}
             </section>
           )}
           <section className="card">
@@ -134,7 +140,7 @@ export default function DocumentView() {
               </div>
             )}
             {view === 'checklist' && activeChecklist ? (
-              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} settings={settings} />
+              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} settings={settings} />
             ) : (
           <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
             signatories={docData.signatories}

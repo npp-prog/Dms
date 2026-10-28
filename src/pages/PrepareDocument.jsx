@@ -50,6 +50,8 @@ function Wizard({ typeId, docId }) {
   const [existing, setExisting] = useState(null);
   const [data, setData] = useState({});
   const [checklist, setChecklist] = useState({});
+  // Documents attached that are not on the checklist (printed under Additional Documents).
+  const [additionalDocs, setAdditionalDocs] = useState([]);
   const [transaction, setTransaction] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
@@ -69,6 +71,7 @@ function Wizard({ typeId, docId }) {
           setType(t);
           setData({ ...initialData(t), ...d.data });
           setChecklist(d.checklist || {});
+          setAdditionalDocs(d.additionalDocs || []);
           setTransaction(d.transaction || null);
         } else {
           const t = await getDocumentType(typeId);
@@ -120,7 +123,7 @@ function Wizard({ typeId, docId }) {
     setError('');
     try {
       let id = docId;
-      const payload = { data, checklist, transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
+      const payload = { data, checklist, additionalDocs: additionalDocs.filter((t) => t.trim()), transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
       if (existing) await updateDocument(docId, type, payload, actor, existing.history);
       else id = await createDocument(type, payload, actor);
       navigate(`/documents/${id}`);
@@ -167,6 +170,7 @@ function Wizard({ typeId, docId }) {
 
           {step.id === '__checklist' && (
             <ChecklistStep type={type} transaction={transaction} state={checklist} onState={setChecklist}
+              additional={additionalDocs} onAdditional={setAdditionalDocs}
               onTransaction={(t) => {
                 if (transaction?.code !== t.code) setChecklist({});
                 setTransaction(t);
@@ -215,7 +219,7 @@ function Wizard({ typeId, docId }) {
                 <button type="button" className="btn btn-sm" onClick={() => window.print()}>Print checklist</button>
               </div>
               <ChecklistSheet checklist={activeChecklist} state={checklist}
-                data={data} settings={settings} />
+                data={data} additional={additionalDocs} settings={settings} />
             </>
           ) : (
             <>

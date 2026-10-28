@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import TransactionPicker from './TransactionPicker.jsx';
+import { toCaps } from '../lib/forms.js';
 import { checklistProgress, effectiveChecklist, groupItems, isChecked } from '../lib/checklists.js';
 
 function Answer({ item, value, onChange }) {
@@ -21,7 +22,7 @@ function Answer({ item, value, onChange }) {
 // Checklist step of the wizard: tick Y / N/A for each required document.
 // For library-based document types (DV, Payroll, LR) the type of transaction is chosen here,
 // which loads its checklist from the library.
-export default function ChecklistStep({ type, transaction, state, onState, onTransaction }) {
+export default function ChecklistStep({ type, transaction, state, onState, onTransaction, additional = [], onAdditional }) {
   const [picking, setPicking] = useState(false);
   const library = type.checklistSource && type.checklistSource !== 'own';
   const checklist = effectiveChecklist(type, transaction);
@@ -63,6 +64,23 @@ export default function ChecklistStep({ type, transaction, state, onState, onTra
             </>
           )}
         </>
+      )}
+
+      {onAdditional && (
+        <div className="additional-docs">
+          <h4>Additional documents</h4>
+          <p className="small muted">Attaching something that is not on the checklist? Add it here. It is listed in the
+            Additional Documents box of the printed checklist.</p>
+          {additional.map((text, i) => (
+            <div key={i} className="row gap additional-row">
+              <span className="muted">{i + 1}.</span>
+              <input className="caps" value={text} placeholder="Document, e.g. Certificate of Appearance"
+                onChange={(e) => onAdditional(additional.map((t, j) => (j === i ? toCaps(e.target.value) : t)))} />
+              <button type="button" className="btn-icon" title="Remove" onClick={() => onAdditional(additional.filter((_, j) => j !== i))}>×</button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onAdditional([...additional, ''])}>+ Add document</button>
+        </div>
       )}
     </div>
   );

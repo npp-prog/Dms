@@ -12,7 +12,7 @@ import PrintPage from './PrintPage.jsx';
 // Notes may mark words in bold with **double asterisks**, as on the Word checklists.
 const rich = (text) => String(text).split(/\*\*(.+?)\*\*/).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
 
-export default function ChecklistSheet({ checklist, state, data, settings = {}, paper = true }) {
+export default function ChecklistSheet({ checklist, state, data, additional = [], settings = {}, paper = true }) {
   if (!checklist) return null;
   const box = (on) => <span className="cl-box">{on ? '✓' : ''}</span>;
   const split = hasDetails(checklist.items);
@@ -85,7 +85,13 @@ export default function ChecklistSheet({ checklist, state, data, settings = {}, 
       <table className="cl-additional">
         <tbody>
           <tr><th>Additional Documents</th></tr>
-          <tr><td className="cl-addbody" /></tr>
+          <tr>
+            <td className="cl-addbody">
+              {additional.filter((t) => String(t).trim()).map((t, i) => (
+                <div key={i} className="cl-num cl-addline"><span>{i + 1}.</span><span>{String(t).toUpperCase()}</span></div>
+              ))}
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

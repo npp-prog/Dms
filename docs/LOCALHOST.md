@@ -135,6 +135,8 @@ For a **DV**, **Payroll** or **Liquidation Report**, the Checklist step asks for
 - tick **N/A** for items that don't apply (always-required items have no N/A);
 - the preview on the right shows the checklist as it will print, with your answers.
 
+Attaching something that is not on the checklist? Under **Additional documents**, click **+ Add document** and type it. Each one is listed, numbered, in the **Additional Documents** box of the printed checklist.
+
 ![Checklist step](images/11-dv-checklist.png)
 
 **Review & Save** tells you what is still missing. **Mark complete** stays disabled until every required field and every always-required checklist item is done.
