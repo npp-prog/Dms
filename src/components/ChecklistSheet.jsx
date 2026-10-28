@@ -91,7 +91,7 @@ export default function ChecklistSheet({ checklist, state, data, additional = []
           <tr>
             <td className="cl-addbody">
               {additional.filter((t) => String(t).trim()).map((t, i) => (
-                <div key={i} className="cl-num cl-addline"><span>{i + 1}.</span><span>{String(t).toUpperCase()}</span></div>
+                <div key={i} className="cl-num cl-addline"><span>{checklist.items.length + i + 1}.</span><span>{String(t).toUpperCase()}</span></div>
               ))}
             </td>
           </tr>

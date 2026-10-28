@@ -75,6 +75,22 @@ export function groupItems(items) {
   return groups;
 }
 
+// When the type of transaction is changed (e.g. a wrong checklist was picked), answers and
+// links carry over to the requirements the new checklist also has (same document type).
+export function carryOver(oldItems, newItems, state = {}, links = {}) {
+  const key = (i) => String(i.label || '').trim().toLowerCase();
+  const before = new Map((oldItems || []).map((i) => [key(i), i.id]));
+  const next = { state: {}, links: {} };
+  for (const item of newItems || []) {
+    const was = before.get(key(item));
+    if (!was) continue;
+    // An answer of N/A cannot carry over to a requirement that is always required.
+    if (state[was] !== undefined && !(item.required && state[was] === 'NA')) next.state[item.id] = state[was];
+    if (links[was]?.length) next.links[item.id] = links[was];
+  }
+  return next;
+}
+
 export function missingRequired(items, state) {
   return (items || []).filter((i) => i.required && !isChecked(state?.[i.id]));
 }

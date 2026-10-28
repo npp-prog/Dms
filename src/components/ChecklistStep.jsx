@@ -40,8 +40,8 @@ function Answer({ item, value, onChange, links = [], onLinks, docId }) {
 // Checklist step of the wizard: tick Y / N/A for each required document.
 // For library-based document types (DV, Payroll, LR) the type of transaction is chosen here,
 // which loads its checklist from the library.
-export default function ChecklistStep({ type, transaction, state, onState, onTransaction, additional = [], onAdditional, links = {}, onLinks, docId }) {
-  const [picking, setPicking] = useState(false);
+export default function ChecklistStep({ type, transaction, state, onState, onTransaction, additional = [], onAdditional, links = {}, onLinks, docId, startPicking = false }) {
+  const [picking, setPicking] = useState(startPicking);
   const library = type.checklistSource && type.checklistSource !== 'own';
   const checklist = effectiveChecklist(type, transaction);
   const progress = checklistProgress(checklist?.items, state);
@@ -55,8 +55,18 @@ export default function ChecklistStep({ type, transaction, state, onState, onTra
           <button type="button" className="btn btn-sm" onClick={() => setPicking(true)}>Change</button>
         </div>
       ) : (
-        <TransactionPicker kind={type.checklistSource} value={transaction}
-          onPick={(t) => { onTransaction(t); setPicking(false); }} />
+        <>
+          {transaction && (
+            <div className="alert-info row gap" style={{ justifyContent: 'space-between' }}>
+              <span>Changing the checklist from <b>{transaction.code}</b>. Answers and links of requirements that are also
+                on the new checklist are kept; the others are cleared.</span>
+              <button type="button" className="btn btn-sm" onClick={() => setPicking(false)}>Keep {transaction.code}</button>
+            </div>
+          )}
+          {/* Shown only to choose one, so it opens on the search (not on the current choice). */}
+          <TransactionPicker kind={type.checklistSource} value={null}
+            onPick={(t) => { onTransaction(t); setPicking(false); }} />
+        </>
       ))}
 
       {checklist && !picking && (
@@ -93,7 +103,7 @@ export default function ChecklistStep({ type, transaction, state, onState, onTra
             Additional Documents box of the printed checklist.</p>
           {additional.map((text, i) => (
             <div key={i} className="row gap additional-row">
-              <span className="muted">{i + 1}.</span>
+              <span className="muted">{(checklist?.items.length || 0) + i + 1}.</span>
               <input className="caps" value={text} placeholder="Document, e.g. Certificate of Appearance"
                 onChange={(e) => onAdditional(additional.map((t, j) => (j === i ? toCaps(e.target.value) : t)))} />
               <button type="button" className="btn-icon" title="Remove" onClick={() => onAdditional(additional.filter((_, j) => j !== i))}>×</button>

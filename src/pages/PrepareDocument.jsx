@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   createDocument, getDocument, getDocumentType, getTypeForDocument, listDocumentTypes, updateDocument,
 } from '../lib/api.js';
 import { buildSteps, computeFields, initialData, missingFields, byAccounting } from '../lib/forms.js';
-import { effectiveChecklist, missingRequired } from '../lib/checklists.js';
+import { carryOver, effectiveChecklist, missingRequired } from '../lib/checklists.js';
 import ChecklistStep from '../components/ChecklistStep.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
 import { signatoriesFrom } from '../lib/signatories.js';
@@ -45,6 +45,9 @@ export default function PrepareDocument() {
 
 function Wizard({ typeId, docId }) {
   const navigate = useNavigate();
+  // ?change=checklist: opened from the document page to change the checklist.
+  const [params] = useSearchParams();
+  const changeChecklist = params.get('change') === 'checklist';
   const { actor, settings, isAdmin } = useAuth();
   const [type, setType] = useState(null);
   const [existing, setExisting] = useState(null);
@@ -103,6 +106,10 @@ function Wizard({ typeId, docId }) {
       { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete when everything is encoded. Then print it and process it as shown below.' },
     ];
   }, [type]);
+
+  useEffect(() => {
+    if (changeChecklist && steps.length) setStepIndex(Math.max(0, steps.findIndex((s) => s.id === '__checklist')));
+  }, [changeChecklist, steps]);
 
   if (error) return <div className="page"><div className="alert">{error}</div><Link to="/new">Back</Link></div>;
   if (!type) return <div className="page"><div className="spinner" /></div>;
@@ -174,8 +181,13 @@ function Wizard({ typeId, docId }) {
           {step.id === '__checklist' && (
             <ChecklistStep type={type} transaction={transaction} state={checklist} onState={setChecklist}
               additional={additionalDocs} onAdditional={setAdditionalDocs} links={links} onLinks={setLinks} docId={docId}
+              startPicking={changeChecklist}
               onTransaction={(t) => {
-                if (transaction?.code !== t.code) { setChecklist({}); setLinks({}); }
+                if (transaction?.code !== t.code) {
+                  const kept = carryOver(transaction?.items, t.items, checklist, links);
+                  setChecklist(kept.state);
+                  setLinks(kept.links);
+                }
                 setTransaction(t);
               }} />
           )}

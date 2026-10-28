@@ -5,7 +5,7 @@ import { amountToWords } from './numberToWords.js';
 import { readFileSync } from 'node:fs';
 import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
 import {
-  acceptsDocument, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
+  acceptsDocument, carryOver, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
@@ -154,6 +154,19 @@ test('checklist items accept only documents of their kind', () => {
   assert.ok(acceptsDocument(pr, doc('PR', 'Purchase Request')) && !acceptsDocument(pr, doc('PO', 'Purchase Order')));
   const bac = c1613.items.find((i) => i.label === 'BAC Resolution');
   assert.ok(!['OBR', 'FURS', 'DV', 'PR', 'PO', 'JO', 'PCV', 'LR', 'IT', 'PAYROLL'].some((t) => acceptsDocument(bac, doc(t, t))));
+});
+
+test('changing the checklist keeps answers and links of shared requirements', () => {
+  const a = LIBRARY.find((c) => c.code === '1613');
+  const b = LIBRARY.find((c) => c.code === '1001');
+  const dvA = a.items.find((i) => i.label === 'Disbursement Voucher');
+  const obrA = a.items.find((i) => i.label === 'Obligation Request');
+  const prA = a.items.find((i) => i.label === 'Purchase Request');
+  const kept = carryOver(a.items, b.items, { [dvA.id]: 'Y', [obrA.id]: 'Y', [prA.id]: 'Y' }, { [obrA.id]: [{ kind: 'fts', id: 'x' }] });
+  const obrB = b.items.find((i) => i.label === 'Obligation Request');
+  assert.equal(kept.state[obrB.id], 'Y');
+  assert.deepEqual(kept.links[obrB.id], [{ kind: 'fts', id: 'x' }]);
+  assert.equal(Object.keys(kept.state).length, 2, 'only DV and OBR are on both checklists');
 });
 
 test('bulk download file names', () => {

@@ -123,7 +123,13 @@ export default function DocumentView() {
             <section className="card">
               <div className="card-head">
                 <h3>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</h3>
-                <button className="btn btn-sm" onClick={() => setView('checklist')}>View / print</button>
+                <div className="row gap">
+                  {editable && docData.transaction && (isAdmin || docData.createdBy === user.uid) && (
+                    <Link className="btn btn-sm btn-ghost" to={`/documents/${docId}/edit?change=checklist`}
+                      title="Picked the wrong checklist, or the requirements changed? Choose another type of transaction.">Change checklist</Link>
+                  )}
+                  <button className="btn btn-sm" onClick={() => setView('checklist')}>View / print</button>
+                </div>
               </div>
               {unchecked.length > 0 && <div className="alert">{unchecked.length} required item(s) not yet ticked</div>}
               <ul className="checklist-view">
@@ -145,7 +151,7 @@ export default function DocumentView() {
               {(docData.additionalDocs || []).length > 0 && (
                 <>
                   <h4 style={{ marginTop: '.9rem' }}>Additional documents</h4>
-                  <ol className="small">{docData.additionalDocs.map((t, i) => <li key={i}>{t}</li>)}</ol>
+                  <ol className="small" start={activeChecklist.items.length + 1}>{docData.additionalDocs.map((t, i) => <li key={i}>{t}</li>)}</ol>
                 </>
               )}
             </section>

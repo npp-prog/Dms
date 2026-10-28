@@ -147,7 +147,7 @@ export default function BulkDownload({ docData, type, settings }) {
         }
       }
       if ((docData.additionalDocs || []).length) {
-        index.push('', 'Additional documents (not in FTS):', ...docData.additionalDocs.map((t, i) => `  ${i + 1}. ${t}`));
+        index.push('', 'Additional documents (not in FTS):', ...docData.additionalDocs.map((t, i) => `  ${items.length + i + 1}. ${t}`));
       }
       zip.file('00_INDEX.txt', [...index.slice(0, 4), 'Files:', ...files.map((f) => `  ${f}`), ...index.slice(4)].join('\r\n'));
       setStatus('Zipping…');
