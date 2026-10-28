@@ -561,6 +561,52 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .doc-render .lrf-name { height: calc(15pt * var(--k)); border-bottom: .75pt solid #000; font-weight: 700; font-size: calc(9.5pt * var(--k)); display: flex; align-items: flex-end; justify-content: center; margin-bottom: calc(1pt * var(--k)); }
 .doc-render .lrf-date { text-align: left; padding-left: calc(2pt * var(--k)); }
 
+/* FURS: 29_FURS.xlsx as printed from Google Sheets, at its size and position on the A4 page
+   (table 453.5 pt wide, 70 pt from the left and top). */
+.doc-render .frs { --k: 1; width: calc(495.15pt * var(--k)); padding: calc(41.65pt * var(--k)) 0 calc(85.7pt * var(--k)) calc(41.65pt * var(--k)); font-family: "Times New Roman", Times, "Liberation Serif", serif; font-size: calc(7.65pt * var(--k)); line-height: calc(10pt * var(--k)); }
+.doc-render .frs table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: inherit; }
+.doc-render .frs td { border: .75pt solid #000; padding: 0 calc(2.6pt * var(--k)); vertical-align: middle; overflow-wrap: anywhere; }
+.doc-render .frs .r { text-align: right; } .doc-render .frs .c { text-align: center; }
+.doc-render .frs-head td { position: relative; height: calc(101.5pt * var(--k)); text-align: center; vertical-align: top; padding-top: calc(11.5pt * var(--k)); }
+.doc-render .frs-seal { position: absolute; left: calc(23.6pt * var(--k)); top: calc(13pt * var(--k)); width: calc(64pt * var(--k)); height: calc(64pt * var(--k)); }
+.doc-render .frs-l1 { font-size: calc(9.75pt * var(--k)); line-height: calc(15pt * var(--k)); }
+.doc-render .frs-l2 { font-size: calc(9.75pt * var(--k)); line-height: calc(15pt * var(--k)); font-weight: 700; }
+.doc-render .frs-l3 { font-size: calc(6.95pt * var(--k)); line-height: calc(10pt * var(--k)); }
+.doc-render .frs-title { font-size: calc(9.75pt * var(--k)); font-weight: 700; margin-top: calc(19pt * var(--k)); }
+.doc-render .frs-r td { height: calc(18.5pt * var(--k)); }
+.doc-render .frs-r3 td { height: calc(19pt * var(--k)); }
+.doc-render .frs .frs-v { padding-left: calc(4pt * var(--k)); }
+.doc-render .frs-cols td { height: calc(35.5pt * var(--k)); text-align: center; }
+.doc-render .frs tr.frs-line td { border-top: 0; border-bottom: 0; height: calc(13pt * var(--k)); padding-top: calc(1pt * var(--k)); padding-bottom: calc(1pt * var(--k)); white-space: pre-line; vertical-align: top; }
+.doc-render .frs-total td { border-top: 0; height: calc(12pt * var(--k)); border-bottom: 1.5pt solid #000; }
+.doc-render .frs-total td.frs-sum { border-top: .75pt solid #000; }
+.doc-render .frs-cert td { border-top: 0; height: calc(147pt * var(--k)); vertical-align: top; padding: 0; position: relative; }
+.doc-render .frs-ct { display: flex; align-items: flex-start; }
+.doc-render .frs-lt { display: inline-block; flex: none; width: calc(15pt * var(--k)); height: calc(17pt * var(--k)); border-right: .75pt solid #000; border-bottom: .75pt solid #000; font-weight: 700; font-size: calc(8.35pt * var(--k)); line-height: calc(12pt * var(--k)); padding-left: calc(1.5pt * var(--k)); margin-right: calc(2.2pt * var(--k)); }
+.doc-render .frs-cl { flex: none; margin-top: calc(5pt * var(--k)); }
+.doc-render .frs-tx { margin-top: calc(5pt * var(--k)); }
+.doc-render .frs-txa { margin-left: calc(9pt * var(--k)); padding-right: calc(10pt * var(--k)); }
+.doc-render .frs-txb { margin-left: calc(5pt * var(--k)); padding-right: calc(17pt * var(--k)); }
+.doc-render .frs-sg { position: absolute; top: calc(56pt * var(--k)); left: calc(2.6pt * var(--k)); display: grid; row-gap: 0; align-items: end; }
+.doc-render .frs-sga { grid-template-columns: calc(48pt * var(--k)) calc(9.4pt * var(--k)) calc(148pt * var(--k)); }
+.doc-render .frs-sgb { grid-template-columns: calc(45pt * var(--k)) calc(9.4pt * var(--k)) calc(169pt * var(--k)); }
+.doc-render .frs-sg > span { height: calc(21pt * var(--k)); line-height: calc(10pt * var(--k)); padding-bottom: calc(1pt * var(--k)); display: flex; align-items: flex-end; }
+.doc-render .frs-sg > span:nth-child(-n+3) { height: calc(15pt * var(--k)); }
+.doc-render .frs-sg > span:nth-child(n+4):nth-child(-n+6) { height: calc(22pt * var(--k)); }
+.doc-render .frs-sg > span:nth-child(n+7):nth-child(-n+9) { height: calc(18.5pt * var(--k)); }
+.doc-render .frs-ln { border-bottom: .75pt solid #000; justify-content: center; }
+.doc-render .frs-nm { font-weight: 700; }
+.doc-render .frs-sg > span.frs-cap { height: calc(21.5pt * var(--k)); align-items: flex-start; justify-content: center; text-align: center; padding: calc(.5pt * var(--k)) calc(14pt * var(--k)) 0; }
+.doc-render .frs-sg > span.frs-cap ~ span { height: calc(8pt * var(--k)); }
+.doc-render .frs-status td { border-top: 0; text-align: center; }
+.doc-render .frs-st-head td { height: calc(15.5pt * var(--k)); text-align: left; padding: 0; vertical-align: top; }
+.doc-render .frs-st-head b { display: inline-block; width: calc(100% - 20pt * var(--k)); text-align: center; font-size: calc(7.65pt * var(--k)); padding-top: calc(5pt * var(--k)); }
+.doc-render .frs-st-head .frs-lt { height: calc(15.5pt * var(--k)); margin-right: 0; vertical-align: top; }
+.doc-render .frs-st-1 td { height: calc(9.5pt * var(--k)); line-height: calc(9pt * var(--k)); }
+.doc-render .frs-st-2 td { height: calc(10pt * var(--k)); line-height: calc(9pt * var(--k)); }
+.doc-render .frs-st-3 td { height: calc(29.5pt * var(--k)); line-height: calc(9pt * var(--k)); }
+.doc-render .frs-st-body td { height: calc(107pt * var(--k)); }
+
 /* Checklist: the Municipal Accounting Office's Word checklist (A4, Times New Roman, margins 0.5 in top,
    1 in at the sides), sizes in points as in the Word file. */
 .checklist-sheet { font-family: "Times New Roman", Times, "Liberation Serif", serif; color: #000; font-size: 10pt; line-height: 11.5pt; padding: 7.7pt 43.6pt 0; }

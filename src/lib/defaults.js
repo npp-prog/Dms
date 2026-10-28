@@ -197,9 +197,9 @@ const FURS = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
-    { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The FURS No. is assigned by Accounting.' },
+    { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The FURS No. is assigned by the Accounting Office.' },
     { id: 's2', title: 'Particulars', instructions: 'For each line: the project/purpose, particulars, account code and amount.' },
     { id: 's3', title: 'Box A', instructions: 'The head of the requesting office certifies Box A. Box B prints the Accountant from Settings.' },
   ],
@@ -208,10 +208,9 @@ const FURS = {
     { key: 'office', label: 'Office', type: 'text', required: true, step: 's1' },
     { key: 'address', label: 'Address', type: 'text', step: 's1' },
     fundField('s1', { default: 'Trust Fund' }),
-    { key: 'fursNo', label: 'FURS No. (Accounting)', type: 'text', step: 's1' },
     { key: 'date', label: 'Date', type: 'date', step: 's1' },
     {
-      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 10,
+      key: 'items', label: 'Particulars', type: 'table', required: true, step: 's2',
       columns: [
         { key: 'purpose', label: 'Project/Purpose', type: 'text' },
         { key: 'particulars', label: 'Particulars', type: 'text' },
@@ -221,6 +220,8 @@ const FURS = {
     },
     { key: 'certA', label: 'Box A — Printed name', type: 'text', required: true, step: 's3' },
     { key: 'certAPos', label: 'Box A — Position', type: 'text', step: 's3' },
+    // Assigned by the Accounting Office on the saved FURS.
+    { key: 'fursNo', label: 'FURS No.', type: 'text', filledBy: 'accounting' },
   ],
   checklist: [],
   processing: [
@@ -228,33 +229,49 @@ const FURS = {
     { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and recording', details: 'The Accountant certifies that funds are available and utilized for the purpose, assigns the FURS No., and records it in the Registry of Special Trust Fund (RSTF).' },
     { id: 'p3', office: 'Requesting Office', action: 'Attach to the DV', details: 'Use the FURS No. on the Disbursement Voucher.' },
   ],
-  template: `${header('FUND UTILIZATION REQUEST AND STATUS')}
-  <table class="pt">
-    <tr><td class="lbl">Payee</td><td><b>{{payee|upper}}</b></td><td style="width:28%">FURS No.: <b>{{fursNo}}</b></td></tr>
-    <tr><td class="lbl">Office</td><td>{{office}}</td><td>Date: <b>{{date|date}}</b></td></tr>
-    <tr><td class="lbl">Address</td><td>{{address}}</td><td>Fund: <b>{{fund}}</b></td></tr>
+  // Laid out like the FURS of the Municipal Government of Candoni (29_FURS.xlsx, printed from Google Sheets).
+  template: `<div class="frs"><table class="frs-main" data-grow>
+  <colgroup><col style="width:17.420%"><col style="width:43.219%"><col style="width:10.364%"><col style="width:13.341%"><col style="width:15.656%"></colgroup>
+  <tr class="frs-head"><td colspan="5"><img class="frs-seal" src="{{lgu.seal}}" alt="">
+    <div class="frs-l1">Republic of the Philippines</div><div class="frs-l2">{{lgu.name|upper}}</div><div class="frs-l3">{{lgu.address}}</div>
+    <div class="frs-title">FUND UTILIZATION REQUEST AND STATUS</div></td></tr>
+  <tr class="frs-r"><td>Payee</td><td class="frs-v"><b>{{payee|upper}}</b></td><td>FURS No. :</td><td colspan="2" class="frs-v"><b>{{fursNo}}</b></td></tr>
+  <tr class="frs-r"><td>Office</td><td class="frs-v">{{office|upper}}</td><td>Date :</td><td colspan="2" class="frs-v">{{date|date}}</td></tr>
+  <tr class="frs-r frs-r3"><td>Address</td><td class="frs-v">{{address|upper}}</td><td>Fund :</td><td colspan="2" class="frs-v">{{fund|upper}}</td></tr>
+  <tr class="frs-cols"><td>Project/Purpose</td><td>Particulars</td><td colspan="2">Account Code</td><td>Amount</td></tr>
+  {{#each items}}<tr class="blank frs-line"><td>{{purpose}}</td><td>{{particulars}}</td><td colspan="2" class="c">{{accountCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
+  <tr class="blank frs-line"><td></td><td></td><td colspan="2"></td><td></td></tr>
+  <tr class="frs-total"><td></td><td class="r"><b>Total</b></td><td colspan="2"></td><td class="r frs-sum"><b>{{sum:items.amount|currency}}</b></td></tr>
   </table>
-  <table class="pt" data-grow>
-    <thead><tr><th style="width:22%">Project/Purpose</th><th>Particulars</th><th style="width:16%">Account Code</th><th style="width:16%">Amount</th></tr></thead>
-    <tbody>{{#each items}}<tr class="blank"><td>{{purpose}}</td><td>{{particulars}}</td><td class="c">{{accountCode}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
-    <tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>{{sum:items.amount|currency}}</b></td></tr></tbody>
+  <table class="frs-cert">
+  <colgroup><col style="width:48.071%"><col style="width:51.929%"></colgroup>
+  <tr>
+    <td><div class="frs-ct"><span class="frs-lt">A.</span><b class="frs-cl">Certified:</b><span class="frs-tx frs-txa">Charges to special trust account necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal</span></div>
+      <div class="frs-sg frs-sga">
+        <span>Signature</span><span>:</span><span class="frs-ln"></span>
+        <span>Printed Name:</span><span></span><span class="frs-ln frs-nm">{{certA|upper}}</span>
+        <span>Position</span><span>:</span><span class="frs-ln frs-ps">{{certAPos|upper}}</span>
+        <span></span><span></span><span class="frs-cap">Head, Requesting Office/Authorized Representative</span>
+        <span>Date</span><span>:</span><span class="frs-ln"></span>
+      </div></td>
+    <td><div class="frs-ct"><span class="frs-lt">B.</span><b class="frs-cl">Certified:</b><span class="frs-tx frs-txb">Funds available and utilized for the purpose/adjustment necessary as indicated above</span></div>
+      <div class="frs-sg frs-sgb">
+        <span>Signature</span><span>:</span><span class="frs-ln"></span>
+        <span>Printed Name:</span><span></span><span class="frs-ln frs-nm">{{sig.accountant|upper}}</span>
+        <span>Position</span><span>:</span><span class="frs-ln frs-ps">{{sig.accountantPosition|upper}}</span>
+        <span></span><span></span><span class="frs-cap">Head, Accounting Division/Unit/ Authorized Representative</span>
+        <span>Date</span><span>:</span><span class="frs-ln"></span>
+      </div></td>
+  </tr>
   </table>
-  <table class="pt">
-    <tr>
-      <td class="pf-cell" style="width:50%"><b>A. Certified:</b> Charges to special trust account necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal
-        ${signBlock('{{certA|upper}}', '{{certAPos}}', 'Head, Requesting Office/Authorized Representative')}</td>
-      <td class="pf-cell"><b>B. Certified:</b> Funds available and utilized for the purpose/adjustment necessary as indicated above
-        ${signBlock('{{sig.accountant|upper}}', '{{sig.accountantPosition}}', 'Head, Accounting Division/Unit/ Authorized Representative')}</td>
-    </tr>
-  </table>
-  <table class="pt">
-    <tr><th colspan="8" style="text-align:left">C. STATUS OF UTILIZATION</th></tr>
-    <tr><th colspan="3">Reference</th><th colspan="5">Amount</th></tr>
-    <tr><th>Date</th><th>Particulars</th><th>FURS/JEV/RCI/ RADAI No.</th><th>Utilization (a)</th><th>Payable (b)</th><th>Payment (c)</th><th>Not Yet Due (a-b)</th><th>Due and Demandable (b-c)</th></tr>
-    ${blankRows(8, 3)}
-  </table>
-  <table class="pmeta-t"><tr><td>Encoded by: __________</td><td>Recorded in RSTF: <span class="pf-box"></span> Active <span class="pf-box"></span> Inactive &nbsp; DV Ref: ________ &nbsp; Check Ref: ________</td></tr></table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <table class="frs-status">
+  <colgroup><col style="width:9.041%"><col style="width:14.553%"><col style="width:13.892%"><col style="width:10.584%"><col style="width:12.569%"><col style="width:10.364%"><col style="width:13.341%"><col style="width:15.656%"></colgroup>
+  <tr class="frs-st-head"><td colspan="8"><span class="frs-lt">C.</span><b>STATUS OF UTILIZATION</b></td></tr>
+  <tr class="frs-st-1"><td colspan="3"><b>Reference</b></td><td colspan="5"><b>Amount</b></td></tr>
+  <tr class="frs-st-2"><td rowspan="2">Date</td><td rowspan="2">Particulars</td><td rowspan="2">FURS/JEV/RCI/<br>RADAI No.</td><td rowspan="2">Utilization<br><br>(a)</td><td rowspan="2">Payable<br><br>(b)</td><td rowspan="2">Payment<br><br>(c)</td><td colspan="2">Balance</td></tr>
+  <tr class="frs-st-3"><td>Not Yet Due<br><br>(a-b)</td><td>Due and<br>Demandable<br>(b-c)</td></tr>
+  <tr class="frs-st-body"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table></div>`,
 };
 
 // ---------------------------------------------------------------- PR
