@@ -1,6 +1,8 @@
 // Helpers for the checklist library (pure functions, no Firebase).
 //
-// A checklist item is { id, label, required, group? }.
+// A checklist item is { id, label, details?, required, group? }.
+//   label: the document type (e.g. "Oath of Office"); details: what exactly is needed
+//   (e.g. "Certified copy of Oath of Office"). Older checklists have the whole text in label.
 //   required: true  -> the paper checklist has only a "Y" box: must always be attached.
 //   required: false -> "Y" and "N/A" boxes: attach if applicable.
 // A document stores the answer per item id: 'Y' (attached) or 'NA' (not applicable).
@@ -26,6 +28,9 @@ export const CHECKLIST_SOURCES = [
 ];
 
 export const isChecked = (v) => v === true || v === 'Y';
+
+// Printed with separate Document Type and Document Details columns when any item has details.
+export const hasDetails = (items) => (items || []).some((i) => String(i.details || '').trim());
 
 export function groupItems(items) {
   const groups = [];
@@ -92,7 +97,7 @@ export function effectiveChecklist(type, transaction) {
     title: `${type?.name || 'Document'} — Checklist of Requirements`,
     description: '',
     headerFields: [],
-    items: (type?.checklist || []).map((c) => ({ id: c.id, label: c.help ? `${c.label}\n${c.help}` : c.label, required: Boolean(c.required) })),
+    items: (type?.checklist || []).map((c) => ({ id: c.id, label: c.label, details: c.help || '', required: Boolean(c.required) })),
     basis: [],
     notes: [],
   };

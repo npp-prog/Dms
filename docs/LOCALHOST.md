@@ -110,8 +110,10 @@ The dashboard shows:
 
 Open a checklist to read it or print a blank copy:
 
-- an item with only a **Y** box is always required;
+- an item with only a **Y** box (N/A shaded) is always required;
 - an item with **Y** and **N/A** boxes is required only if it applies.
+
+The printout follows the Accounting Office's Word checklist: A4, Times New Roman, numbered items. A revised checklist (such as 1001) has separate **Document Type** and **Document Details** columns; the others print their text across both until they are revised.
 
 ![Checklist 1613](images/05-checklist-1613.png)
 
@@ -192,7 +194,7 @@ On **Checklists**, an administrator can:
 - create a new checklist;
 - edit or delete any checklist.
 
-The editor shows the printed checklist as you edit. Each item is either **Always required (Y)** or **If applicable (Y / N/A)** and can have a group heading (e.g. *Progress Payment*, *Final Payment*).
+The editor shows the printed checklist as you edit. Each item has a **document type** and optional **document details**, is either **Always required (Y)** or **If applicable (Y / N/A)**, and can have a group heading (e.g. *Progress Payment*, *Final Payment*). In notes, put `**double asterisks**` around words to print them in bold.
 
 ![Checklist editor](images/19-admin-checklist-editor.png)
 

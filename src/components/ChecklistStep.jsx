@@ -10,7 +10,8 @@ function Answer({ item, value, onChange }) {
         <button type="button" className={na ? 'on-na' : ''} disabled={item.required}
           title={item.required ? 'Always required' : 'Not applicable'} onClick={() => onChange(na ? undefined : 'NA')}>N/A</button>
       </div>
-      <div className="lbl">{item.label} {item.required && <span className="req">required</span>}</div>
+      <div className="lbl">{item.label} {item.required && <span className="req">required</span>}
+        {item.details && <div className="muted small">{item.details}</div>}</div>
     </div>
   );
 }

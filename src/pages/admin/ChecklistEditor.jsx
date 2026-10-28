@@ -39,7 +39,7 @@ export default function ChecklistEditor() {
     const problems = [];
     if (!/^[\w-]+$/.test(c.code.trim())) problems.push('Checklist No. is required (letters, numbers and dashes only).');
     if (!c.title.trim()) problems.push('Title is required.');
-    if (c.items.some((it) => !it.label.trim())) problems.push('Every item needs a description.');
+    if (c.items.some((it) => !it.label.trim())) problems.push('Every item needs a document type.');
     if (problems.length) { setError(problems.join(' ')); return; }
     setBusy(true);
     setError('');
@@ -115,7 +115,8 @@ export default function ChecklistEditor() {
               “If applicable” prints Y and N/A boxes. Items with the same group are printed under a heading.</p>
             {c.items.map((it, i) => (
               <div key={it.id} className="editor-block">
-                <textarea rows={2} value={it.label} placeholder="Document required" onChange={(e) => setItem(i, { label: e.target.value })} />
+                <input value={it.label} placeholder="Document type, e.g. Oath of Office" onChange={(e) => setItem(i, { label: e.target.value })} />
+                <textarea rows={2} value={it.details || ''} placeholder="Document details (optional), e.g. Certified copy of Oath of Office" onChange={(e) => setItem(i, { details: e.target.value })} />
                 <div className="editor-row compact">
                   <select value={it.required ? 'y' : 'na'} onChange={(e) => setItem(i, { required: e.target.value === 'y' })}>
                     <option value="y">Always required (Y)</option>
@@ -139,7 +140,7 @@ export default function ChecklistEditor() {
               <div className="field field-wide"><label className="field-label">Basis (one per line)</label>
                 <textarea rows={2} value={(c.basis || []).join('\n')} onChange={(e) => patch({ basis: lines(e.target.value) })} /></div>
               <div className="field field-wide"><label className="field-label">Notes (one per line)</label>
-                <textarea rows={2} value={(c.notes || []).join('\n')} onChange={(e) => patch({ notes: lines(e.target.value) })} /></div>
+                <textarea rows={2} value={(c.notes || []).join('\n')} placeholder="Put **double asterisks** around words to print in bold" onChange={(e) => patch({ notes: lines(e.target.value) })} /></div>
             </div>
           </section>
         </div>

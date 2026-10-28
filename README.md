@@ -111,7 +111,7 @@ documentTypes/{id}    code, name, category, description, active, version,
                       checklistSource (own | disbursement | liquidation), checklist[],
                       processing[] {office, action, details}, template
 checklists/{code}     code, kind (disbursement | liquidation), category, title, description,
-                      headerFields[], items[] {id, label, required, group?}, basis[], notes[]
+                      headerFields[], items[] {id, label (document type), details?, required, group?}, basis[], notes[]
 documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, controlNo,
                       data{}, checklist{itemId: 'Y' | 'NA'}, transaction (frozen checklist copy),
                       signatories (frozen), status (draft | complete | cancelled), title,

@@ -1,27 +1,34 @@
 import { Fragment } from 'react';
-import { groupItems, headerValue, isChecked } from '../lib/checklists.js';
+import { groupItems, hasDetails, headerValue, isChecked } from '../lib/checklists.js';
 import PrintPage from './PrintPage.jsx';
 
-// The paper checklist, as issued by the Municipal Accounting Office:
-// header boxes (DV Number, OBR/FURS Number, Payee), then Y | N/A | Required Documents.
-// Items that are always required have only a Y box; "if applicable" items have Y and N/A.
-// With `state`, the boxes are ticked from the encoded document; without it, it prints blank.
+// The paper checklist, as issued by the Municipal Accounting Office (Word layout of
+// Checklist No. 1001, revised 2026): header boxes (DV Number, OBR/FURS Number, Payee),
+// then Y | N/A | Required Documents (Document Type | Document Details), numbered.
+// Items that are always required have only a Y box (N/A is shaded); "if applicable"
+// items have Y and N/A. Checklists not yet split into type and details print their
+// text across both columns. With `state`, the boxes are ticked from the encoded
+// document; without it, it prints blank.
+// Notes may mark words in bold with **double asterisks**, as on the Word checklists.
+const rich = (text) => String(text).split(/\*\*(.+?)\*\*/).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+
 export default function ChecklistSheet({ checklist, state, data, settings = {}, paper = true }) {
   if (!checklist) return null;
-  const box = (on) => <span className="pf-box">{on ? '✓' : ' '}</span>;
+  const box = (on) => <span className="cl-box">{on ? '✓' : ''}</span>;
+  const split = hasDetails(checklist.items);
+  let no = 0;
   const sheet = (
-    <div className="doc-render checklist-sheet">
-      <div className="cl-no">Checklist No. <b>{checklist.code}</b></div>
-      <div className="ph">
-        <img src={settings.sealUrl || '/municipal-seal.png'} alt="" />
-        <div className="l2">Republic of the Philippines</div>
-        <div className="l1">{(settings.lguName || 'Municipal Government of Candoni').toUpperCase()}</div>
-        <div className="l3">{checklist.title}</div>
-      </div>
+    <div className="checklist-sheet">
+      <div className="cl-no">Checklist No. {checklist.code}</div>
+      <img className="cl-seal" src={settings.sealUrl || '/municipal-seal.png'} alt="" />
+      <div className="cl-l2">Republic of the Philippines</div>
+      <div className="cl-l1">{(settings.lguName || 'Municipal Government of Candoni').toUpperCase()}</div>
+      <div className="cl-title">{checklist.title}</div>
       {checklist.description && <p className="cl-desc">{checklist.description}</p>}
 
       {(checklist.headerFields || []).length > 0 && (
-        <table className="pt cl-head">
+        <table className="cl-head">
+          <colgroup><col style={{ width: '26.06%' }} /><col /></colgroup>
           <tbody>
             {checklist.headerFields.map((h) => (
               <tr key={h}><td className="lbl">{h}</td><td>{data ? headerValue(h, data) : ''}</td></tr>
@@ -30,38 +37,55 @@ export default function ChecklistSheet({ checklist, state, data, settings = {}, 
         </table>
       )}
 
-      <table className="pt cl-items">
+      <table className="cl-items">
+        <colgroup>
+          <col style={{ width: '4.936%' }} /><col style={{ width: '5.989%' }} />
+          <col style={{ width: '37.932%' }} /><col />
+        </colgroup>
         <thead>
-          <tr><th style={{ width: 28 }}>Y</th><th style={{ width: 34 }}>N/A</th><th>Required Documents</th></tr>
+          <tr className="cl-h1">
+            <th rowSpan={split ? 2 : 1} className="cl-y">Y</th>
+            <th rowSpan={split ? 2 : 1} className="cl-na">N/A</th>
+            <th colSpan={2} className="cl-rd">Required Documents</th>
+          </tr>
+          {split && <tr className="cl-h2"><th>Document Type</th><th>Document Details</th></tr>}
         </thead>
         <tbody>
           {groupItems(checklist.items).map((g, gi) => (
             <Fragment key={gi}>
-              {g.group && <tr className="cl-group"><td colSpan={3}>{g.group}</td></tr>}
+              {g.group && <tr className="cl-group"><td /><td /><td colSpan={2}>{g.group}</td></tr>}
               {g.items.map((item) => {
                 const v = state?.[item.id];
+                no += 1;
+                const label = <div className="cl-num"><span>{no}.</span><span>{item.label}</span></div>;
                 return (
-                  <tr key={item.id}>
-                    <td className="c">{box(isChecked(v))}</td>
-                    <td className="c">{item.required ? '' : box(v === 'NA')}</td>
-                    <td className="cl-label">{item.label}</td>
+                  <tr key={item.id} className="cl-item">
+                    <td className="cl-c">{box(isChecked(v))}</td>
+                    {item.required ? <td className="cl-c cl-shade" /> : <td className="cl-c">{box(v === 'NA')}</td>}
+                    {split ? (
+                      <>
+                        <td className="cl-type">{label}</td>
+                        <td className="cl-details">{item.details || ''}</td>
+                      </>
+                    ) : <td colSpan={2} className="cl-type cl-whole">{label}</td>}
                   </tr>
                 );
               })}
             </Fragment>
           ))}
+          {(checklist.notes || []).map((n, i) => (
+            <tr key={`n${i}`} className="cl-foot"><td colSpan={4}>{rich(n)}</td></tr>
+          ))}
           {(checklist.basis || []).map((b, i) => (
-            <tr key={`b${i}`}><td colSpan={3}><b>Basis:</b> {b}</td></tr>
+            <tr key={`b${i}`} className="cl-foot"><td colSpan={4}>Basis: {rich(b)}</td></tr>
           ))}
         </tbody>
       </table>
 
-      {(checklist.notes || []).map((n, i) => <p key={i} className="cl-note">{n}</p>)}
-
-      <table className="pt cl-additional">
+      <table className="cl-additional">
         <tbody>
           <tr><th>Additional Documents</th></tr>
-          <tr><td style={{ height: 60 }} /></tr>
+          <tr><td className="cl-addbody" /></tr>
         </tbody>
       </table>
     </div>

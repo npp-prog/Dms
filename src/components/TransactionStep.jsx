@@ -25,7 +25,7 @@ export default function TransactionStep({ kind, transaction, onTransaction }) {
                   {g.items.map((item) => (
                     <li key={item.id}>
                       <span className={`badge ${item.required ? 'badge-red' : 'badge-gray'}`}>{item.required ? 'Required' : 'If applicable'}</span>
-                      <span className="t">{item.label}</span>
+                      <span className="t">{item.label}{item.details && <span className="muted"> — {item.details}</span>}</span>
                     </li>
                   ))}
                 </ol>
@@ -33,7 +33,7 @@ export default function TransactionStep({ kind, transaction, onTransaction }) {
             ))}
           </div>
           {(transaction.basis || []).length > 0 && <p className="small muted"><b>Basis:</b> {transaction.basis.join('; ')}</p>}
-          {(transaction.notes || []).map((n, i) => <p key={i} className="small muted"><i>{n}</i></p>)}
+          {(transaction.notes || []).map((n, i) => <p key={i} className="small muted"><i>{n.replace(/\*\*/g, '')}</i></p>)}
         </>
       )}
     </div>
