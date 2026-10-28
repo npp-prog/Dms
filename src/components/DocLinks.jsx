@@ -2,13 +2,14 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
-import { acceptsDocument } from '../lib/checklists.js';
+import { acceptsDocument, systemFor } from '../lib/checklists.js';
 
 // Links from a checklist item to the supporting document: one already in FTS (e.g. the OBR
-// or PO) or one in another LGU system (CBO, PMS, ...). Stored on the document as
+// or PO) or one in another LGU system (PIM, CBO, ...). Stored on the document as
 // links: { [itemId]: [{ kind: 'fts', id, controlNo, typeCode, title } | { kind: 'url', system, ref, url }] }.
 
-export const SYSTEMS = ['CBO', 'PMS', 'IMS', 'CFMS', 'DMS', 'Other'];
+// PIM (PMS-IMS) generates AIR, PAR, ICS, RIS, PTR, ITR, WMR, Pre/Post Inspection, History of Repair, RSMI.
+export const SYSTEMS = ['PIM', 'CBO', 'CFMS', 'DMS', 'Other'];
 
 export const safeUrl = (url) => (/^https?:\/\/\S+$/i.test(String(url || '').trim()) ? String(url).trim() : '');
 
@@ -41,10 +42,12 @@ export function LinkList({ links = [], onRemove }) {
 // Choose a document in FTS, or enter a link to another system.
 export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
   const { user, profile, isAdmin } = useAuth();
-  const [tab, setTab] = useState('fts');
+  // Documents from PIM (AIR, PAR, ICS, RIS, ...) open on the other-system tab with PIM chosen.
+  const fromSystem = systemFor(item);
+  const [tab, setTab] = useState(fromSystem ? 'url' : 'fts');
   const [docs, setDocs] = useState(null);
   const [q, setQ] = useState('');
-  const [ext, setExt] = useState({ system: 'CBO', ref: '', url: '' });
+  const [ext, setExt] = useState({ system: fromSystem || 'CBO', ref: '', url: '' });
   const [error, setError] = useState('');
   const id = useId();
 
@@ -74,7 +77,7 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
     <div className="link-editor">
       <div className="tabs">
         <button type="button" className={tab === 'fts' ? 'active' : ''} onClick={() => setTab('fts')}>Document in FTS</button>
-        <button type="button" className={tab === 'url' ? 'active' : ''} onClick={() => setTab('url')}>Other system (CBO, PMS, …)</button>
+        <button type="button" className={tab === 'url' ? 'active' : ''} onClick={() => setTab('url')}>Other system (PIM, CBO, …)</button>
       </div>
       {error && <div className="alert">{error}</div>}
       {tab === 'fts' ? (

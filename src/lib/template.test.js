@@ -5,7 +5,7 @@ import { amountToWords } from './numberToWords.js';
 import { readFileSync } from 'node:fs';
 import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
 import {
-  acceptsDocument, carryOver, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
+  acceptsDocument, carryOver, itemTypeCode, systemFor, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
@@ -154,6 +154,11 @@ test('checklist items accept only documents of their kind', () => {
   assert.ok(acceptsDocument(pr, doc('PR', 'Purchase Request')) && !acceptsDocument(pr, doc('PO', 'Purchase Order')));
   const bac = c1613.items.find((i) => i.label === 'BAC Resolution');
   assert.ok(!['OBR', 'FURS', 'DV', 'PR', 'PO', 'JO', 'PCV', 'LR', 'IT', 'PAYROLL'].some((t) => acceptsDocument(bac, doc(t, t))));
+  // Property and supply documents come from PIM.
+  const air = c1613.items.find((i) => i.label === 'Acceptance and Inspection Report');
+  assert.equal(systemFor(air), 'PIM');
+  assert.equal(itemTypeCode(air), 'AIR');
+  assert.equal(systemFor(pr), '');
 });
 
 test('changing the checklist keeps answers and links of shared requirements', () => {

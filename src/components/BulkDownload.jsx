@@ -10,7 +10,7 @@ import { linkText, safeUrl } from './DocLinks.jsx';
 
 // "Download all": one ZIP with the document (e.g. the DV), its checklist and every document
 // linked to the checklist, each as a PDF named Fund_Payee_Checklist No._Type_FTS No.
-// (GF_NEIL P. PRIOLO_02_OBR_FTS000003.pdf). Links to other systems (CBO, PMS, ...) cannot be
+// (GF_NEIL P. PRIOLO_02_OBR_FTS000003.pdf). Links to other systems (PIM, CBO, ...) cannot be
 // downloaded from here; they are included as internet shortcuts with the same naming.
 
 const frames = (n) => new Promise((resolve) => {
