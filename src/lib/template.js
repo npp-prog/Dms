@@ -3,7 +3,7 @@ import { amountToWords } from './numberToWords.js';
 // Lightweight template engine for document formats.
 //
 //   {{field}}                   value of a field (HTML-escaped)
-//   {{field|currency}}          filters: currency, peso, number, date, upper, words
+//   {{field|currency}}          filters: currency, peso, acct, number, date, upper, words
 //   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, controlNo, today, preparedBy)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
@@ -44,6 +44,8 @@ export function formatDate(value) {
 
 const FILTERS = {
   currency: (v) => formatCurrency(v),
+  // Accounting format, as in the spreadsheet forms: a dash for nothing or zero.
+  acct: (v) => (toNumber(v) === 0 ? '-\u2007\u2007\u2007' : formatCurrency(v)),
   peso: (v) => (v === '' || v == null ? '' : `₱ ${formatCurrency(v)}`),
   number: (v) => (v === '' || v == null ? '' : toNumber(v).toLocaleString('en-PH')),
   date: (v) => formatDate(v),
@@ -110,7 +112,7 @@ function renderTokens(template, scope, ctx) {
       const rows = lookup(scope, key);
       // A blank form prints blank totals, not 0.00.
       const hasValues = Array.isArray(rows) && rows.some((r) => r?.[column] !== '' && r?.[column] != null);
-      if (!hasValues) return '';
+      if (!hasValues) return filters.includes('acct') ? FILTERS.acct('') : '';
       return escapeHtml(applyFilters(sumColumn(rows, column), filters.length ? filters : ['currency']));
     }
     if (head.startsWith('check:')) {

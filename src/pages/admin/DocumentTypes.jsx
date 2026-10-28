@@ -30,6 +30,17 @@ export default function DocumentTypes() {
   };
 
   const existingCodes = new Set((types || []).map((t) => t.code));
+  // A starter format that FTS has since revised (e.g. the DV redrawn after the official form).
+  const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource'];
+  const pick = (t) => JSON.stringify(FORMAT_KEYS.map((k) => t[k] ?? null));
+  const newerStarter = (t) => {
+    const starter = STARTER_TYPES.find((s) => s.code === t.code);
+    return starter && pick(starter) !== pick(t) ? starter : null;
+  };
+  const updateToStarter = (t, starter) => {
+    if (!window.confirm(`Replace the format of ${t.code} with the latest FTS starter format? Your changes to its fields, steps, processing guide and template are replaced. Documents already prepared keep their own copy.`)) return;
+    run(() => saveDocumentType(t.id, { ...t, ...Object.fromEntries(FORMAT_KEYS.map((k) => [k, starter[k]])) }, actor));
+  };
   const missingStarters = STARTER_TYPES.filter((t) => !existingCodes.has(t.code));
 
   const exportAll = () => {
@@ -96,6 +107,10 @@ export default function DocumentTypes() {
                     </button>
                   </td>
                   <td className="row gap">
+                    {newerStarter(t) && (
+                      <button className="btn btn-gold btn-sm" disabled={busy} title="FTS has a newer version of this starter format"
+                        onClick={() => updateToStarter(t, newerStarter(t))}>Update format</button>
+                    )}
                     <Link className="btn btn-ghost btn-sm" to={`/formats/${t.id}`}>Preview</Link>
                     <Link className="btn btn-ghost btn-sm" to={`/admin/types/${t.id}`}>Edit</Link>
                     <button className="btn btn-danger btn-sm" disabled={busy}

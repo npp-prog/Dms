@@ -135,7 +135,7 @@ Fill in each step. The instructions for the step are shown in the blue box, and 
 
 ![DV payee](images/09-dv-payee.png)
 
-For line items, click **+ Add row**. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due and the amount in words fill in automatically. Signatories in boxes B, C and D come from Settings.
+For line items, click **+ Add row**. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due fills in automatically. The printed names in boxes B, C and D come from Settings.
 
 ![DV particulars](images/10-dv-particulars.png)
 

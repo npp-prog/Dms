@@ -78,6 +78,8 @@ After that, every push to the branch Netlify watches redeploys the site by itsel
 2. On that first sign-in FTS sets itself up: it installs the 10 starter formats (**DV, OBR, PR, PO**, FURS, Payroll, PCV, LR, IT, JO), the 210 checklists, and the LGU settings with the signatories. Only empty parts are filled; nothing you have edited is overwritten. Review them under **Document Types**, **Checklists** and **Settings**.
 3. Other staff register themselves (Google or email). Approve them under **Users**.
 
+When a later version of FTS revises a starter format (for example the DV, redrawn after the Municipal Government of Candoni's 2026 DV), **Document Types** shows **Update format** next to it. Click it to replace that format with the new one. Documents already prepared keep the format they were prepared with.
+
 ## Template reference
 
 Formats are HTML with placeholders:
@@ -85,7 +87,7 @@ Formats are HTML with placeholders:
 | Tag | Output |
 |---|---|
 | `{{payee}}` | Field value (HTML-escaped) |
-| `{{amount\|peso}}` | Filters: `currency` (1,234.50; negatives print as (1,234.50)), `peso` (₱ 1,234.50), `date` (October 23, 2026), `words` (amount in words), `upper`, `number` |
+| `{{amount\|peso}}` | Filters: `currency` (1,234.50; negatives print as (1,234.50)), `peso` (₱ 1,234.50), `acct` (accounting: a dash for nothing or zero, as on the DV), `date` (October 23, 2026), `words` (amount in words), `upper`, `number` |
 | `{{controlNo}}` `{{today\|date}}` `{{preparedBy}}` | Document context |
 | `{{lgu.name}}` `{{lgu.address}}` | From Settings |
 | `{{sig.mayor}}` `{{sig.mayorPosition}}` | Signatories from Settings: `mayor`, `accountant`, `budget`, `treasurer`, `sbSecretary` (each with `…Position`) |

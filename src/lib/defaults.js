@@ -40,7 +40,7 @@ const DV = {
     { key: 'payee', label: 'Payee', type: 'text', required: true, step: 's1' },
     { key: 'address', label: 'Address', type: 'text', step: 's1' },
     { key: 'tinNo', label: 'TIN No.', type: 'text', step: 's1' },
-    fundField('s1'),
+    fundField('s1', { default: 'General Fund' }),
     { key: 'obrNo', label: 'OBR / FURS No.', type: 'text', required: true, step: 's1', help: 'The obligation must be approved before the DV is prepared.' },
     { key: 'respCenter', label: 'Responsibility Center', type: 'text', step: 's1', placeholder: 'e.g. 1011' },
     { key: 'dvNo', label: 'Disbursement No. (Accounting)', type: 'text', step: 's1' },
@@ -58,51 +58,42 @@ const DV = {
   checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved OBR/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
-    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and prepares the Journal Entry Voucher (Box F).' },
+    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and prepares the Journal Entry Voucher.' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: funds available', details: 'The Treasurer certifies that funds are available and prepares the check or ADA.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
     { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
     { id: 'p6', office: 'Municipal Accounting Office', action: 'Recording and filing', details: 'Accounting records the disbursement and keeps the original DV with its attachments for COA.' },
   ],
-  template: `${header('DISBURSEMENT VOUCHER')}
-  <table class="pt">
-    <tr><td class="lbl" rowspan="2">Payee</td><td rowspan="2" class="c"><b>{{payee|upper}}</b></td><td colspan="2">Disbursement No.: <b>{{dvNo}}</b><br>Date: <b>{{date|date}}</b></td></tr>
-    <tr><td>Fund<br><b>{{fund|upper}}</b></td><td>OBR No.<br><b>{{obrNo}}</b></td></tr>
-    <tr><td class="lbl">Address</td><td>{{address}}</td><td>TIN No.<br><b>{{tinNo}}</b></td><td>Responsibility Center<br><b>{{respCenter}}</b></td></tr>
-  </table>
-  <table class="pt" data-grow>
-    <thead><tr><th>Particulars</th><th style="width:22%">Amount</th></tr></thead>
-    <tbody>
-    {{#each particulars}}<tr class="blank"><td>{{explanation}}</td><td class="r">{{amount|currency}}</td></tr>{{/each}}
-    <tr><td class="r"><b>Amount Due</b></td><td class="r"><b>{{sum:particulars.amount|currency}}</b></td></tr>
-    <tr><td colspan="2"><i>{{sum:particulars.amount|words}}</i></td></tr>
-    </tbody>
-  </table>
-  <table class="pt">
-    <tr>
-      <td class="pf-cell" style="width:34%"><b>A.</b> Certified<div class="cap" style="text-align:left">Expenses/Cash Advances necessary, valid, proper, lawful and incurred under my direct supervision.</div>
-        ${signBlock('{{certA|upper}}', '{{certAPos}}')}</td>
-      <td class="pf-cell" style="width:33%"><b>B.</b> Certified<div class="cap" style="text-align:left">Completeness and propriety of supporting documents/previous cash advance liquidated/existence of funds held in trust.</div>
-        ${signBlock('{{sig.accountant|upper}}', '{{sig.accountantPosition}}')}</td>
-      <td class="pf-cell"><b>C.</b> Certified<div class="cap" style="text-align:left">Funds available for the purpose.</div>
-        ${signBlock('{{sig.treasurer|upper}}', '{{sig.treasurerPosition}}')}</td>
-    </tr>
-    <tr>
-      <td class="pf-cell"><b>D.</b> Approved for Payment
-        ${signBlock('{{sig.mayor|upper}}', '{{sig.mayorPosition}}')}</td>
-      <td class="pf-cell"><b>Payment Details</b><br><br>Check No.: ____________________<br><br>Date: ________________________<br><br>Bank Name: ___________________</td>
-      <td class="pf-cell"><b>E.</b> Received Payment
-        ${signBlock('{{payee|upper}}', 'Signature over Printed Name', 'Date: ____________')}</td>
-    </tr>
-  </table>
-  <table class="pt">
-    <tr><td colspan="6"><b>F.</b> <i><b>FOR ACCOUNTING USE ONLY</b></i> &mdash; <b>JOURNAL ENTRY VOUCHER</b> &nbsp; No. ____________ &nbsp; Date: ____________</td></tr>
-    <tr><th style="width:8%">Resp</th><th>Account Name</th><th style="width:15%">Account Code</th><th style="width:6%">PR</th><th style="width:14%">Debit</th><th style="width:14%">Credit</th></tr>
-    ${blankRows(6, 4)}
-    <tr><td colspan="4" class="r"><b>TOTAL</b></td><td></td><td></td></tr>
-    <tr><td colspan="6" class="cap" style="text-align:left">Encoded: ________ &nbsp; Journal Entry by: ________ &nbsp; Recorded in RAAO: ________ &nbsp; Reviewed by: ________ &nbsp; Certified Correct by: ________</td></tr>
-  </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  // Laid out like the Disbursement Voucher of the Municipal Government of Candoni (2026 DV):
+  // one ruled grid of 10 columns, the particulars as one open area without row lines.
+  template: `<div class="dv"><table data-grow>
+  <colgroup><col style="width:7.805%"><col style="width:22.865%"><col style="width:1.377%"><col style="width:8.264%"><col style="width:14.692%"><col style="width:9.275%"><col style="width:1.377%"><col style="width:8.264%"><col style="width:23.967%"><col style="width:2.114%"></colgroup>
+  <tr class="dv-head"><td colspan="10"><img class="dv-seal" src="{{lgu.seal}}" alt="">
+    <div class="dv-l1">Republic of the Philippines</div>
+    <div class="dv-l2">Municipal Government of CANDONI</div>
+    <div class="dv-l3">Municipal Building, Candoni, Negros Occidental 6110</div>
+    <div class="dv-title">DISBURSEMENT VOUCHER</div></td></tr>
+  <tr class="dv-rule"><td colspan="10"></td></tr>
+  <tr class="dv-r1"><td rowspan="2" class="dv-mid c">Payee</td><td rowspan="2" colspan="4" class="dv-mid dv-val">{{payee|upper}}</td>
+    <td colspan="5">Disbursement No. <b>{{dvNo}}</b><div class="dv-date">Date: <b>{{date|date}}</b></div></td></tr>
+  <tr class="dv-r2"><td colspan="3">Fund<div class="dv-in">{{fund|upper}}</div></td><td colspan="2">OBR No.<div class="dv-in">{{obrNo}}</div></td></tr>
+  <tr class="dv-r3"><td>Address</td><td colspan="4" class="dv-val">{{address}}</td>
+    <td colspan="3">TIN No.<div class="dv-in">{{tinNo}}</div></td><td colspan="2">Responsibility Center<div class="dv-in">{{respCenter}}</div></td></tr>
+  <tr class="dv-amth"><td colspan="8"></td><td colspan="2" class="c"><b>Amount</b></td></tr>
+  {{#each particulars}}<tr class="blank dv-line"><td colspan="8">{{explanation}}</td><td colspan="2" class="r">{{amount|currency}}</td></tr>{{/each}}
+  <tr class="dv-due"><td colspan="8" class="r"><b>Amount Due</b></td><td colspan="2" class="r"><b>{{sum:particulars.amount|acct}}</b></td></tr>
+  <tr class="dv-cert">
+    <td colspan="3"><span class="dv-lt">A.</span> Certified<div class="dv-ct" style="padding-right:10pt">Expenses/Cash Advances necessary, valid, proper, lawful and incurred under my direct supervision.</div></td>
+    <td colspan="4"><span class="dv-lt">B.</span> Certified<div class="dv-ct" style="padding-right:18pt">Completeness and propriety of supporting documents/previous cash advance liquidated/existence of funds held in trust.</div></td>
+    <td colspan="3"><span class="dv-lt">C.</span> Certified<div class="dv-ct dv-ct-c">Funds available for the purpose.</div></td></tr>
+  <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td colspan="2"></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
+  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{certA|upper}}</td><td>Printed<br>Name</td><td colspan="2" class="dv-name">{{sig.accountant|upper}}</td><td>Printed<br>Name</td><td class="dv-name">{{sig.treasurer|upper}}</td></tr>
+  <tr class="dv-sg"><td>Position</td><td class="dv-pos dv-pos-a">{{certAPos|upper}}</td><td>Position</td><td colspan="2" class="dv-pos">{{sig.accountantPosition|upper}}</td><td>Position</td><td class="dv-pos">{{sig.treasurerPosition|upper}}</td></tr>
+  <tr class="dv-d"><td colspan="3"><span class="dv-lt">D.</span> Approved for Payment</td><td colspan="4"><span class="dv-pd">Payment Details</span></td><td colspan="3"><span class="dv-lt">E.</span> Received Payment</td></tr>
+  <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Check No.</td><td colspan="2"></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
+  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{sig.mayor|upper}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name"></td></tr>
+  <tr class="dv-sg"><td>Position</td><td class="dv-pos">MUNICIPAL MAYOR/ VICE MAYOR</td><td>Bank<br>Name</td><td colspan="2"></td><td>Position</td><td class="dv-pos"></td></tr>
+  </table></div>`,
 };
 
 // ---------------------------------------------------------------- OBR
