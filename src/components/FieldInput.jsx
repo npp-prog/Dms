@@ -1,4 +1,4 @@
-import { computeRow } from '../lib/forms.js';
+import { computeRow, toCaps } from '../lib/forms.js';
 import { formatCurrency, sumColumn } from '../lib/template.js';
 
 function inputType(type) {
@@ -32,8 +32,8 @@ function TableInput({ field, value, onChange, disabled }) {
               {columns.map((c) => (
                 <td key={c.key}>
                   {c.type === 'textarea' ? (
-                    <textarea rows={3} value={row[c.key] ?? ''} disabled={disabled}
-                      onChange={(e) => setRow(i, c.key, e.target.value)} />
+                    <textarea rows={3} value={row[c.key] ?? ''} disabled={disabled} className="caps"
+                      onChange={(e) => setRow(i, c.key, toCaps(e.target.value))} />
                   ) : (
                     <input
                       type={inputType(c.type)}
@@ -41,8 +41,8 @@ function TableInput({ field, value, onChange, disabled }) {
                       value={row[c.key] ?? ''}
                       readOnly={Boolean(c.compute)}
                       disabled={disabled}
-                      className={c.compute ? 'computed' : ''}
-                      onChange={(e) => setRow(i, c.key, e.target.value)}
+                      className={c.compute ? 'computed' : 'caps'}
+                      onChange={(e) => setRow(i, c.key, inputType(c.type) === 'text' ? toCaps(e.target.value) : e.target.value)}
                     />
                   )}
                 </td>
@@ -87,8 +87,8 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
   if (field.type === 'table') {
     control = <TableInput field={field} value={value} onChange={onChange} disabled={disabled} />;
   } else if (field.type === 'textarea') {
-    control = <textarea id={`f-${field.key}`} rows={3} value={value ?? ''} disabled={disabled}
-      placeholder={field.placeholder} onChange={(e) => onChange(e.target.value)} />;
+    control = <textarea id={`f-${field.key}`} rows={3} value={value ?? ''} disabled={disabled} className="caps"
+      placeholder={field.placeholder} onChange={(e) => onChange(toCaps(e.target.value))} />;
   } else if (field.type === 'select') {
     control = (
       <select id={`f-${field.key}`} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
@@ -98,9 +98,9 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
     );
   } else {
     control = <input id={`f-${field.key}`} type={inputType(field.type)} value={value ?? ''} disabled={disabled}
-      readOnly={Boolean(field.compute)} className={field.compute ? 'computed' : ''}
+      readOnly={Boolean(field.compute)} className={field.compute ? 'computed' : 'caps'}
       step={field.type === 'currency' ? '0.01' : undefined} placeholder={field.placeholder}
-      onChange={(e) => onChange(e.target.value)} />;
+      onChange={(e) => onChange(inputType(field.type) === 'text' ? toCaps(e.target.value) : e.target.value)} />;
   }
   return (
     <div className={`field ${field.type === 'table' || field.type === 'textarea' ? 'field-wide' : ''} ${invalid ? 'invalid' : ''}`}>

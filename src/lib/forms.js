@@ -54,6 +54,15 @@ export function blankData(type) {
   return Object.fromEntries((type?.fields || []).filter((f) => f.default != null && f.type !== 'table').map((f) => [f.key, f.default]));
 }
 
+// Everything encoded is in capital letters, as on the official forms. Applied as the user
+// types (FieldInput) and again when printing, so documents saved earlier print in capitals too.
+export function toCaps(value) {
+  if (typeof value === 'string') return value.toUpperCase();
+  if (Array.isArray(value)) return value.map(toCaps);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toCaps(v)]));
+  return value;
+}
+
 export function initialData(type) {
   const data = {};
   for (const f of type?.fields || []) {

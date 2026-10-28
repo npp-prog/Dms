@@ -304,6 +304,9 @@ button.badge { cursor: pointer; }
 .table-input table { font-size: .88rem; }
 .table-input th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 700; padding: .5rem .4rem; white-space: nowrap; border-bottom: 1px solid var(--line-2); }
 .table-input td { padding: .32rem; border-bottom: 1px solid var(--line); }
+/* Encoded entries are capitals; placeholders keep their normal case. */
+input.caps, textarea.caps { text-transform: uppercase; }
+input.caps::placeholder, textarea.caps::placeholder { text-transform: none; }
 .table-input textarea { min-height: 76px; padding: .45rem .55rem; font-size: .88rem; border-radius: 8px; resize: vertical; line-height: 1.45; }
 .table-input td { vertical-align: top; }
 .table-input input { min-height: 38px; padding: .35rem .55rem; font-size: .88rem; border-radius: 8px; min-width: 90px; }

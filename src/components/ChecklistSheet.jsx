@@ -31,7 +31,7 @@ export default function ChecklistSheet({ checklist, state, data, settings = {}, 
           <colgroup><col style={{ width: '26.06%' }} /><col /></colgroup>
           <tbody>
             {checklist.headerFields.map((h) => (
-              <tr key={h}><td className="lbl">{h}</td><td>{data ? headerValue(h, data) : ''}</td></tr>
+              <tr key={h}><td className="lbl">{h}</td><td>{data ? headerValue(h, data).toUpperCase() : ''}</td></tr>
             ))}
           </tbody>
         </table>

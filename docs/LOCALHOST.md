@@ -119,7 +119,7 @@ The printout follows the Accounting Office's Word checklist: A4, Times New Roman
 
 ### Encode the details
 
-Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
+Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. Everything you type is in capital letters, as on the official forms, and prints that way. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
 
 ![DV payee](images/09-dv-payee.png)
 

@@ -71,7 +71,7 @@ function formatCell(value, type) {
   return value ?? '';
 }
 
-export function renderTable(field, rows) {
+export function renderTable(field, rows, caps = false) {
   const columns = field?.columns || [];
   const list = Array.isArray(rows) ? rows : [];
   const minRows = Number(field?.minRows) || 0;
@@ -80,7 +80,10 @@ export function renderTable(field, rows) {
   const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
   const body = list
     .map((row) => `<tr class="blank">${columns
-      .map((c) => `<td${align(c)}>${escapeHtml(formatCell(row?.[c.key], c.type))}</td>`)
+      .map((c) => {
+        const text = formatCell(row?.[c.key], c.type);
+        return `<td${align(c)}>${escapeHtml(caps ? String(text).toUpperCase() : text)}</td>`;
+      })
       .join('')}</tr>`)
     .join('');
   const nothing = list.length ? `<tr class="nothing"><td colspan="${columns.length}">*** NOTHING FOLLOWS ***</td></tr>` : '';
@@ -106,7 +109,7 @@ function renderTokens(template, scope, ctx) {
     if (head.startsWith('table:')) {
       const key = head.slice(6);
       const field = (ctx.fields || []).find((f) => f.key === key);
-      return renderTable(field, lookup(scope, key));
+      return renderTable(field, lookup(scope, key), ctx.caps);
     }
     if (head.startsWith('sum:')) {
       const [key, column] = head.slice(4).split('.');
@@ -121,7 +124,11 @@ function renderTokens(template, scope, ctx) {
     }
     const value = lookup(scope, head);
     if (value !== null && typeof value === 'object' && !filters.length) return '';
-    return escapeHtml(applyFilters(value ?? '', filters));
+    const out = applyFilters(value ?? '', filters);
+    // ctx.caps: encoded entries print in capitals, including formatted dates. Settings
+    // (lgu, sig) and the document context (controlNo, today, preparedBy) print as they are.
+    const encoded = !/^(lgu|sig|docType)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head);
+    return escapeHtml(ctx.caps && encoded ? String(out).toUpperCase() : out);
   });
 }
 
@@ -142,7 +149,8 @@ export function renderTemplate(template, ctx = {}) {
       const value = lookup(base, key);
       const shown = expected === undefined
         ? value !== undefined && value !== null && String(value).trim() !== '' && !(Array.isArray(value) && !value.length)
-        : String(value ?? '').trim() === expected.trim();
+        // Case-insensitive: encoded values are stored in capitals.
+        : String(value ?? '').trim().toUpperCase() === expected.trim().toUpperCase();
       return shown ? inner : '';
     },
   );
