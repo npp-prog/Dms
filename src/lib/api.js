@@ -219,7 +219,7 @@ function historyEntry(action, user, note = '') {
   return { action, note, by: user.displayName || user.email, uid: user.uid, at: new Date().toISOString() };
 }
 
-export async function createDocument(type, { data, checklist, additionalDocs = [], transaction = null, signatories = null, status }, user) {
+export async function createDocument(type, { data, checklist, additionalDocs = [], links = {}, transaction = null, signatories = null, status }, user) {
   const controlNo = await nextControlNo();
   const ref = await addDoc(collection(db, 'documents'), {
     typeId: type.id,
@@ -233,6 +233,7 @@ export async function createDocument(type, { data, checklist, additionalDocs = [
     data,
     checklist,
     additionalDocs,
+    links,
     transaction,
     // Officials as they were when the document was prepared, so reprints match.
     signatories,
@@ -248,11 +249,12 @@ export async function createDocument(type, { data, checklist, additionalDocs = [
   return ref.id;
 }
 
-export async function updateDocument(id, type, { data, checklist, additionalDocs = [], transaction = null, status }, user, history = []) {
+export async function updateDocument(id, type, { data, checklist, additionalDocs = [], links = {}, transaction = null, status }, user, history = []) {
   await updateDoc(doc(db, 'documents', id), {
     data,
     checklist,
     additionalDocs,
+    links,
     transaction,
     status,
     title: summarize(type, data),

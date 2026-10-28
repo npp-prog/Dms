@@ -5,6 +5,7 @@ import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries,
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
+import { LinkList } from '../components/DocLinks.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
@@ -113,7 +114,8 @@ export default function DocumentView() {
               <ul className="checklist-view">
                 {activeChecklist.items.map((c) => {
                   const v = docData.checklist?.[c.id];
-                  return <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}</li>;
+                  return <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
+                    <LinkList links={docData.links?.[c.id] || []} /></li>;
                 })}
               </ul>
               {(docData.additionalDocs || []).length > 0 && (
@@ -142,7 +144,7 @@ export default function DocumentView() {
               </div>
             )}
             {view === 'checklist' && activeChecklist ? (
-              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} settings={settings} />
+              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (
           <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
             signatories={docData.signatories}

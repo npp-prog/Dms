@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { groupItems, hasDetails, headerValue, isChecked } from '../lib/checklists.js';
 import PrintPage from './PrintPage.jsx';
+import { linkText } from './DocLinks.jsx';
 
 // The paper checklist, as issued by the Municipal Accounting Office (Word layout of
 // Checklist No. 1001, revised 2026): header boxes (DV Number, OBR/FURS Number, Payee),
@@ -12,7 +13,7 @@ import PrintPage from './PrintPage.jsx';
 // Notes may mark words in bold with **double asterisks**, as on the Word checklists.
 const rich = (text) => String(text).split(/\*\*(.+?)\*\*/).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
 
-export default function ChecklistSheet({ checklist, state, data, additional = [], settings = {}, paper = true }) {
+export default function ChecklistSheet({ checklist, state, data, additional = [], links = {}, settings = {}, paper = true }) {
   if (!checklist) return null;
   const box = (on) => <span className="cl-box">{on ? '✓' : ''}</span>;
   const split = hasDetails(checklist.items);
@@ -58,6 +59,8 @@ export default function ChecklistSheet({ checklist, state, data, additional = []
                 const v = state?.[item.id];
                 no += 1;
                 const label = <div className="cl-num"><span>{no}.</span><span>{item.label}</span></div>;
+                const linked = (links[item.id] || []).map(linkText).filter(Boolean);
+                const linkLine = linked.length > 0 && <div className="cl-linked">Linked: {linked.join('; ')}</div>;
                 return (
                   <tr key={item.id} className="cl-item">
                     <td className="cl-c">{box(isChecked(v))}</td>
@@ -65,9 +68,9 @@ export default function ChecklistSheet({ checklist, state, data, additional = []
                     {split ? (
                       <>
                         <td className="cl-type">{label}</td>
-                        <td className="cl-details">{item.details || ''}</td>
+                        <td className="cl-details">{item.details || ''}{linkLine}</td>
                       </>
-                    ) : <td colSpan={2} className="cl-type cl-whole">{label}</td>}
+                    ) : <td colSpan={2} className="cl-type cl-whole">{label}{linkLine}</td>}
                   </tr>
                 );
               })}

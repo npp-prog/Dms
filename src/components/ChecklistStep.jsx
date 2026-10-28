@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import TransactionPicker from './TransactionPicker.jsx';
+import { LinkEditor, LinkList } from './DocLinks.jsx';
 import { toCaps } from '../lib/forms.js';
 import { checklistProgress, effectiveChecklist, groupItems, isChecked } from '../lib/checklists.js';
 
-function Answer({ item, value, onChange }) {
+function Answer({ item, value, onChange, links = [], onLinks, docId }) {
   const y = isChecked(value);
   const na = value === 'NA';
+  const [linking, setLinking] = useState(false);
   return (
     <div className={`cl-answer ${y ? 'done' : na ? 'na' : ''}`}>
       <div className="yn" role="group" aria-label={item.label}>
@@ -14,7 +16,23 @@ function Answer({ item, value, onChange }) {
           title={item.required ? 'Always required' : 'Not applicable'} onClick={() => onChange(na ? undefined : 'NA')}>N/A</button>
       </div>
       <div className="lbl">{item.label} {item.required && <span className="req">required</span>}
-        {item.details && <div className="muted small">{item.details}</div>}</div>
+        {item.details && <div className="muted small">{item.details}</div>}
+        {onLinks && (
+          <>
+            <LinkList links={links} onRemove={(i) => onLinks(links.filter((_, j) => j !== i))} />
+            {linking ? (
+              <LinkEditor excludeId={docId} onCancel={() => setLinking(false)}
+                onAdd={(l) => {
+                  onLinks([...links, l]);
+                  if (!y) onChange('Y'); // linked means attached
+                  setLinking(false);
+                }} />
+            ) : (
+              <button type="button" className="link small" onClick={() => setLinking(true)}>+ Link document</button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -22,7 +40,7 @@ function Answer({ item, value, onChange }) {
 // Checklist step of the wizard: tick Y / N/A for each required document.
 // For library-based document types (DV, Payroll, LR) the type of transaction is chosen here,
 // which loads its checklist from the library.
-export default function ChecklistStep({ type, transaction, state, onState, onTransaction, additional = [], onAdditional }) {
+export default function ChecklistStep({ type, transaction, state, onState, onTransaction, additional = [], onAdditional, links = {}, onLinks, docId }) {
   const [picking, setPicking] = useState(false);
   const library = type.checklistSource && type.checklistSource !== 'own';
   const checklist = effectiveChecklist(type, transaction);
@@ -54,8 +72,10 @@ export default function ChecklistStep({ type, transaction, state, onState, onTra
                   <div key={gi} className="cl-answers">
                     {g.group && <div className="cl-groupname">{g.group}</div>}
                     {g.items.map((item) => (
-                      <Answer key={item.id} item={item} value={state[item.id]}
-                        onChange={(v) => onState({ ...state, [item.id]: v })} />
+                      <Answer key={item.id} item={item} value={state[item.id]} docId={docId}
+                        onChange={(v) => onState((s) => ({ ...s, [item.id]: v }))}
+                        links={links[item.id] || []}
+                        onLinks={onLinks && ((l) => onLinks({ ...links, [item.id]: l }))} />
                     ))}
                   </div>
                 ))}

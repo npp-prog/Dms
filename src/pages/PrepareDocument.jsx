@@ -52,6 +52,8 @@ function Wizard({ typeId, docId }) {
   const [checklist, setChecklist] = useState({});
   // Documents attached that are not on the checklist (printed under Additional Documents).
   const [additionalDocs, setAdditionalDocs] = useState([]);
+  // Links from checklist items to the supporting documents (in FTS or another system).
+  const [links, setLinks] = useState({});
   const [transaction, setTransaction] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
@@ -72,6 +74,7 @@ function Wizard({ typeId, docId }) {
           setData({ ...initialData(t), ...d.data });
           setChecklist(d.checklist || {});
           setAdditionalDocs(d.additionalDocs || []);
+          setLinks(d.links || {});
           setTransaction(d.transaction || null);
         } else {
           const t = await getDocumentType(typeId);
@@ -123,7 +126,7 @@ function Wizard({ typeId, docId }) {
     setError('');
     try {
       let id = docId;
-      const payload = { data, checklist, additionalDocs: additionalDocs.filter((t) => t.trim()), transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
+      const payload = { data, checklist, additionalDocs: additionalDocs.filter((t) => t.trim()), links, transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
       if (existing) await updateDocument(docId, type, payload, actor, existing.history);
       else id = await createDocument(type, payload, actor);
       navigate(`/documents/${id}`);
@@ -170,9 +173,9 @@ function Wizard({ typeId, docId }) {
 
           {step.id === '__checklist' && (
             <ChecklistStep type={type} transaction={transaction} state={checklist} onState={setChecklist}
-              additional={additionalDocs} onAdditional={setAdditionalDocs}
+              additional={additionalDocs} onAdditional={setAdditionalDocs} links={links} onLinks={setLinks} docId={docId}
               onTransaction={(t) => {
-                if (transaction?.code !== t.code) setChecklist({});
+                if (transaction?.code !== t.code) { setChecklist({}); setLinks({}); }
                 setTransaction(t);
               }} />
           )}
@@ -219,7 +222,7 @@ function Wizard({ typeId, docId }) {
                 <button type="button" className="btn btn-sm" onClick={() => window.print()}>Print checklist</button>
               </div>
               <ChecklistSheet checklist={activeChecklist} state={checklist}
-                data={data} additional={additionalDocs} settings={settings} />
+                data={data} additional={additionalDocs} links={links} settings={settings} />
             </>
           ) : (
             <>
