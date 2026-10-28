@@ -21,7 +21,7 @@ function TableInput({ field, value, onChange, disabled }) {
         <thead>
           <tr>
             <th style={{ width: 32 }}>#</th>
-            {columns.map((c) => <th key={c.key}>{c.label}</th>)}
+            {columns.map((c) => <th key={c.key} style={c.type === 'textarea' ? { minWidth: 260 } : undefined}>{c.label}</th>)}
             {!disabled && <th style={{ width: 40 }} />}
           </tr>
         </thead>
@@ -31,15 +31,20 @@ function TableInput({ field, value, onChange, disabled }) {
               <td className="muted">{i + 1}</td>
               {columns.map((c) => (
                 <td key={c.key}>
-                  <input
-                    type={inputType(c.type)}
-                    step={c.type === 'currency' ? '0.01' : undefined}
-                    value={row[c.key] ?? ''}
-                    readOnly={Boolean(c.compute)}
-                    disabled={disabled}
-                    className={c.compute ? 'computed' : ''}
-                    onChange={(e) => setRow(i, c.key, e.target.value)}
-                  />
+                  {c.type === 'textarea' ? (
+                    <textarea rows={3} value={row[c.key] ?? ''} disabled={disabled}
+                      onChange={(e) => setRow(i, c.key, e.target.value)} />
+                  ) : (
+                    <input
+                      type={inputType(c.type)}
+                      step={c.type === 'currency' ? '0.01' : undefined}
+                      value={row[c.key] ?? ''}
+                      readOnly={Boolean(c.compute)}
+                      disabled={disabled}
+                      className={c.compute ? 'computed' : ''}
+                      onChange={(e) => setRow(i, c.key, e.target.value)}
+                    />
+                  )}
                 </td>
               ))}
               {!disabled && (

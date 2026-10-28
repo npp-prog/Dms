@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import TransactionPicker from './TransactionPicker.jsx';
 import { checklistProgress, effectiveChecklist, groupItems, isChecked } from '../lib/checklists.js';
 
 function Answer({ item, value, onChange }) {
@@ -17,26 +19,28 @@ function Answer({ item, value, onChange }) {
 }
 
 // Checklist step of the wizard: tick Y / N/A for each required document.
-// For library-based document types (DV, Payroll, LR) the transaction was chosen in step 1.
-export default function ChecklistStep({ type, transaction, state, onState, onChangeTransaction }) {
+// For library-based document types (DV, Payroll, LR) the type of transaction is chosen here,
+// which loads its checklist from the library.
+export default function ChecklistStep({ type, transaction, state, onState, onTransaction }) {
+  const [picking, setPicking] = useState(false);
   const library = type.checklistSource && type.checklistSource !== 'own';
   const checklist = effectiveChecklist(type, transaction);
   const progress = checklistProgress(checklist?.items, state);
 
   return (
     <div>
-      {library && (transaction ? (
+      {library && (transaction && !picking ? (
         <div className="chosen">
           <span className="code">{transaction.code}</span>
           <span className="t"><b>{transaction.title}</b><div className="small muted">{transaction.category}</div></span>
-          <button type="button" className="btn btn-sm" onClick={onChangeTransaction}>Change</button>
+          <button type="button" className="btn btn-sm" onClick={() => setPicking(true)}>Change</button>
         </div>
       ) : (
-        <div className="alert">No type of transaction chosen.{' '}
-          <button type="button" className="link" onClick={onChangeTransaction}>Choose it in step 1</button>.</div>
+        <TransactionPicker kind={type.checklistSource} value={transaction}
+          onPick={(t) => { onTransaction(t); setPicking(false); }} />
       ))}
 
-      {checklist && (
+      {checklist && !picking && (
         <>
           {checklist.items.length === 0 && <p className="muted">No checklist for this document type.</p>}
           {checklist.items.length > 0 && (

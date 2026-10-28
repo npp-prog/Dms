@@ -117,33 +117,19 @@ The printout follows the Accounting Office's Word checklist: A4, Times New Roman
 
 ![Checklist 1613](images/05-checklist-1613.png)
 
-### Step 1 for a DV, Payroll or Liquidation Report: choose the type of transaction
-
-Click **Prepare this document**, or go to **Prepare Document** and pick a format. For a **DV**, **Payroll** or **Liquidation Report**, the first step asks **"What type of transaction is this?"**, before you encode anything. Type a checklist number or some words (e.g. `1613` or `direct acquisition`) and pick one. **Next** doesn't work until you've chosen.
-
-![Choosing the type of transaction](images/07-dv-transaction-picker.png)
-
-FTS then shows every document the transaction requires, marked **Required** or **If applicable**, together with the description and the legal basis. The checklist itself appears on the right. Click **Print checklist** to keep a blank copy while you gather the documents.
-
-![Requirements of the chosen transaction](images/08-dv-transaction-requirements.png)
-
-For a liquidation it works the same way, for example **2002 – Liquidation of Cash Advance for Local Travel**:
-
-![Liquidation: type of transaction](images/16-lr-transaction.png)
-
 ### Encode the details
 
-Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
+Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.
 
 ![DV payee](images/09-dv-payee.png)
 
-For line items, click **+ Add row**. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due fills in automatically. The printed names in boxes B, C and D come from Settings.
+For line items, click **+ Add row**. On the DV, the **Explanation** is a paragraph box: write the particulars in full and press Enter for a new line; it prints the same way. Enter deductions as negative amounts: they print in parentheses, like `(164.73)`. The Amount Due fills in automatically. The printed names in boxes B, C and D come from Settings.
 
 ![DV particulars](images/10-dv-particulars.png)
 
-### Checklist step: tick what you attached
+### Checklist step: choose the transaction, tick what you attached
 
-The checklist of the transaction you chose in step 1 is shown. If you picked the wrong transaction, click **Change** to go back to step 1; the answers you already gave are cleared.
+For a **DV**, **Payroll** or **Liquidation Report**, the Checklist step asks for the **type of transaction**. Type a checklist number or some words (e.g. `1613` or `direct acquisition`, or `2002` for a liquidation of local travel) and pick one. Its checklist from the Municipal Accounting Office loads, and the preview on the right shows it as it will print. To pick another, click **Change**; the answers you already gave are cleared.
 
 - tick **Y** for each document you attached;
 - tick **N/A** for items that don't apply (always-required items have no N/A);

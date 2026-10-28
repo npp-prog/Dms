@@ -32,10 +32,10 @@ const DV = {
   active: true,
   checklistSource: 'disbursement',
   // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
-    { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period). Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
+    { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period) in a paragraph; press Enter for a new line. Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
     { id: 's3', title: 'Box A', instructions: 'The head of the requesting office (or authorized representative) certifies Box A. Boxes B, C and D print the Accountant, Treasurer and Mayor from Settings.' },
   ],
   fields: [
@@ -50,7 +50,7 @@ const DV = {
     {
       key: 'particulars', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 8,
       columns: [
-        { key: 'explanation', label: 'Explanation', type: 'text' },
+        { key: 'explanation', label: 'Explanation', type: 'textarea' },
         { key: 'amount', label: 'Amount', type: 'currency', total: true },
       ],
     },
@@ -789,6 +789,7 @@ export const FIELD_TYPES = [
 
 export const COLUMN_TYPES = [
   { value: 'text', label: 'Text' },
+  { value: 'textarea', label: 'Long text (paragraph)' },
   { value: 'number', label: 'Number' },
   { value: 'currency', label: 'Amount (₱)' },
   { value: 'date', label: 'Date' },

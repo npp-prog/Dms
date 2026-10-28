@@ -75,7 +75,8 @@ export function renderTable(field, rows) {
   const columns = field?.columns || [];
   const list = Array.isArray(rows) ? rows : [];
   const minRows = Number(field?.minRows) || 0;
-  const align = (c) => (c.type === 'currency' || c.type === 'number' ? ' class="r"' : c.type === 'date' ? ' class="c"' : '');
+  const align = (c) => (c.type === 'currency' || c.type === 'number' ? ' class="r"' : c.type === 'date' ? ' class="c"'
+    : c.type === 'textarea' ? ' style="white-space:pre-line"' : '');
   const head = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('');
   const body = list
     .map((row) => `<tr class="blank">${columns
