@@ -32,7 +32,7 @@ const DV = {
   active: true,
   checklistSource: 'disbursement',
   // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 4,
+  starterVersion: 5,
   steps: [
     { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. and its date are assigned by the Accounting Office.' },
     { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period) in a paragraph; press Enter for a new line. Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed. The Accounting Office may add deductions later.' },
@@ -106,7 +106,7 @@ const DV = {
   <tr class="dv-sg"><td>Position</td><td class="dv-pos dv-pos-a">{{certAPos|upper}}</td><td>Position</td><td colspan="2" class="dv-pos">{{sig.accountantPosition|upper}}</td><td>Position</td><td class="dv-pos">{{sig.treasurerPosition|upper}}</td></tr>
   <tr class="dv-d"><td colspan="3"><span class="dv-lt">D.</span> Approved for Payment</td><td colspan="4"><span class="dv-pd">Payment Details</span></td><td colspan="3"><span class="dv-lt">E.</span> Received Payment</td></tr>
   <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Check No.</td><td colspan="2"></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
-  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{#if approver=Municipal Mayor}}{{sig.mayor|upper}}{{/if}}{{#if approver=Municipal Vice Mayor}}{{sig.viceMayor|upper}}{{/if}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name"></td></tr>
+  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{#if approver=Municipal Mayor}}{{sig.mayor|upper}}{{/if}}{{#if approver=Municipal Vice Mayor}}{{sig.viceMayor|upper}}{{/if}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name">{{payee|upper}}</td></tr>
   <tr class="dv-sg"><td>Position</td><td class="dv-pos">{{#if approver}}{{approver|upper}}{{/if}}{{#if !approver}}MUNICIPAL MAYOR/ VICE MAYOR{{/if}}</td><td>Bank<br>Name</td><td colspan="2"></td><td>Position</td><td class="dv-pos"></td></tr>
   </table></div>`,
 };
