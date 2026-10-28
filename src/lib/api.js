@@ -263,6 +263,17 @@ export async function updateDocument(id, type, { data, checklist, additionalDocs
   });
 }
 
+// Links to supporting documents, added or removed on a saved document (also after it is
+// complete). A newly linked item is ticked Y.
+export async function saveDocumentLinks(id, { links, checklist }, user, history = [], note = '') {
+  await updateDoc(doc(db, 'documents', id), {
+    links,
+    checklist,
+    updatedAt: serverTimestamp(),
+    history: [...history, historyEntry('linked', user, note)],
+  });
+}
+
 // The Accounting Office's entries on a saved document (DV No., date, deductions).
 export async function saveAccountingEntries(id, data, user, history = []) {
   await updateDoc(doc(db, 'documents', id), {

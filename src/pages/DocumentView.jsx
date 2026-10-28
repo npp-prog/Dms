@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, setDocumentStatus } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus } from '../lib/api.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
-import { LinkList } from '../components/DocLinks.jsx';
+import { LinkEditor, LinkList, linkText } from '../components/DocLinks.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
+// Links of one checklist item on a saved document; the preparer and admins can add or remove them.
+function ItemLinks({ links, canEdit, docId, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <LinkList links={links} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
+      {canEdit && (open
+        ? <LinkEditor excludeId={docId} onCancel={() => setOpen(false)} onAdd={(l) => { setOpen(false); onChange([...links, l], linkText(l)); }} />
+        : <button type="button" className="link small no-print" onClick={() => setOpen(true)}>+ Link document</button>)}
+    </>
+  );
+}
+
 export default function DocumentView() {
   const { docId } = useParams();
   const navigate = useNavigate();
-  const { actor, settings, isAdmin } = useAuth();
+  const { actor, settings, isAdmin, user } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -114,8 +127,17 @@ export default function DocumentView() {
               <ul className="checklist-view">
                 {activeChecklist.items.map((c) => {
                   const v = docData.checklist?.[c.id];
-                  return <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                    <LinkList links={docData.links?.[c.id] || []} /></li>;
+                  return (
+                    <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
+                      <ItemLinks links={docData.links?.[c.id] || []} docId={docId}
+                        canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
+                        onChange={(list, note) => run(() => saveDocumentLinks(docId, {
+                          links: { ...(docData.links || {}), [c.id]: list },
+                          checklist: list.length > (docData.links?.[c.id] || []).length && !isChecked(v)
+                            ? { ...(docData.checklist || {}), [c.id]: 'Y' } : (docData.checklist || {}),
+                        }, actor, docData.history, `${c.label}: ${note}`))} />
+                    </li>
+                  );
                 })}
               </ul>
               {(docData.additionalDocs || []).length > 0 && (
