@@ -29,7 +29,9 @@ export default function DocumentView() {
       setDraft(d.data || {});
       setType(await getTypeForDocument(d));
     } catch (e) {
-      setError(e.message);
+      setError(e.code === 'permission-denied'
+        ? 'You do not have access to this document. Users see only the documents of their own office.'
+        : e.message);
     }
   };
   useEffect(() => { load(); }, [docId]);

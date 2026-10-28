@@ -34,17 +34,17 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       listDocumentTypes({ activeOnly: true }),
-      listDocuments({ uid: user.uid, all: isAdmin }),
+      listDocuments({ uid: user.uid, office: profile.office, all: isAdmin }),
       isAdmin ? listUsers() : Promise.resolve([]),
     ])
       .then(([t, d, u]) => { setTypes(t); setDocs(d); setPendingUsers(u.filter((x) => !x.active).length); })
       .catch((e) => setError(e.message));
-  }, [user.uid, isAdmin]);
+  }, [user.uid, profile.office, isAdmin]);
 
   const mine = docs.filter((d) => d.createdBy === user.uid);
   const count = (list, status) => list.filter((d) => d.status === status).length;
   const year = String(new Date().getFullYear());
-  const thisYear = docs.filter((d) => d.controlNo?.includes(`-${year}-`));
+  const thisYear = docs.filter((d) => String(d.createdAt?.toDate?.().getFullYear()) === year);
   const firstName = (profile.displayName || '').split(' ')[0];
 
   const items = [

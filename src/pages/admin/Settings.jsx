@@ -9,12 +9,14 @@ export default function Settings() {
   const [status, setStatus] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const setSig = (k) => (e) => setForm({ ...form, signatories: { ...form.signatories, [k]: e.target.value } });
+  const [officeText, setOfficeText] = useState((settings.offices || []).join('\n'));
 
   const submit = async (e) => {
     e.preventDefault();
     setStatus('Saving…');
     try {
-      const { updatedAt, ...clean } = form;
+      const { updatedAt, ...rest } = form;
+      const clean = { ...rest, offices: [...new Set(officeText.split('\n').map((o) => o.trim()).filter(Boolean))] };
       await saveSettings(clean);
       setSettings(clean);
       setStatus('Saved.');
@@ -54,6 +56,14 @@ export default function Settings() {
               <div className="help">Template: <code>{`{{sig.${r.key}}}`}</code> <code>{`{{sig.${r.key}Position}}`}</code></div>
             </div>
           ))}
+        </div>
+        <h3>Offices</h3>
+        <p className="small muted">One office per line. Assign each user to an office under <b>Users</b>; users see only the
+          documents of their office. Renaming an office here does not move documents already saved under the old name.</p>
+        <div className="fields">
+          <div className="field field-wide">
+            <textarea rows={10} value={officeText} onChange={(e) => setOfficeText(e.target.value)} />
+          </div>
         </div>
         <div className="row gap">
           <button className="btn btn-primary">Save settings</button>

@@ -26,7 +26,10 @@ export async function ensureUserProfile(user, extra = {}) {
   const profile = {
     email: user.email,
     displayName: extra.displayName || user.displayName || user.email,
-    office: extra.office || '',
+    // The office decides which documents the user sees, so an admin assigns it; what the
+    // user typed at registration is only a request.
+    office: '',
+    requestedOffice: extra.office || '',
     role: owner ? 'superadmin' : 'user',
     active: owner,
     createdAt: serverTimestamp(),
@@ -173,6 +176,10 @@ export async function setupSite(user) {
   }
 
   const settings = await getSettings();
+  if (settings.lguName && !settings.offices) {
+    await saveSettings({ offices: DEFAULT_SETTINGS.offices });
+    done.push('added the list of offices (Settings)');
+  }
   const libraryVersion = settings.checklistLibraryVersion || 1;
   if ((await getDocs(query(collection(db, 'checklists'), limit(1)))).empty) {
     const library = await loadBundledChecklists();
@@ -277,12 +284,20 @@ export async function getDocument(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function listDocuments({ uid, all = false, max = 300 } = {}) {
-  const q = all
-    ? query(collection(db, 'documents'), orderBy('updatedAt', 'desc'), limit(max))
-    : query(collection(db, 'documents'), where('createdBy', '==', uid), limit(max));
-  const snap = await getDocs(q);
-  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+// Admins: every document. Others: their own and their office's (the Firestore rules allow
+// no more), merged.
+export async function listDocuments({ uid, office = '', all = false, max = 300 } = {}) {
+  const queries = all
+    ? [query(collection(db, 'documents'), orderBy('updatedAt', 'desc'), limit(max))]
+    : [
+      query(collection(db, 'documents'), where('createdBy', '==', uid), limit(max)),
+      ...(office ? [query(collection(db, 'documents'), where('office', '==', office), limit(max))] : []),
+    ];
+  const byId = new Map();
+  for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {
+    for (const d of snap.docs) byId.set(d.id, { id: d.id, ...d.data() });
+  }
+  const docs = [...byId.values()];
   docs.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
   return docs;
 }

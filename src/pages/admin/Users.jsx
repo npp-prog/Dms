@@ -3,7 +3,8 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { listUsers, updateUser } from '../../lib/api.js';
 
 export default function Users() {
-  const { user: me, isSuper } = useAuth();
+  const { user: me, isSuper, settings } = useAuth();
+  const offices = settings.offices || [];
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
@@ -24,7 +25,8 @@ export default function Users() {
       <div className="page-head">
         <div>
           <h1>Users</h1>
-          <p className="muted">Approve new accounts and assign roles. Only the superadmin can grant admin rights.</p>
+          <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees only the documents of their office.
+            Only the superadmin can grant admin rights. The list of offices is in Settings.</p>
         </div>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All users</option>
@@ -43,7 +45,15 @@ export default function Users() {
                 <tr key={u.id}>
                   <td><b>{u.displayName}</b>{u.id === me.uid && ' (you)'}</td>
                   <td>{u.email}</td>
-                  <td>{u.office}</td>
+                  <td>
+                    {canManage(u) || (isSuper && u.id === me.uid) ? (
+                      <select value={u.office || ''} onChange={(e) => change(u, { office: e.target.value })}>
+                        <option value="">— No office —</option>
+                        {[...new Set([...offices, ...(u.office ? [u.office] : [])])].map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    ) : (u.office || '—')}
+                    {u.requestedOffice && u.requestedOffice !== u.office && <div className="small muted">Asked for: {u.requestedOffice}</div>}
+                  </td>
                   <td>
                     {isSuper && u.id !== me.uid ? (
                       <select value={u.role} onChange={(e) => change(u, { role: e.target.value })}>

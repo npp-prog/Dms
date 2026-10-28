@@ -212,7 +212,9 @@ Fields can be **computed**: in a table column or a field, the formula combines o
 
 ![Settings](images/22-admin-settings.png)
 
-**Users** is where you approve new accounts. Only the superadmin can make someone an administrator.
+**Users** is where you approve new accounts and **assign each person to an office**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
+
+To try it locally: `user@fts.local` and `ana@fts.local` (password `user123`) are both in the Municipal Engineering Office and see each other's documents; `leo@fts.local` is in the Municipal Health Office and sees neither.
 
 ---
 

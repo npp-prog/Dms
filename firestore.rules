@@ -34,6 +34,10 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in ['npp@mgocandoniaccounting.org'];
     }
+    // The office the user belongs to (assigned by an admin); '' if none yet.
+    function myOffice() {
+      return profile().get('office', '');
+    }
     function unchanged(keys) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
@@ -49,7 +53,9 @@ service cloud.firestore {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.email == request.auth.token.email && (
+        && request.resource.data.email == request.auth.token.email
+        // The office is assigned by an admin, never chosen by the user.
+        && request.resource.data.get('office', '') == '' && (
         // Regular self-registration: inactive user awaiting approval.
         (request.resource.data.role == 'user' && request.resource.data.active == false)
         // The owner's verified email: superadmin.
@@ -62,12 +68,12 @@ service cloud.firestore {
         // Admin may approve/deactivate and edit regular users only.
         || (isAdmin() && request.auth.uid != uid
             && resource.data.role == 'user' && request.resource.data.role == 'user')
-        // Anyone may edit their own name/office.
-        || (request.auth.uid == uid && unchanged(['role', 'active', 'email']))
+        // Anyone may edit their own name (not their office: that decides what they can see).
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office']))
         // The owner becomes superadmin once their email is verified.
         || (request.auth.uid == uid && isOwnerEmail()
             && request.resource.data.role == 'superadmin' && request.resource.data.active == true
-            && unchanged(['email']));
+            && unchanged(['email', 'office']));
 
       allow delete: if isSuper() && request.auth.uid != uid;
     }
@@ -85,15 +91,18 @@ service cloud.firestore {
     }
 
     // ---- Prepared documents ----
+    // Users see their own documents and those of their office; admins see all.
     match /documents/{docId} {
       allow read: if isActive()
-        && (resource.data.createdBy == request.auth.uid || isAdmin());
+        && (resource.data.createdBy == request.auth.uid || isAdmin()
+            || (resource.data.get('office', '') != '' && resource.data.get('office', '') == myOffice()));
       allow create: if isActive()
-        && request.resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.get('office', '') == myOffice();
       allow update: if isActive()
         && (isAdmin() || (resource.data.createdBy == request.auth.uid
                           && resource.data.status != 'cancelled'))
-        && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot']);
+        && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office']);
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
             && resource.data.status == 'draft');

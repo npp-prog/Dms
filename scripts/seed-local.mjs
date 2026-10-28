@@ -17,6 +17,9 @@ export const DEMO = {
   // The superadmin is the owner's email (src/lib/owner.js, firestore.rules). Local emulator only.
   admin: { email: SUPERADMIN_EMAILS[0], password: 'admin123', displayName: 'Maria Santos', office: 'Municipal Accounting Office' },
   user: { email: 'user@fts.local', password: 'user123', displayName: 'Juan Dela Cruz', office: 'Municipal Engineering Office' },
+  // Same office as Juan (sees his documents) and another office (does not).
+  colleague: { email: 'ana@fts.local', password: 'user123', displayName: 'Ana Reyes', office: 'Municipal Engineering Office' },
+  other: { email: 'leo@fts.local', password: 'user123', displayName: 'Leo Santos', office: 'Municipal Health Office' },
 };
 
 const app = initializeApp({ apiKey: 'demo-key', projectId: 'demo-fts' });
@@ -45,9 +48,10 @@ async function main() {
   await a.user.reload();
   await a.user.getIdToken(true);
   await setDoc(doc(db, 'users', a.user.uid), {
-    email: DEMO.admin.email, displayName: DEMO.admin.displayName, office: DEMO.admin.office,
+    email: DEMO.admin.email, displayName: DEMO.admin.displayName, office: '',
     role: 'superadmin', active: true, createdAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, 'users', a.user.uid), { office: DEMO.admin.office });
 
   // 2. Settings and starter formats.
   await setDoc(doc(db, 'meta', 'settings'), DEFAULT_SETTINGS);
@@ -63,21 +67,28 @@ async function main() {
   await lists.commit();
   await signOut(auth);
 
-  // 3. An end user (registers, then the superadmin approves them).
-  const u = await createUserWithEmailAndPassword(auth, DEMO.user.email, DEMO.user.password);
-  await updateProfile(u.user, { displayName: DEMO.user.displayName });
-  await setDoc(doc(db, 'users', u.user.uid), {
-    email: DEMO.user.email, displayName: DEMO.user.displayName, office: DEMO.user.office,
-    role: 'user', active: false, createdAt: serverTimestamp(),
-  });
-  await signOut(auth);
+  // 3. End users: each registers (asking for an office), then the superadmin approves them
+  //    and assigns the office.
+  const approved = [];
+  for (const person of [DEMO.user, DEMO.colleague, DEMO.other]) {
+    const u = await createUserWithEmailAndPassword(auth, person.email, person.password);
+    await updateProfile(u.user, { displayName: person.displayName });
+    await setDoc(doc(db, 'users', u.user.uid), {
+      email: person.email, displayName: person.displayName, office: '', requestedOffice: person.office,
+      role: 'user', active: false, createdAt: serverTimestamp(),
+    });
+    await signOut(auth);
+    approved.push([u.user.uid, person.office]);
+  }
   await signInWithEmailAndPassword(auth, DEMO.admin.email, DEMO.admin.password);
-  await updateDoc(doc(db, 'users', u.user.uid), { active: true });
+  for (const [uid, office] of approved) await updateDoc(doc(db, 'users', uid), { active: true, office });
 
   console.log(`
 [FTS] Demo data loaded:
       Superadmin  ${DEMO.admin.email} / ${DEMO.admin.password}
-      End user    ${DEMO.user.email} / ${DEMO.user.password}
+      End user    ${DEMO.user.email} / ${DEMO.user.password}  (${DEMO.user.office})
+      Same office ${DEMO.colleague.email} / ${DEMO.colleague.password}
+      Other office ${DEMO.other.email} / ${DEMO.other.password}  (${DEMO.other.office})
       Formats     ${STARTER_TYPES.map((t) => t.code).join(', ')}
       Checklists  ${CHECKLISTS.length} (disbursement and liquidation)
 `);

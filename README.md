@@ -32,7 +32,7 @@ Each document stores a frozen copy of its format. A document therefore always pr
 |---|---|
 | `superadmin` | Everything, including assigning roles and changing settings. **`npp@mgocandoniaccounting.org` is the superadmin**, once Firebase has verified the address (Google sign-in, or the verification link sent on registration). Set in `src/lib/owner.js` and `firestore.rules`. |
 | `admin` | Manage document types, approve/deactivate regular users, view all documents |
-| `user` | View formats, prepare documents, see only their own documents |
+| `user` | View formats, prepare documents, see the documents of their **office** (assigned by an admin under Users) and their own |
 
 Firestore security rules (`firestore.rules`) enforce all of this on the server.
 
@@ -105,19 +105,19 @@ Form CSS classes (same as the PMS-IMS printed forms): `ph` header with `l1` / `l
 ## Data model (Firestore)
 
 ```
-users/{uid}           email, displayName, office, role, active
+users/{uid}           email, displayName, office (assigned by an admin), requestedOffice, role, active
 documentTypes/{id}    code, name, category, description, active, version,
                       paperSize (A4 | Folio | Letter | Legal), orientation, steps[], fields[],
                       checklistSource (own | disbursement | liquidation), checklist[],
                       processing[] {office, action, details}, template
 checklists/{code}     code, kind (disbursement | liquidation), category, title, description,
                       headerFields[], items[] {id, label (document type), details?, required, group?}, basis[], notes[]
-documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, controlNo,
+documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, controlNo, office,
                       data{}, checklist{itemId: 'Y' | 'NA'}, additionalDocs[], transaction (frozen checklist copy),
                       signatories (frozen), status (draft | complete | cancelled), title,
                       createdBy, createdByName, history[], createdAt, updatedAt
 counters/FTS          value  (FTS control number series)
-meta/settings         lguName, lguAddress, province, sealUrl, signatories{}
+meta/settings         lguName, lguAddress, province, sealUrl, signatories{}, offices[]
 ```
 
 ## Scripts
