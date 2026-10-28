@@ -493,10 +493,10 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .checklist-sheet td.cl-c { text-align: center; vertical-align: middle; padding: 0; line-height: 13pt; }
 .checklist-sheet td.cl-shade { background: #d9d9d9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .checklist-sheet .cl-box { display: inline-block; width: 7.4pt; height: 7.4pt; border: .6pt solid #000; vertical-align: -.5pt; font-size: 7pt; line-height: 7pt; text-align: center; font-family: Arial, sans-serif; font-weight: 700; }
-.checklist-sheet td.cl-type { vertical-align: bottom; padding-left: 8.6pt; }
+.checklist-sheet td.cl-type { vertical-align: middle; padding-left: 8.6pt; }
 .checklist-sheet td.cl-whole { vertical-align: middle; }
 .checklist-sheet .cl-num { display: grid; grid-template-columns: 18pt 1fr; }
-.checklist-sheet td.cl-details { white-space: pre-line; vertical-align: bottom; }
+.checklist-sheet td.cl-details { white-space: pre-line; vertical-align: middle; }
 .checklist-sheet tbody .cl-item:first-child td { height: 18.85pt; vertical-align: middle; }
 .checklist-sheet .cl-group td { font-weight: 700; }
 .checklist-sheet .cl-foot td { font-style: italic; font-size: 8pt; line-height: 9.2pt; }
