@@ -136,7 +136,10 @@ function Wizard({ typeId, docId }) {
       const payload = { data, checklist, additionalDocs: additionalDocs.filter((t) => t.trim()), links, transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
       if (existing) await updateDocument(docId, type, payload, actor, existing.history);
       else id = await createDocument(type, payload, actor);
-      navigate(`/documents/${id}`);
+      // Editing (opened from the document page): return there. New document: replace the
+      // wizard in the history, so Back from the document does not reopen the wizard.
+      if (existing && (window.history.state?.idx ?? 0) > 0) navigate(-1);
+      else navigate(`/documents/${id}`, { replace: true });
     } catch (e) {
       setError(e.message);
       setBusy(false);

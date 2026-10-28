@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
+import BackButton from './BackButton.jsx';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -70,6 +71,7 @@ export default function Layout() {
         </nav>
         <div className="scrim" onClick={() => setOpen(false)} />
         <main className="main">
+          <BackButton />
           <Outlet />
         </main>
       </div>
