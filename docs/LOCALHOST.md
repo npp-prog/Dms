@@ -129,7 +129,7 @@ For line items, click **+ Add row**. On the DV, the **Explanation** is a paragra
 
 ### Checklist step: choose the transaction, tick what you attached
 
-For a **DV**, **Payroll** or **Liquidation Report**, the Checklist step asks for the **type of transaction**. Type a checklist number or some words (e.g. `1613` or `direct acquisition`, or `2002` for a liquidation of local travel) and pick one. Its checklist from the Municipal Accounting Office loads, and the preview on the right shows it as it will print. To pick another, click **Change**; the answers you already gave are cleared.
+Only the **DV** and the **Liquidation Report** have a checklist (the other forms go straight to Review & Save). Their Checklist step asks for the **type of transaction**. Type a checklist number or some words (e.g. `1613` or `direct acquisition`, or `2002` for a liquidation of local travel) and pick one. Its checklist from the Municipal Accounting Office loads, and the preview on the right shows it as it will print. To pick another, click **Change**; the answers you already gave are cleared.
 
 - tick **Y** for each document you attached;
 - tick **N/A** for items that don't apply (always-required items have no N/A);

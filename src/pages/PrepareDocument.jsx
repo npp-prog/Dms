@@ -96,13 +96,14 @@ function Wizard({ typeId, docId }) {
     const fromLibrary = type.checklistSource && type.checklistSource !== 'own';
     return [
       ...buildSteps(type),
-      {
+      // Only documents with a checklist (the DV and the Liquidation Report) have this step.
+      ...(fromLibrary || (type.checklist || []).length ? [{
         id: '__checklist',
         title: 'Checklist',
         instructions: fromLibrary
           ? 'Choose the type of transaction to load its checklist from the Municipal Accounting Office. Attach each document on it, then tick Y (or N/A if it does not apply). Items marked required must be ticked before the document can be marked complete.'
           : 'Confirm that each requirement is attached or complied with. Items marked required must be ticked before the document can be marked complete.',
-      },
+      }] : []),
       { id: '__review', title: 'Review & Save', instructions: 'Review the generated document. Save as draft to continue later, or mark complete when everything is encoded. Then print it and process it as shown below.' },
     ];
   }, [type]);

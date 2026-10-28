@@ -83,6 +83,9 @@ test('starter types are consistent and render', () => {
     assert.ok(html.length > 500);
     assert.doesNotMatch(html, /\{\{/, `${type.code} left a tag unrendered`);
     assert.ok(['own', 'disbursement', 'liquidation'].includes(type.checklistSource));
+    // Only the DV and the Liquidation Report have a checklist.
+    const hasChecklist = type.checklistSource !== 'own' || type.checklist.length > 0;
+    assert.equal(hasChecklist, ['DV', 'LR'].includes(type.code), `${type.code} checklist`);
     assert.ok(type.processing.length >= 3, `${type.code} needs a processing guide`);
     for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
     assert.equal(type.copies, undefined, `${type.code} should not list printed copies (documents are digital)`);

@@ -124,7 +124,7 @@ const OBR = {
   active: true,
   checklistSource: 'own',
   // Redrawn after the LGU's form; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The OBR No. is assigned by the Budget Office; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'One line per charge: responsibility center, particulars, F.P.P. (function/program/project), account code and amount. The total is computed.' },
@@ -150,10 +150,7 @@ const OBR = {
     { key: 'certA', label: 'Box A — Printed name (Head of Office)', type: 'text', required: true, step: 's3' },
     { key: 'certAPos', label: 'Box A — Position', type: 'text', step: 's3' },
   ],
-  checklist: [
-    { id: 'c1', label: 'The expense is in the approved budget / AIP / PPMP of the office', required: true },
-    { id: 'c2', label: 'Basis of the obligation attached (PR, payroll, billing, travel order, contract)', required: true },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A', details: 'The head of the requesting office signs Box A: charges to appropriation/allotment are necessary, lawful and under their direct supervision. Attach the basis of the obligation.' },
     { id: 'p2', office: 'Municipal Budget Office', action: 'Box B: existence of available appropriation', details: 'The Budget Officer checks the charging against the appropriation and allotment, assigns the OBR No. and signs Box B.' },
@@ -199,6 +196,8 @@ const FURS = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The FURS No. is assigned by Accounting.' },
     { id: 's2', title: 'Particulars', instructions: 'For each line: the project/purpose, particulars, account code and amount.' },
@@ -223,10 +222,7 @@ const FURS = {
     { key: 'certA', label: 'Box A — Printed name', type: 'text', required: true, step: 's3' },
     { key: 'certAPos', label: 'Box A — Position', type: 'text', step: 's3' },
   ],
-  checklist: [
-    { id: 'c1', label: 'The charge is allowed under the terms of the trust fund (e.g. MOA, grant, special law)', required: true },
-    { id: 'c2', label: 'Supporting documents of the request attached', required: true },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A', details: 'The head of the requesting office (or authorized representative) signs Box A: charges to the special trust account are necessary, lawful and under their direct supervision.' },
     { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and recording', details: 'The Accountant certifies that funds are available and utilized for the purpose, assigns the FURS No., and records it in the Registry of Special Trust Fund (RSTF).' },
@@ -271,6 +267,8 @@ const PR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Office', instructions: 'Encode the requesting department and section, fund and FPP (function/program/project).' },
     { id: 's2', title: 'Items', instructions: 'One line per item: unit, description (with specifications), quantity and estimated unit cost based on your price reference. The total cost is computed.' },
@@ -298,11 +296,7 @@ const PR = {
     { key: 'requestedBy', label: 'Requested by (name)', type: 'text', required: true, step: 's3' },
     { key: 'requestedByPos', label: 'Designation', type: 'text', step: 's3' },
   ],
-  checklist: [
-    { id: 'c1', label: 'Items are in the approved PPMP / APP', required: true },
-    { id: 'c2', label: 'Technical specifications / Terms of Reference attached', required: false },
-    { id: 'c3', label: 'Price reference (canvass / market survey) attached', required: false },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Sign "Requested by"', details: 'The head of the requesting office signs. Attach the specifications and price reference.' },
     { id: 'p2', office: "Municipal Treasurer's Office", action: 'Cash availability', details: 'The Treasurer signs "Cash Availability".' },
@@ -361,6 +355,8 @@ const PO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier exactly as in the BAC Resolution / Notice of Award, and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'Mode of procurement, place and date of delivery, delivery and payment terms.' },
@@ -387,12 +383,7 @@ const PO = {
     },
     { key: 'sbResolutionNo', label: 'Sanggunian Resolution No.', type: 'text', step: 's4' },
   ],
-  checklist: [
-    { id: 'c1', label: 'BAC Resolution / Notice of Award (or Authority from HoPE for direct acquisition)', required: true },
-    { id: 'c2', label: 'Approved Purchase Request', required: true },
-    { id: 'c3', label: 'Abstract of Canvass / Bids', required: false },
-    { id: 'c4', label: 'Approved Obligation Request (OBR)', required: false },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'BAC Secretariat / GSO', action: 'Prepare the PO after award', details: 'Prepare the PO from the award. Attach the approved PR and the award documents.' },
     { id: 'p2', office: 'Office of the Municipal Mayor', action: 'Sign as authorized official', details: 'The Mayor signs "Very truly yours".' },
@@ -430,6 +421,8 @@ const JO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier/contractor and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'The date of the quotation, place and date of delivery, delivery and payment terms.' },
@@ -455,11 +448,7 @@ const JO = {
     { key: 'purpose', label: 'Purpose', type: 'textarea', required: true, step: 's4' },
     { key: 'sbResolutionNo', label: 'Sanggunian Resolution No.', type: 'text', step: 's4' },
   ],
-  checklist: [
-    { id: 'c1', label: 'Approved Purchase Request', required: true },
-    { id: 'c2', label: 'Quotation(s) of the supplier', required: true },
-    { id: 'c3', label: 'Pre-repair inspection report (for repair of vehicles/equipment)', required: false },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'BAC Secretariat / GSO', action: 'Prepare the JO after award', details: 'Attach the approved PR, the quotation(s) and the award documents.' },
     { id: 'p2', office: 'Office of the Municipal Mayor', action: 'Sign as authorized official', details: 'The Mayor signs "Very truly yours".' },
@@ -498,6 +487,8 @@ const PCV = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Request', instructions: 'Encode the payee/office and what the petty cash is for (Part I, to be filled out upon request). The PCV No. is assigned by the Petty Cash Custodian.' },
     { id: 's2', title: 'Signatories', instructions: 'The requestor and the immediate supervisor who approves. The Petty Cash Custodian signs when paying.' },
@@ -525,10 +516,7 @@ const PCV = {
     { key: 'orNo', label: 'OR/Invoice No.', type: 'text', step: 's3' },
     { key: 'refund', label: 'Amount Refunded / (Reimbursed)', type: 'currency', compute: 'totalGranted-totalPaid', step: 's3', help: 'Positive: refund to the custodian. Negative: reimbursement to the payee.' },
   ],
-  checklist: [
-    { id: 'c1', label: 'Expense is allowed to be paid from petty cash', required: true },
-    { id: 'c2', label: 'Official receipt / invoice (upon liquidation)', required: false },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A: request and approval', details: 'The requestor signs and the immediate supervisor approves.' },
     { id: 'p2', office: 'Petty Cash Custodian', action: 'Box B: payment', details: 'The custodian pays out; the payee signs "Cash Received by" and dates it.' },
@@ -651,6 +639,8 @@ const IT = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Traveler', instructions: 'Name, position and official station of the traveler, date and purpose of travel.' },
     { id: 's2', title: 'Itinerary', instructions: 'One line per leg: date, place visited (destination), time of departure and arrival, means of transportation, fare, per diem and other expenses. The line total is computed.' },
@@ -680,10 +670,7 @@ const IT = {
     },
     { key: 'supervisor', label: 'Immediate Supervisor (name)', type: 'text', required: true, step: 's3' },
   ],
-  checklist: [
-    { id: 'c1', label: 'Approved Travel Order', required: true },
-    { id: 'c2', label: 'Letter of invitation / memo / communication on the travel', required: false },
-  ],
+  checklist: [],
   processing: [
     { id: 'p1', office: 'Traveler', action: 'Prepare and sign', details: 'Sign "Prepared by". Attach the approved Travel Order.' },
     { id: 'p2', office: 'Immediate Supervisor', action: 'Certify', details: 'Certifies that the itinerary was reviewed, the travel is necessary to the service, the period covered is reasonable and the expenses claimed are proper.' },
@@ -717,11 +704,13 @@ const PAYROLL = {
   code: 'PAYROLL',
   name: 'Payroll',
   category: 'Disbursement',
-  description: 'Group payment of salaries, wages, allowances and benefits. The checklist depends on the type of payroll (10xx through ATM, 12xx cash advance).',
+  description: 'Group payment of salaries, wages, allowances and benefits. It is paid through a DV, whose checklist depends on the type of payroll (10xx through ATM, 12xx cash advance).',
   paperSize: 'A4',
   orientation: 'portrait',
   active: true,
-  checklistSource: 'disbursement',
+  checklistSource: 'own',
+  // No checklist: only the DV and the Liquidation Report have one (v2).
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Payroll', instructions: 'The period covered, fund, office and the approved OBR No. The Payroll No. is assigned by Accounting.' },
     { id: 's2', title: 'Employees', instructions: 'One line per employee: name, position, employee no., gross amount earned and total deductions. The net amount due is computed.' },
@@ -749,8 +738,8 @@ const PAYROLL = {
   ],
   checklist: [],
   processing: [
-    { id: 'p1', office: 'Requesting Office', action: 'Box A and attachments', details: 'The authorized official certifies that services were duly rendered. Attach the approved OBR and the documents on the printed checklist (checklist on top).' },
-    { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and accounting entries', details: 'Accounting checks the documents against the checklist, certifies Box B, assigns the Payroll No. and fills in the accounting entries (G).' },
+    { id: 'p1', office: 'Requesting Office', action: 'Box A and attachments', details: 'The authorized official certifies that services were duly rendered. Attach the approved OBR; the payroll then goes with its DV, which carries the checklist.' },
+    { id: 'p2', office: 'Municipal Accounting Office', action: 'Box B and accounting entries', details: 'Accounting checks the documents against the DV\'s checklist, certifies Box B, assigns the Payroll No. and fills in the accounting entries (G).' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: cash available', details: 'The Treasurer certifies that cash is available.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
     { id: 'p5', office: 'Treasury / Disbursing Officer', action: 'Payment and Box E', details: 'Salaries are credited (ATM) or paid; employees paid in cash sign opposite their names. The disbursing officer certifies Box E; the check/ADA details are filled in (F).' },
@@ -792,7 +781,7 @@ const PAYROLL = {
 export const CHECKLIST_LIBRARY_VERSION = 2;
 
 // The parts of a document type that make up its format (what a starter update replaces).
-export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'bulkDownload'];
+export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'checklist', 'bulkDownload'];
 
 export const DEFAULT_SETTINGS = {
   checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION,

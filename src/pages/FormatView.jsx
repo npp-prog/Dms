@@ -19,6 +19,8 @@ export default function FormatView() {
   if (error) return <div className="page"><div className="alert">{error}</div></div>;
   if (!type) return <div className="page"><div className="spinner" /></div>;
 
+  // Only the DV and the Liquidation Report have a checklist.
+  const hasChecklist = (type.checklistSource && type.checklistSource !== 'own') || (type.checklist || []).length > 0;
   return (
     <div className="page">
       <div className="page-head no-print">
@@ -46,7 +48,7 @@ export default function FormatView() {
                   <div className="small">{s.fields.map((f) => f.label).join(', ')}</div>
                 </li>
               ))}
-              <li><b>Checklist of requirements</b></li>
+              {hasChecklist && <li><b>Checklist of requirements</b></li>}
               <li><b>Review, save and print</b></li>
             </ol>
           </section>
@@ -54,6 +56,7 @@ export default function FormatView() {
             <h3>How to process this document</h3>
             <ProcessingGuide type={type} />
           </section>
+          {hasChecklist && (
           <section className="card">
             <h3>Checklist of requirements</h3>
             {type.checklistSource && type.checklistSource !== 'own' && (
@@ -61,7 +64,6 @@ export default function FormatView() {
                 transaction (e.g. <b>1613</b> — Payment to Supplier, Direct Acquisition) and its checklist is loaded and printed.
                 {' '}<Link to="/checklists">Browse the {type.checklistSource} checklists</Link>.</p>
             )}
-            {(!type.checklistSource || type.checklistSource === 'own') && (type.checklist || []).length === 0 && <p className="muted">No checklist defined.</p>}
             <ul className="checklist-view">
               {(!type.checklistSource || type.checklistSource === 'own') && (type.checklist || []).map((c) => (
                 <li key={c.id}>
@@ -71,6 +73,7 @@ export default function FormatView() {
               ))}
             </ul>
           </section>
+          )}
         </div>
         <DocumentPreview type={type} data={blankData(type)} settings={settings} />
       </div>
