@@ -69,7 +69,7 @@ test('starter types are consistent and render', () => {
     const keys = type.fields.map((f) => f.key);
     assert.equal(new Set(keys).size, keys.length, `${type.code} has duplicate keys`);
     const stepIds = new Set(type.steps.map((s) => s.id));
-    for (const f of type.fields) assert.ok(stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
+    for (const f of type.fields) assert.ok(f.filledBy === 'accounting' || stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
     assert.equal(buildSteps(type).length, type.steps.length);
     const columns = type.fields.flatMap((f) => (f.columns || []).map((c) => c.key));
     const known = new Set([...keys, ...columns, 'controlNo', 'lgu', 'sig', 'today', 'preparedBy', 'docType']);
@@ -86,7 +86,7 @@ test('starter types are consistent and render', () => {
     for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
     assert.equal(type.copies, undefined, `${type.code} should not list printed copies (documents are digital)`);
     assert.doesNotMatch(html, /Appendix/i, `${type.code} still prints an appendix number`);
-    assert.equal(type.paperSize, type.code === 'DV' ? 'Folio' : 'A4', `${type.code} paper size`);
+    assert.equal(type.paperSize, 'A4', `${type.code} paper size`);
     assert.equal(type.orientation, 'portrait', `${type.code} orientation`);
   }
 });

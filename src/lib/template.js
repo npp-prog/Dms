@@ -11,6 +11,7 @@ import { amountToWords } from './numberToWords.js';
 //   {{check:itemId}}            checkbox mark for a checklist item
 //   {{#if field}}...{{/if}}     shown only when the field has a value
 //   {{#if field=Value}}...{{/if}} shown only when the field equals Value (e.g. tick a box)
+//   {{#if !field}}...{{/if}}    shown only when the field is empty
 
 export function escapeHtml(value) {
   return String(value ?? '')
@@ -144,11 +145,13 @@ export function renderTemplate(template, ctx = {}) {
   };
 
   const withIfs = String(template || '').replace(
-    /\{\{#if\s+([\w.]+)\s*(?:=\s*([^}]*?))?\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
-    (_, key, expected, inner) => {
+    /\{\{#if\s+(!?)([\w.]+)\s*(?:=\s*([^}]*?))?\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
+    (_, not, key, expected, inner) => {
       const value = lookup(base, key);
+      const hasValue = value !== undefined && value !== null && String(value).trim() !== '' && !(Array.isArray(value) && !value.length);
+      if (not) return hasValue ? '' : inner;
       const shown = expected === undefined
-        ? value !== undefined && value !== null && String(value).trim() !== '' && !(Array.isArray(value) && !value.length)
+        ? hasValue
         // Case-insensitive: encoded values are stored in capitals.
         : String(value ?? '').trim().toUpperCase() === expected.trim().toUpperCase();
       return shown ? inner : '';

@@ -27,16 +27,16 @@ const DV = {
   name: 'Disbursement Voucher',
   category: 'Disbursement',
   description: 'Payment of an obligation: suppliers, salaries and benefits, cash advances, reimbursements, fund transfers and remittances. The checklist depends on the type of transaction.',
-  paperSize: 'Folio',
+  paperSize: 'A4',
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
   // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 3,
+  starterVersion: 4,
   steps: [
-    { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
-    { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period) in a paragraph; press Enter for a new line. Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
-    { id: 's3', title: 'Box A', instructions: 'The head of the requesting office (or authorized representative) certifies Box A. Boxes B, C and D print the Accountant, Treasurer and Mayor from Settings.' },
+    { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. and its date are assigned by the Accounting Office.' },
+    { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period) in a paragraph; press Enter for a new line. Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed. The Accounting Office may add deductions later.' },
+    { id: 's3', title: 'Box A and D', instructions: 'The head of the requesting office (or authorized representative) certifies Box A. Choose who approves the payment in Box D: the Municipal Mayor or the Municipal Vice Mayor. Boxes B, C and D print the officials from Settings.' },
   ],
   fields: [
     { key: 'payee', label: 'Payee', type: 'text', required: true, step: 's1' },
@@ -45,10 +45,8 @@ const DV = {
     fundField('s1', { default: 'General Fund' }),
     { key: 'obrNo', label: 'OBR / FURS No.', type: 'text', required: true, step: 's1', help: 'The obligation must be approved before the DV is prepared.' },
     { key: 'respCenter', label: 'Responsibility Center', type: 'text', step: 's1', placeholder: 'e.g. 1011' },
-    { key: 'dvNo', label: 'Disbursement No. (Accounting)', type: 'text', step: 's1' },
-    { key: 'date', label: 'Date', type: 'date', step: 's1' },
     {
-      key: 'particulars', label: 'Particulars', type: 'table', required: true, step: 's2', minRows: 8,
+      key: 'particulars', label: 'Particulars', type: 'table', required: true, step: 's2',
       columns: [
         { key: 'explanation', label: 'Explanation', type: 'textarea' },
         { key: 'amount', label: 'Amount', type: 'currency', total: true },
@@ -56,11 +54,24 @@ const DV = {
     },
     { key: 'certA', label: 'Box A — Printed name (Head of Office)', type: 'text', required: true, step: 's3' },
     { key: 'certAPos', label: 'Box A — Position', type: 'text', default: 'Head of Department/Office', step: 's3' },
+    { key: 'approver', label: 'Box D — Approved for payment by', type: 'select', options: ['Municipal Mayor', 'Municipal Vice Mayor'], required: true, step: 's3' },
+    // Filled in by the Accounting Office on the saved DV (Documents > the DV > Accounting).
+    { key: 'dvNo', label: 'Disbursement No.', type: 'text', filledBy: 'accounting' },
+    { key: 'dvDate', label: 'Date', type: 'date', filledBy: 'accounting' },
+    {
+      key: 'adjustments', label: 'Deductions / adjustments', type: 'table', filledBy: 'accounting',
+      help: 'One line per deduction (negative amount, e.g. -1,250.00 for tax withheld) or addition (positive amount). They print below the particulars and change the Amount Due.',
+      columns: [
+        { key: 'explanation', label: 'Explanation', type: 'textarea' },
+        { key: 'amount', label: 'Amount', type: 'currency', total: true },
+      ],
+    },
+    { key: 'amountDue', label: 'Amount Due', type: 'currency', compute: 'sum:particulars.amount+sum:adjustments.amount', filledBy: 'accounting' },
   ],
   checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved OBR/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
-    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and prepares the Journal Entry Voucher.' },
+    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and date and enters any deductions in FTS (Documents > the DV > Accounting), then prepares the Journal Entry Voucher.' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: funds available', details: 'The Treasurer certifies that funds are available and prepares the check or ADA.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
     { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
@@ -77,13 +88,15 @@ const DV = {
     <div class="dv-title">DISBURSEMENT VOUCHER</div></td></tr>
   <tr class="dv-rule"><td colspan="10"></td></tr>
   <tr class="dv-r1"><td rowspan="2" class="dv-mid c">Payee</td><td rowspan="2" colspan="4" class="dv-mid dv-val">{{payee|upper}}</td>
-    <td colspan="5">Disbursement No. <b>{{dvNo}}</b><div class="dv-date">Date: <b>{{date|date}}</b></div></td></tr>
+    <td colspan="5">Disbursement No. <b>{{dvNo}}</b><div class="dv-date">Date: <b>{{dvDate|date}}</b></div></td></tr>
   <tr class="dv-r2"><td colspan="3">Fund<div class="dv-in">{{fund|upper}}</div></td><td colspan="2">OBR No.<div class="dv-in">{{obrNo}}</div></td></tr>
   <tr class="dv-r3"><td>Address</td><td colspan="4" class="dv-val">{{address}}</td>
     <td colspan="3">TIN No.<div class="dv-in">{{tinNo}}</div></td><td colspan="2">Responsibility Center<div class="dv-in">{{respCenter}}</div></td></tr>
   <tr class="dv-amth"><td colspan="8"></td><td colspan="2" class="c"><b>Amount</b></td></tr>
   {{#each particulars}}<tr class="blank dv-line"><td colspan="8">{{explanation}}</td><td colspan="2" class="r">{{amount|currency}}</td></tr>{{/each}}
-  <tr class="dv-due"><td colspan="8" class="r"><b>Amount Due</b></td><td colspan="2" class="r"><b>{{sum:particulars.amount|acct}}</b></td></tr>
+  {{#each adjustments}}<tr class="blank dv-line"><td colspan="8">{{explanation}}</td><td colspan="2" class="r">{{amount|currency}}</td></tr>{{/each}}
+  <tr class="blank dv-line"><td colspan="8"></td><td colspan="2"></td></tr><tr class="blank dv-line"><td colspan="8"></td><td colspan="2"></td></tr><tr class="blank dv-line"><td colspan="8"></td><td colspan="2"></td></tr>
+  <tr class="dv-due"><td colspan="8" class="r"><b>Amount Due</b></td><td colspan="2" class="r"><b>{{amountDue|acct}}</b></td></tr>
   <tr class="dv-cert">
     <td colspan="3"><span class="dv-lt">A.</span> Certified<div class="dv-ct" style="padding-right:10pt">Expenses/Cash Advances necessary, valid, proper, lawful and incurred under my direct supervision.</div></td>
     <td colspan="4"><span class="dv-lt">B.</span> Certified<div class="dv-ct" style="padding-right:18pt">Completeness and propriety of supporting documents/previous cash advance liquidated/existence of funds held in trust.</div></td>
@@ -93,8 +106,8 @@ const DV = {
   <tr class="dv-sg"><td>Position</td><td class="dv-pos dv-pos-a">{{certAPos|upper}}</td><td>Position</td><td colspan="2" class="dv-pos">{{sig.accountantPosition|upper}}</td><td>Position</td><td class="dv-pos">{{sig.treasurerPosition|upper}}</td></tr>
   <tr class="dv-d"><td colspan="3"><span class="dv-lt">D.</span> Approved for Payment</td><td colspan="4"><span class="dv-pd">Payment Details</span></td><td colspan="3"><span class="dv-lt">E.</span> Received Payment</td></tr>
   <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Check No.</td><td colspan="2"></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
-  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{sig.mayor|upper}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name"></td></tr>
-  <tr class="dv-sg"><td>Position</td><td class="dv-pos">MUNICIPAL MAYOR/ VICE MAYOR</td><td>Bank<br>Name</td><td colspan="2"></td><td>Position</td><td class="dv-pos"></td></tr>
+  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{#if approver=Municipal Mayor}}{{sig.mayor|upper}}{{/if}}{{#if approver=Municipal Vice Mayor}}{{sig.viceMayor|upper}}{{/if}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name"></td></tr>
+  <tr class="dv-sg"><td>Position</td><td class="dv-pos">{{#if approver}}{{approver|upper}}{{/if}}{{#if !approver}}MUNICIPAL MAYOR/ VICE MAYOR{{/if}}</td><td>Bank<br>Name</td><td colspan="2"></td><td>Position</td><td class="dv-pos"></td></tr>
   </table></div>`,
 };
 
@@ -768,6 +781,7 @@ export const DEFAULT_SETTINGS = {
   province: 'Negros Occidental',
   signatories: {
     mayor: 'CICERO D. BORROMEO', mayorPosition: 'Municipal Mayor',
+    viceMayor: '', viceMayorPosition: 'Municipal Vice Mayor',
     accountant: 'NEIL P. PRIOLO, CPA', accountantPosition: 'Municipal Accountant',
     budget: 'RAQUEL C. MATA', budgetPosition: 'Municipal Budget Officer',
     treasurer: 'MA. DYMPHNA T. SARMOY', treasurerPosition: 'Acting - Municipal Treasurer',

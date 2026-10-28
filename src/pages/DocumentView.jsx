@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, setDocumentStatus } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, setDocumentStatus } from '../lib/api.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
+import AccountingPanel from '../components/AccountingPanel.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
@@ -17,12 +18,15 @@ export default function DocumentView() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState('document');
+  // Working copy of the data while the Accounting Office fills in its part.
+  const [draft, setDraft] = useState(null);
 
   const load = async () => {
     try {
       const d = await getDocument(docId);
       if (!d) throw new Error('Document not found.');
       setDocData(d);
+      setDraft(d.data || {});
       setType(await getTypeForDocument(d));
     } catch (e) {
       setError(e.message);
@@ -78,6 +82,11 @@ export default function DocumentView() {
 
       <div className="split">
         <div className="no-print">
+          {isAdmin && editable && type && draft && (
+            <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
+              saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
+              onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
+          )}
           {type && (
             <section className="card guide-card">
               <h3>How to process this document</h3>
@@ -125,9 +134,9 @@ export default function DocumentView() {
               </div>
             )}
             {view === 'checklist' && activeChecklist ? (
-              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={docData.data} settings={settings} />
+              <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} settings={settings} />
             ) : (
-          <DocumentPreview type={type} data={docData.data} checklist={docData.checklist} settings={settings}
+          <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
             signatories={docData.signatories}
             controlNo={docData.controlNo} preparedBy={docData.createdByName} />
             )}

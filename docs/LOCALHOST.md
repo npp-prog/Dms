@@ -143,7 +143,7 @@ For a **DV**, **Payroll** or **Liquidation Report**, the Checklist step asks for
 
 ### Print and process
 
-The completed document gets an FTS control number, e.g. `DV-2026-10-0001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Printing is automatic:
+The completed document gets an FTS control number, e.g. `FTS-000001`. Above the preview are two tabs: **DV** and **Checklist 1613**. **Print** prints whichever tab you are on, so print both and put the checklist on top of the attachments. Printing is automatic:
 
 - **Portrait, one page.** Every form prints portrait on one page: the DV on Folio (8.5 × 13 in), everything else on A4. Forms that are too tall (many lines) or too wide (many columns) are scaled down to fit.
 - **Fills the page.** When there is room left, the main table (particulars, items, employees) stretches to the bottom of the page, like a pre-printed form.

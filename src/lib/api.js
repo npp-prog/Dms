@@ -196,17 +196,16 @@ export async function setupSite(user) {
 
 // ---------- Documents ----------
 
-async function nextControlNo(typeCode) {
-  const now = new Date();
-  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const ref = doc(db, 'counters', `${typeCode}_${period}`);
+// FTS control number: one series for every document type, e.g. FTS-000001.
+async function nextControlNo() {
+  const ref = doc(db, 'counters', 'FTS');
   const value = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const next = snap.exists() ? snap.data().value + 1 : 1;
     tx.set(ref, { value: next });
     return next;
   });
-  return `${typeCode}-${period}-${String(value).padStart(4, '0')}`;
+  return `FTS-${String(value).padStart(6, '0')}`;
 }
 
 function historyEntry(action, user, note = '') {
@@ -214,7 +213,7 @@ function historyEntry(action, user, note = '') {
 }
 
 export async function createDocument(type, { data, checklist, transaction = null, signatories = null, status }, user) {
-  const controlNo = await nextControlNo(type.code);
+  const controlNo = await nextControlNo();
   const ref = await addDoc(collection(db, 'documents'), {
     typeId: type.id,
     typeCode: type.code,
@@ -250,6 +249,15 @@ export async function updateDocument(id, type, { data, checklist, transaction = 
     title: summarize(type, data),
     updatedAt: serverTimestamp(),
     history: [...history, historyEntry('updated', user, status)],
+  });
+}
+
+// The Accounting Office's entries on a saved document (DV No., date, deductions).
+export async function saveAccountingEntries(id, data, user, history = []) {
+  await updateDoc(doc(db, 'documents', id), {
+    data,
+    updatedAt: serverTimestamp(),
+    history: [...history, historyEntry('accounting', user, 'DV No., date or deductions')],
   });
 }
 

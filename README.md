@@ -19,7 +19,7 @@ Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netl
 | Document Formats | Browse and search every format by category. View the guided steps, the processing guide and the checklist, and print a blank form. |
 | Checklists | The disbursement and liquidation checklist library, searchable by number or words. Each checklist can be printed blank. Admins load, edit and add checklists. |
 | Prepare Document | Step-by-step wizard with per-step instructions and required-field checks, then the checklist and a review. On DV, Payroll and LR, the type of transaction is chosen in the Checklist step. Table columns can be paragraphs (the DV's Explanation). Totals, net pay and amounts to be reimbursed are computed. A live print preview updates as you type. When printed, each form is portrait and fits one page: scaled down if it is too tall or too wide, and its main table stretched to fill the page if there is room. The preview is the exact printed page. |
-| Documents | Each document gets an automatic control number, e.g. `DV-2026-10-0001`. Status goes Draft → Complete, or Cancelled. Each document shows **How to process this document**. You can filter, search, print and see the history of each document. |
+| Documents | Each document gets an automatic FTS control number, e.g. `FTS-000001` (one series for all document types). Status goes Draft → Complete, or Cancelled. Each document shows **How to process this document**. You can filter, search, print and see the history of each document. |
 | Document Types (admin) | Field builder (text, long text, number, amount, date, dropdown, line-item tables with computed columns and totals), steps builder, checklist builder, processing-guide builder, and template editor with live preview. Import/export as JSON. Ten starter formats are included (DV, OBR, FURS, Payroll, PCV, LR, IT, PR, PO, JO), printed portrait and **fit to page** (width and height): the DV on Folio (8.5 × 13 in), everything else on A4. |
 | Users (admin) | New accounts wait for approval. Admins approve or deactivate users. Only the superadmin grants admin/superadmin. |
 | Settings (superadmin) | LGU name, address, seal and **signatories** (Mayor, Accountant, Budget Officer, Treasurer, SB Secretary), printed on the forms. |
@@ -95,7 +95,7 @@ Formats are HTML with placeholders:
 | `{{sum:items.amount\|peso}}` | Total of a table column |
 | `{{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}` | Custom row layout |
 | `{{check:obr}}` | ☑ / ☐ for a checklist item |
-| `{{#if mode=ADA}}&#10003;{{/if}}` | Shown only when a field equals a value (or `{{#if field}}` when it has any value) |
+| `{{#if mode=ADA}}&#10003;{{/if}}` | Shown only when a field equals a value (`{{#if field}}` when it has any value, `{{#if !field}}` when it is empty) |
 | `{{lgu.seal}}` | Seal image URL (Settings, default `/municipal-seal.png`) |
 
 Computed values: give a table column or a field a formula such as `qty*unitCost`, `gross-deductions`, `labor+spareParts+materials` or `sum:items.amount-cashAdvance`.
@@ -116,7 +116,7 @@ documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, con
                       data{}, checklist{itemId: 'Y' | 'NA'}, transaction (frozen checklist copy),
                       signatories (frozen), status (draft | complete | cancelled), title,
                       createdBy, createdByName, history[], createdAt, updatedAt
-counters/{CODE_YYYY-MM}  value  (control number sequence)
+counters/FTS          value  (FTS control number series)
 meta/settings         lguName, lguAddress, province, sealUrl, signatories{}
 ```
 

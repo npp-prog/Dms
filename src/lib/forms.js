@@ -74,11 +74,15 @@ export function initialData(type) {
 }
 
 // Steps for the guided process. Fields without a valid step go to a catch-all step.
+// Fields the Accounting Office fills in on the saved document (e.g. the DV No. and date),
+// not shown to the end user in the wizard.
+export const byAccounting = (f) => f.filledBy === 'accounting';
+
 export function buildSteps(type) {
   const steps = (type?.steps || []).map((s) => ({ ...s, fields: [] }));
   const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
   const loose = [];
-  for (const f of type?.fields || []) (byId[f.step] ? byId[f.step].fields : loose).push(f);
+  for (const f of (type?.fields || []).filter((x) => !byAccounting(x))) (byId[f.step] ? byId[f.step].fields : loose).push(f);
   if (loose.length) {
     steps.push({ id: '__other', title: steps.length ? 'Other Details' : 'Details', instructions: '', fields: loose });
   }

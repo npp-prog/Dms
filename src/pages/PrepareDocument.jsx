@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import {
   createDocument, getDocument, getDocumentType, getTypeForDocument, listDocumentTypes, updateDocument,
 } from '../lib/api.js';
-import { buildSteps, computeFields, initialData, missingFields } from '../lib/forms.js';
+import { buildSteps, computeFields, initialData, missingFields, byAccounting } from '../lib/forms.js';
 import { effectiveChecklist, missingRequired } from '../lib/checklists.js';
 import ChecklistStep from '../components/ChecklistStep.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
@@ -103,7 +103,7 @@ function Wizard({ typeId, docId }) {
 
   const step = steps[stepIndex];
   const stepMissing = step.fields ? missingFields(step.fields, data) : [];
-  const allMissing = missingFields(type.fields, data);
+  const allMissing = missingFields(type.fields.filter((f) => !byAccounting(f)), data);
   const library = type.checklistSource && type.checklistSource !== 'own';
   const activeChecklist = effectiveChecklist(type, transaction);
   const checklistMissing = activeChecklist ? missingRequired(activeChecklist.items, checklist) : [];

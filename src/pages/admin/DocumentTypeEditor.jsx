@@ -205,6 +205,8 @@ export default function DocumentTypeEditor() {
                   {type.steps.map((s, si) => <option key={s.id} value={s.id}>Step {si + 1}: {s.title}</option>)}
                 </select>
                 <label className="check"><input type="checkbox" checked={Boolean(f.required)} onChange={(e) => setItem('fields', i, { required: e.target.checked })} /> Required</label>
+                <label className="check" title="Not shown to the end user; filled in by the Accounting Office (admins) on the saved document">
+                  <input type="checkbox" checked={f.filledBy === 'accounting'} onChange={(e) => setItem('fields', i, { filledBy: e.target.checked ? 'accounting' : '' })} /> Filled in by Accounting</label>
                 <RowActions list={type.fields} i={i} onChange={setList('fields')} />
               </div>
               <div className="editor-row compact">
