@@ -27,6 +27,30 @@ export const CHECKLIST_SOURCES = [
   { value: 'liquidation', label: 'Liquidation checklist library (ask the transaction type)' },
 ];
 
+// Other names of the FTS formats as checklists write them. A checklist item accepts a document
+// whose format name (or one of these) appears in the item's document type or details, e.g.
+// "Obligation Request" (details: "Or Fund Utilization Report and Status") accepts OBR and FURS.
+const ALIASES = {
+  OBR: ['Obligation Request', 'OBR'],
+  FURS: ['Fund Utilization Report', 'Fund Utilization Request', 'FURS'],
+  DV: ['Disbursement Voucher'],
+  PR: ['Purchase Request', 'Purchase Requisition'],
+  PO: ['Purchase Order'],
+  JO: ['Job Order'],
+  PCV: ['Petty Cash Voucher'],
+  LR: ['Liquidation Report'],
+  IT: ['Itinerary of Travel'],
+  PAYROLL: ['Payroll'],
+};
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export function acceptsDocument(item, docu) {
+  if (!item) return true;
+  const text = `${item.label || ''} ${item.details || ''}`;
+  const names = [...(ALIASES[docu.typeCode] || []), docu.typeName].filter(Boolean);
+  return names.some((n) => new RegExp(`\\b${escapeRe(n)}\\b`, 'i').test(text));
+}
+
 export const isChecked = (v) => v === true || v === 'Y';
 
 // Printed with separate Document Type and Document Details columns when any item has details.

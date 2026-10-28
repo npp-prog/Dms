@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
+import { acceptsDocument } from '../lib/checklists.js';
 
 // Links from a checklist item to the supporting document: one already in FTS (e.g. the OBR
 // or PO) or one in another LGU system (CBO, PMS, ...). Stored on the document as
@@ -38,7 +39,7 @@ export function LinkList({ links = [], onRemove }) {
 }
 
 // Choose a document in FTS, or enter a link to another system.
-export function LinkEditor({ excludeId, onAdd, onCancel }) {
+export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
   const { user, profile, isAdmin } = useAuth();
   const [tab, setTab] = useState('fts');
   const [docs, setDocs] = useState(null);
@@ -53,10 +54,15 @@ export function LinkEditor({ excludeId, onAdd, onCancel }) {
       .catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, excludeId]);
 
+  // Only documents of the kind the checklist item asks for (e.g. OBRs for "Obligation Request").
+  const fitting = useMemo(() => (docs || []).filter((d) => acceptsDocument(item, d)), [docs, item]);
   const shown = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return (docs || []).filter((d) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.typeName} ${d.title}`.toLowerCase().includes(w))).slice(0, 30);
-  }, [docs, q]);
+    return fitting.filter((d) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.typeName} ${d.title}`.toLowerCase().includes(w))).slice(0, 30);
+  }, [fitting, q]);
+  const kinds = [...new Set(fitting.map((d) => d.typeCode))];
+  // Nothing in FTS of this kind (e.g. a BAC Resolution): start on the other-system tab.
+  useEffect(() => { if (docs && !fitting.length) setTab('url'); }, [docs, fitting.length]);
 
   const addExternal = () => {
     if (ext.url.trim() && !safeUrl(ext.url)) { setError('The link must start with http:// or https://'); return; }
@@ -73,11 +79,16 @@ export function LinkEditor({ excludeId, onAdd, onCancel }) {
       {error && <div className="alert">{error}</div>}
       {tab === 'fts' ? (
         <>
-          <input placeholder="Search control no., type (OBR, PR, PO) or payee" value={q} onChange={(e) => setQ(e.target.value)} />
+          {item && <p className="small muted">{item.label}{kinds.length ? `: showing ${kinds.join(' and ')} documents only.` : ''}</p>}
+          <input placeholder="Search control no. or payee" value={q} onChange={(e) => setQ(e.target.value)} />
           {!docs && !error && <div className="spinner" />}
           {docs && (
             <div className="picker-results">
-              {shown.length === 0 && <p className="small muted" style={{ padding: '.5rem' }}>No documents found. Documents prepared in FTS by you or your office appear here.</p>}
+              {shown.length === 0 && (
+                <p className="small muted" style={{ padding: '.5rem' }}>
+                  {fitting.length ? 'No match.' : `No ${item ? `"${item.label}" ` : ''}document in FTS from you or your office. If it is in another system, use the other tab.`}
+                </p>
+              )}
               {shown.map((d) => (
                 <button type="button" key={d.id}
                   onClick={() => onAdd({ kind: 'fts', id: d.id, controlNo: d.controlNo, typeCode: d.typeCode, title: d.title || '' })}>

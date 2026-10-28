@@ -135,7 +135,7 @@ For a **DV**, **Payroll** or **Liquidation Report**, the Checklist step asks for
 - tick **N/A** for items that don't apply (always-required items have no N/A);
 - the preview on the right shows the checklist as it will print, with your answers.
 
-**Link the supporting documents.** Under each item, **+ Link document** lets you pick a document already in FTS (for example the OBR, PR or PO prepared by you or your office) or enter a link to another system (CBO, PMS, IMS, CFMS, DMS) with its reference number. A linked item is ticked **Y**. You can also add or remove links later on the document page, even after the document is complete (the preparer and administrators; each change is recorded in History). Links open from the document page, and the printed checklist shows them, e.g. *Linked: FTS-000003 (OBR)* or *Linked: CBO: PR-2026-10-0031*.
+**Link the supporting documents.** Under each item, **+ Link document** lets you pick a document already in FTS, of the kind the item asks for (under *Obligation Request* only OBRs, and FURS since the item accepts one; under *Purchase Request* only PRs) or enter a link to another system (CBO, PMS, IMS, CFMS, DMS) with its reference number. A linked item is ticked **Y**. You can also add or remove links later on the document page, even after the document is complete (the preparer and administrators; each change is recorded in History). Links open from the document page, and the printed checklist shows them, e.g. *Linked: FTS-000003 (OBR)* or *Linked: CBO: PR-2026-10-0031*.
 
 Attaching something that is not on the checklist? Under **Additional documents**, click **+ Add document** and type it. Each one is listed, numbered, in the **Additional Documents** box of the printed checklist.
 

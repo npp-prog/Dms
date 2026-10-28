@@ -21,7 +21,7 @@ function Answer({ item, value, onChange, links = [], onLinks, docId }) {
           <>
             <LinkList links={links} onRemove={(i) => onLinks(links.filter((_, j) => j !== i))} />
             {linking ? (
-              <LinkEditor excludeId={docId} onCancel={() => setLinking(false)}
+              <LinkEditor item={item} excludeId={docId} onCancel={() => setLinking(false)}
                 onAdd={(l) => {
                   onLinks([...links, l]);
                   if (!y) onChange('Y'); // linked means attached

@@ -5,7 +5,7 @@ import { amountToWords } from './numberToWords.js';
 import { readFileSync } from 'node:fs';
 import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
 import {
-  checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
+  acceptsDocument, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
 import { STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
@@ -139,6 +139,20 @@ test('checklist library data is complete', () => {
   const c1613 = LIBRARY.find((c) => c.code === '1613');
   assert.equal(c1613.items.length, 15);
   assert.equal(c1613.items.filter((i) => i.required).length, 8);
+});
+
+test('checklist items accept only documents of their kind', () => {
+  const c1001 = LIBRARY.find((c) => c.code === '1001');
+  const obr = c1001.items.find((i) => i.label === 'Obligation Request');
+  const doc = (typeCode, typeName) => ({ typeCode, typeName });
+  assert.ok(acceptsDocument(obr, doc('OBR', 'Obligation Request')));
+  assert.ok(acceptsDocument(obr, doc('FURS', 'Fund Utilization Request and Status')), 'OBR item also takes a FURS');
+  assert.ok(!acceptsDocument(obr, doc('DV', 'Disbursement Voucher')));
+  const c1613 = LIBRARY.find((c) => c.code === '1613');
+  const pr = c1613.items.find((i) => i.label === 'Purchase Request');
+  assert.ok(acceptsDocument(pr, doc('PR', 'Purchase Request')) && !acceptsDocument(pr, doc('PO', 'Purchase Order')));
+  const bac = c1613.items.find((i) => i.label === 'BAC Resolution');
+  assert.ok(!['OBR', 'FURS', 'DV', 'PR', 'PO', 'JO', 'PCV', 'LR', 'IT', 'PAYROLL'].some((t) => acceptsDocument(bac, doc(t, t))));
 });
 
 test('paper sizes and fit to page', () => {

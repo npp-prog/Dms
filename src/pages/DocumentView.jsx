@@ -11,13 +11,13 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
-function ItemLinks({ links, canEdit, docId, onChange }) {
+function ItemLinks({ item, links, canEdit, docId, onChange }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <LinkList links={links} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
       {canEdit && (open
-        ? <LinkEditor excludeId={docId} onCancel={() => setOpen(false)} onAdd={(l) => { setOpen(false); onChange([...links, l], linkText(l)); }} />
+        ? <LinkEditor item={item} excludeId={docId} onCancel={() => setOpen(false)} onAdd={(l) => { setOpen(false); onChange([...links, l], linkText(l)); }} />
         : <button type="button" className="link small no-print" onClick={() => setOpen(true)}>+ Link document</button>)}
     </>
   );
@@ -129,7 +129,7 @@ export default function DocumentView() {
                   const v = docData.checklist?.[c.id];
                   return (
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                      <ItemLinks links={docData.links?.[c.id] || []} docId={docId}
+                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId}
                         canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
                         onChange={(list, note) => run(() => saveDocumentLinks(docId, {
                           links: { ...(docData.links || {}), [c.id]: list },
