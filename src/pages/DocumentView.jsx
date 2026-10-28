@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus } from '../lib/api.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
+import BulkDownload from '../components/BulkDownload.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
 import { LinkEditor, LinkList, linkText } from '../components/DocLinks.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
@@ -77,6 +78,7 @@ export default function DocumentView() {
         </div>
         <div className="row gap wrap">
           <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>
+          {type && (type.bulkDownload || docData.typeCode === 'DV') && <BulkDownload docData={docData} type={type} settings={settings} />}
           {editable && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
           {editable && (
             <button className="btn btn-ghost" disabled={busy}

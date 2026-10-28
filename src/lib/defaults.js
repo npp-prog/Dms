@@ -32,7 +32,9 @@ const DV = {
   active: true,
   checklistSource: 'disbursement',
   // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 5,
+  starterVersion: 6,
+  // Download all: the DV, its checklist and every linked document in one ZIP.
+  bulkDownload: true,
   steps: [
     { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. and its date are assigned by the Accounting Office.' },
     { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period) in a paragraph; press Enter for a new line. Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed. The Accounting Office may add deductions later.' },
@@ -772,7 +774,7 @@ const PAYROLL = {
 export const CHECKLIST_LIBRARY_VERSION = 2;
 
 // The parts of a document type that make up its format (what a starter update replaces).
-export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource'];
+export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'bulkDownload'];
 
 export const DEFAULT_SETTINGS = {
   checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION,

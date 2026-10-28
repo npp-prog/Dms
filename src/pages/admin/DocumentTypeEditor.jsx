@@ -159,6 +159,9 @@ export default function DocumentTypeEditor() {
               <select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
                 <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
               </select></div>
+            <div className="field"><label className="field-label">Bulk download</label>
+              <label className="check"><input type="checkbox" checked={Boolean(type.bulkDownload)} onChange={(e) => patch({ bulkDownload: e.target.checked })} />
+                Download all (ZIP): the document, its checklist and every linked document</label></div>
             <div className="field field-wide"><label className="field-label">Description</label>
               <textarea rows={3} value={type.description} onChange={(e) => patch({ description: e.target.value })} /></div>
           </div>

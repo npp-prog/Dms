@@ -44,6 +44,14 @@ const ALIASES = {
 };
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Short code of what a checklist item asks for (e.g. "PR" for Purchase Request), for file names;
+// the document type itself when FTS has no format for it.
+export function itemTypeCode(item) {
+  const label = String(item?.label || '');
+  const code = Object.keys(ALIASES).find((k) => ALIASES[k].some((n) => new RegExp(`\\b${escapeRe(n)}\\b`, 'i').test(label)));
+  return code || label;
+}
+
 export function acceptsDocument(item, docu) {
   if (!item) return true;
   const text = `${item.label || ''} ${item.details || ''}`;

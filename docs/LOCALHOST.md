@@ -159,7 +159,19 @@ The completed document gets an FTS control number, e.g. `FTS-000001`. Above the 
 |---|---|
 | ![DV printout](images/14-dv-print.png) | ![Checklist printout](images/15-dv-checklist-print.png) |
 
-The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from the document. The DV Number box stays blank until Accounting assigns the number.
+The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from the document.
+
+**Download all (ZIP).** On a DV, **Download all (ZIP)** puts the DV, its checklist and every document linked to the checklist into one ZIP, each as a PDF named **Fund_Payee_Checklist No._Document Type_FTS No.**, for example:
+
+```
+GF_NEIL PRIOLO_01_DV_FTS000004.pdf
+GF_NEIL PRIOLO_00_CHECKLIST 1613_FTS000004.pdf
+GF_NEIL PRIOLO_02_OBR_FTS000003.pdf
+GF_NEIL PRIOLO_05_PR_CBO PR-2026-10-0031.url
+00_INDEX.txt
+```
+
+The checklist number is the item's number on the checklist (00 for the checklist itself). Documents linked from other systems (CBO, PMS, …) cannot be downloaded by FTS; they are included as shortcuts (`.url`) that open the link. `00_INDEX.txt` lists everything, including linked documents you have no access to. Admins can turn **Bulk download** on for other document types (Document Types → General). The DV Number box stays blank until Accounting assigns the number.
 
 ### Computed amounts (example: Liquidation Report)
 

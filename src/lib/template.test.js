@@ -10,6 +10,7 @@ import {
 import { STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
+import { cleanPart, fileBase, fundCode, ftsNo, uniqueNamer } from './naming.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -153,6 +154,17 @@ test('checklist items accept only documents of their kind', () => {
   assert.ok(acceptsDocument(pr, doc('PR', 'Purchase Request')) && !acceptsDocument(pr, doc('PO', 'Purchase Order')));
   const bac = c1613.items.find((i) => i.label === 'BAC Resolution');
   assert.ok(!['OBR', 'FURS', 'DV', 'PR', 'PO', 'JO', 'PCV', 'LR', 'IT', 'PAYROLL'].some((t) => acceptsDocument(bac, doc(t, t))));
+});
+
+test('bulk download file names', () => {
+  assert.equal(fileBase({ fund: 'General Fund', subject: 'Neil Priolo', number: 2, type: 'OBR', ref: ftsNo('FTS-000001') }), 'GF_NEIL PRIOLO_02_OBR_FTS000001');
+  assert.equal(fundCode('Special Education Fund'), 'SEF');
+  assert.equal(fundCode('20% Development Fund'), '20DF');
+  assert.equal(fundCode(''), 'NOFUND');
+  assert.equal(cleanPart('A/B: "C"_D?'), 'A B C D');
+  const name = uniqueNamer();
+  assert.equal(name('X', 'pdf'), 'X.pdf');
+  assert.equal(name('X', 'pdf'), 'X (2).pdf');
 });
 
 test('paper sizes and fit to page', () => {
