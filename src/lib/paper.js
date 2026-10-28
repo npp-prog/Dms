@@ -39,6 +39,10 @@ export function fitPage(measure, printableW, printableH, minScale = 0) {
     if (done) break;
   }
   // About 1.5% of slack: print layout can come out a little taller than on screen.
-  const scale = Math.max(minScale, s < 1 ? s * 0.985 : 1);
-  return { scale, width: Math.max(width, printableW / scale) };
+  const scale = s < 1 ? s * 0.985 : 1;
+  if (scale >= minScale) return { scale, width: Math.max(width, printableW / scale) };
+  // Too tall to fit one page without going below minScale (e.g. a long checklist): keep it
+  // readable at minScale, laid out exactly one page wide at that scale, and let it continue
+  // on the next page. (The width found above was for the smaller scale and would overflow.)
+  return { scale: minScale, width: printableW / minScale };
 }

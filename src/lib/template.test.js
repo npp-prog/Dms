@@ -160,7 +160,10 @@ test('paper sizes and fit to page', () => {
   assert.ok(Math.abs(d.scale - (190 / 260) * 0.985) < 0.01);
   assert.ok(d.width >= 260 && d.width * d.scale <= 190.5);
   // Never below the minimum scale.
-  assert.equal(fitPage(() => ({ w: 190, h: 5000 }), 190, 277, 0.8).scale, 0.8);
+  const long = fitPage((w) => ({ w, h: 400 * (190 / w) }), 190, 277, 0.8);
+  assert.equal(long.scale, 0.8);
+  // Kept at the minimum scale, it must still fit the page width (no running off the right edge).
+  assert.ok(Math.abs(long.width * long.scale - 190) < 0.01, `laid out ${long.width} mm at ${long.scale}`);
 });
 
 test('superadmin email', () => {

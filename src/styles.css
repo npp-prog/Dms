@@ -500,7 +500,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .checklist-sheet tbody .cl-item:first-child td { height: 18.85pt; vertical-align: middle; }
 .checklist-sheet .cl-group td { font-weight: 700; }
 .checklist-sheet .cl-foot td { font-style: italic; font-size: 8pt; line-height: 9.2pt; }
-.checklist-sheet .cl-additional { width: 99.77%; margin-top: 11.7pt; }
+.checklist-sheet .cl-additional { width: 99.77%; margin-top: 11.7pt; break-inside: avoid; page-break-inside: avoid; }
 .checklist-sheet .cl-additional th { height: 18.3pt; font-weight: 700; text-align: center; vertical-align: middle; }
 .checklist-sheet .cl-additional td.cl-addbody { height: 81pt; }
 
