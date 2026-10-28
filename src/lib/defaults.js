@@ -1,7 +1,7 @@
 // Starter document types, modeled on the Municipal Government of Candoni's
 // Appendix Forms (GAM for LGUs): DV, OBR, FURS, PR, PO, JO, PCV, LR, IT and Payroll.
 // Admins load them from Admin > Document Types > "Load starter formats" and can edit freely.
-// Copies to print follow the "Table" sheet of Appendix_Forms.xlsx. Every form prints on A4
+// Every form prints on A4
 // portrait, scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
 
 export const FUNDS = ['General Fund', 'Special Education Fund', 'Trust Fund', '20% Development Fund', 'LDRRMF'];
@@ -31,12 +31,6 @@ const DV = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Accounting', count: 1 },
-    { to: 'Treasury (MTO)', count: 1 },
-    { to: 'Payee', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Payee', instructions: 'Encode the payee exactly as on the approved OBR/FURS. The Disbursement No. is assigned by Accounting; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'Explain what is being paid (what, for whom, for what period). Enter each amount; enter deductions (e.g. Pag-IBIG, tax withheld) as negative amounts. The Amount Due is computed.' },
@@ -121,12 +115,6 @@ const OBR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA (attached to the DV)', count: 1, original: true },
-    { to: 'Budget (MBO)', count: 1 },
-    { to: 'Accounting', count: 1 },
-    { to: 'Requesting Office', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The OBR No. is assigned by the Budget Office; leave it blank.' },
     { id: 's2', title: 'Particulars', instructions: 'One line per charge: responsibility center, particulars, F.P.P. (function/program/project), account code and amount. The total is computed.' },
@@ -196,11 +184,6 @@ const FURS = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 1 },
-    { to: 'Accounting', count: 1, original: true },
-    { to: 'Requesting Office', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Payee and Office', instructions: 'Encode the payee and the requesting office. The FURS No. is assigned by Accounting.' },
     { id: 's2', title: 'Particulars', instructions: 'For each line: the project/purpose, particulars, account code and amount.' },
@@ -273,11 +256,6 @@ const PR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Requesting Office', count: 1 },
-    { to: 'Supply/Property Office (SPO)', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Office', instructions: 'Encode the requesting department and section, fund and FPP (function/program/project).' },
     { id: 's2', title: 'Items', instructions: 'One line per item: unit, description (with specifications), quantity and estimated unit cost based on your price reference. The total cost is computed.' },
@@ -368,11 +346,6 @@ const PO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 2, original: true },
-    { to: 'Supplier', count: 1 },
-    { to: 'Supply/Property Office (SPO)', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier exactly as in the BAC Resolution / Notice of Award, and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'Mode of procurement, place and date of delivery, delivery and payment terms.' },
@@ -442,11 +415,6 @@ const JO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 2, original: true },
-    { to: 'Supplier', count: 1 },
-    { to: 'Supply/Property Office (SPO)', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier/contractor and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'The date of the quotation, place and date of delivery, delivery and payment terms.' },
@@ -515,10 +483,6 @@ const PCV = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Treasury (MTO)', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Request', instructions: 'Encode the payee/office and what the petty cash is for (Part I, to be filled out upon request). The PCV No. is assigned by the Petty Cash Custodian.' },
     { id: 's2', title: 'Signatories', instructions: 'The requestor and the immediate supervisor who approves. The Petty Cash Custodian signs when paying.' },
@@ -590,11 +554,6 @@ const LR = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'liquidation',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Accounting', count: 1 },
-    { to: 'Employee (claimant)', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Cash Advance', instructions: 'Encode the period covered, fund, office and function/program/project, and the cash advance being liquidated (amount, DV No. and date).' },
     { id: 's2', title: 'Particulars', instructions: 'List each expense with its amount. The total spent is computed.' },
@@ -666,10 +625,6 @@ const IT = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Employee', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Traveler', instructions: 'Name, position and official station of the traveler, date and purpose of travel.' },
     { id: 's2', title: 'Itinerary', instructions: 'One line per leg: date, place visited (destination), time of departure and arrival, means of transportation, fare, per diem and other expenses. The line total is computed.' },
@@ -741,12 +696,6 @@ const PAYROLL = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
-  copies: [
-    { to: 'COA', count: 1, original: true },
-    { to: 'Accounting', count: 1 },
-    { to: 'Treasury (MTO)', count: 1 },
-    { to: 'Requesting Office', count: 1 },
-  ],
   steps: [
     { id: 's1', title: 'Payroll', instructions: 'The period covered, fund, office and the approved OBR No. The Payroll No. is assigned by Accounting.' },
     { id: 's2', title: 'Employees', instructions: 'One line per employee: name, position, employee no., gross amount earned and total deductions. The net amount due is computed.' },

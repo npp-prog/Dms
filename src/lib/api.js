@@ -249,7 +249,7 @@ export function deleteDocument(id) {
 }
 
 export function snapshotType(type) {
-  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'copies', 'template', 'paperSize', 'orientation'];
+  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'template', 'paperSize', 'orientation'];
   return Object.fromEntries(keys.filter((k) => type[k] !== undefined).map((k) => [k, type[k]]));
 }
 

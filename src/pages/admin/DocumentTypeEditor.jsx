@@ -11,7 +11,7 @@ import DocumentPreview from '../../components/DocumentPreview.jsx';
 
 const EMPTY = {
   code: '', name: '', category: '', description: '', active: true,
-  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], checklistSource: 'own', processing: [], copies: [], template: '',
+  paperSize: 'A4', orientation: 'portrait', steps: [], fields: [], checklist: [], checklistSource: 'own', processing: [], template: '',
 };
 
 const TABS = ['General', 'Guided Steps', 'Fields', 'Checklist', 'Processing Guide', 'Format / Template'];
@@ -276,18 +276,6 @@ export default function DocumentTypeEditor() {
             </div>
           ))}
           <button className="btn btn-ghost" onClick={() => patch({ processing: [...type.processing, { id: uid('p'), office: '', action: '', details: '' }] })}>+ Add processing step</button>
-
-          <h3 style={{ marginTop: '1.6rem' }}>Copies to print</h3>
-          <p className="muted small">Who receives a copy. Mark the one that gets the original.</p>
-          {type.copies.map((c, i) => (
-            <div key={i} className="editor-row compact" style={{ marginBottom: '.5rem' }}>
-              <input placeholder="Recipient (e.g. COA, Accounting, Payee)" value={c.to} onChange={(e) => setItem('copies', i, { to: e.target.value })} />
-              <input type="number" min="1" style={{ maxWidth: 90 }} value={c.count} onChange={(e) => setItem('copies', i, { count: Number(e.target.value) || 1 })} />
-              <label className="check"><input type="checkbox" checked={Boolean(c.original)} onChange={(e) => setItem('copies', i, { original: e.target.checked })} /> Original</label>
-              <RowActions list={type.copies} i={i} onChange={setList('copies')} />
-            </div>
-          ))}
-          <button className="btn btn-ghost" onClick={() => patch({ copies: [...type.copies, { to: '', count: 1, original: false }] })}>+ Add recipient</button>
         </section>
       )}
 

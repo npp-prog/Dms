@@ -84,7 +84,7 @@ test('starter types are consistent and render', () => {
     assert.ok(['own', 'disbursement', 'liquidation'].includes(type.checklistSource));
     assert.ok(type.processing.length >= 3, `${type.code} needs a processing guide`);
     for (const p of type.processing) assert.ok(p.id && p.office && p.action, `${type.code} processing step incomplete`);
-    assert.ok(type.copies.some((c) => c.original), `${type.code} needs an original copy`);
+    assert.equal(type.copies, undefined, `${type.code} should not list printed copies (documents are digital)`);
     assert.doesNotMatch(html, /Appendix/i, `${type.code} still prints an appendix number`);
     assert.equal(type.paperSize, type.code === 'DV' ? 'Folio' : 'A4', `${type.code} paper size`);
     assert.equal(type.orientation, 'portrait', `${type.code} orientation`);

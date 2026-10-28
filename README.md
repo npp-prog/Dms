@@ -16,7 +16,7 @@ Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netl
 
 | Area | What it does |
 |---|---|
-| Document Formats | Browse and search every format by category. View the guided steps, the processing guide (with the copies to print) and the checklist, and print a blank form. |
+| Document Formats | Browse and search every format by category. View the guided steps, the processing guide and the checklist, and print a blank form. |
 | Checklists | The disbursement and liquidation checklist library, searchable by number or words. Each checklist can be printed blank. Admins load, edit and add checklists. |
 | Prepare Document | Step-by-step wizard with per-step instructions and required-field checks, then the checklist and a review. DV, Payroll and LR start with the type of transaction, so the user sees the required documents first. Totals, net pay and amounts to be reimbursed are computed. A live print preview updates as you type. When printed, each form is portrait and fits one page: scaled down if it is too tall or too wide, and its main table stretched to fill the page if there is room. The preview is the exact printed page. |
 | Documents | Each document gets an automatic control number, e.g. `DV-2026-10-0001`. Status goes Draft → Complete, or Cancelled. Each document shows **How to process this document**. You can filter, search, print and see the history of each document. |
@@ -107,7 +107,7 @@ users/{uid}           email, displayName, office, role, active
 documentTypes/{id}    code, name, category, description, active, version,
                       paperSize (A4 | Folio | Letter | Legal), orientation, steps[], fields[],
                       checklistSource (own | disbursement | liquidation), checklist[],
-                      processing[] {office, action, details}, copies[] {to, count, original}, template
+                      processing[] {office, action, details}, template
 checklists/{code}     code, kind (disbursement | liquidation), category, title, description,
                       headerFields[], items[] {id, label, required, group?}, basis[], notes[]
 documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, controlNo,

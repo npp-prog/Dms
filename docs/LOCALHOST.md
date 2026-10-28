@@ -97,7 +97,7 @@ The dashboard shows:
 **View format** shows three things:
 
 - the guided encoding steps;
-- **How to process this document**: how many copies to print and who gets each one, then which office receives the document, in what order, and what each does;
+- **How to process this document**: which office receives the document, in what order, and what each does;
 - the blank printable form.
 
 ![Format view with the processing guide](images/06-format-dv.png)
@@ -207,7 +207,7 @@ In the **Checklist** tab, **Checklist source** decides where the checklist comes
 
 ![Checklist source](images/20-admin-checklist-source.png)
 
-The **Processing Guide** tab has the routing steps and the **copies to print** (who gets the original and who gets copies).
+The **Processing Guide** tab has the routing steps: which office receives the document, in what order, and what each does.
 
 ![Processing guide editor](images/21-admin-processing-guide.png)
 
