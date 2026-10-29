@@ -91,18 +91,40 @@ service cloud.firestore {
     }
 
     // ---- Prepared documents ----
-    // Users see their own documents and those of their office; admins see all.
+    // Users see their own documents, those of their office, and those routed through their
+    // office (the workflow); admins see all.
     match /documents/{docId} {
+      function holder() {
+        return resource.data.get('currentOffice', '');
+      }
+      function onRoute() {
+        return myOffice() != ''
+          && (holder() == myOffice() || myOffice() in resource.data.get('routeOffices', []));
+      }
+      // The workflow fields change only through the office holding the document.
+      function workflowUntouched() {
+        return unchanged(['workflow', 'currentOffice', 'routeOffices']);
+      }
       allow read: if isActive()
         && (resource.data.createdBy == request.auth.uid || isAdmin()
-            || (resource.data.get('office', '') != '' && resource.data.get('office', '') == myOffice()));
+            || (resource.data.get('office', '') != '' && resource.data.get('office', '') == myOffice())
+            || onRoute());
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.get('office', '') == myOffice();
       allow update: if isActive()
-        && (isAdmin() || (resource.data.createdBy == request.auth.uid
-                          && resource.data.status != 'cancelled'))
-        && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office']);
+        && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
+        && (isAdmin()
+            // The preparer edits their document; its route only while it is with their office
+            // (or before it is routed).
+            || (resource.data.createdBy == request.auth.uid && resource.data.status != 'cancelled'
+                && (workflowUntouched() || !('workflow' in resource.data)
+                    || (resource.data.workflow.state == 'in-progress'
+                        && (holder() == '' || holder() == myOffice()))))
+            // The office holding a routed document receives, releases or returns it.
+            || (myOffice() != '' && holder() == myOffice()
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'updatedAt', 'history'])));
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
             && resource.data.status == 'draft');

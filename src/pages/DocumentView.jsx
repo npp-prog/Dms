@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
+import { canAct, editableByPreparer, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
@@ -10,6 +11,7 @@ import { LinkEditor, LinkList, linkText } from '../components/DocLinks.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
+import WorkflowCard from '../components/WorkflowCard.jsx';
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 function ItemLinks({ item, links, canEdit, docId, onChange }) {
@@ -27,7 +29,7 @@ function ItemLinks({ item, links, canEdit, docId, onChange }) {
 export default function DocumentView() {
   const { docId } = useParams();
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, user } = useAuth();
+  const { actor, settings, isAdmin, user, profile } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -55,6 +57,12 @@ export default function DocumentView() {
   if (!docData) return <div className="page"><div className="spinner" /></div>;
 
   const editable = docData.status !== 'cancelled';
+  const isOwner = docData.createdBy === user.uid;
+  const wf = docData.workflow;
+  // Once the document has left the preparer's office, only the offices on its route move it.
+  const atPreparer = !wf || (wf.state === 'in-progress' && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
+  const canChange = editable && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
   const run = async (fn) => {
     setBusy(true);
     try { await fn(); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
@@ -79,8 +87,8 @@ export default function DocumentView() {
         <div className="row gap wrap">
           <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>
           {type && (type.bulkDownload || docData.typeCode === 'DV') && <BulkDownload docData={docData} type={type} settings={settings} />}
-          {editable && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
-          {editable && (
+          {canChange && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
+          {canCancel && (
             <button className="btn btn-ghost" disabled={busy}
               onClick={() => window.confirm('Cancel this document?') && run(() => setDocumentStatus(docId, 'cancelled', actor, docData.history))}>
               Cancel document
@@ -93,7 +101,7 @@ export default function DocumentView() {
       {docData.status === 'draft' && (
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}
-      {docData.status === 'complete' && (
+      {docData.status === 'complete' && !wf && (
         <div className="alert alert-ok no-print"><b>Encoding complete.</b> Print the document, have it signed, attach the
           requirements, and process it by following the steps under <b>How to process this document</b>.</div>
       )}
@@ -105,7 +113,16 @@ export default function DocumentView() {
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
               onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
           )}
-          {type && (
+          {type && (type.processing || []).length > 0 && docData.status !== 'draft' && (
+            <WorkflowCard doc={docData} busy={busy}
+              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin })}
+              canStart={docData.status === 'complete' && (isOwner || isAdmin)}
+              onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
+              onAction={(action, remarks, done) => run(async () => {
+                try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
+              })} />
+          )}
+          {type && !wf && (
             <section className="card guide-card">
               <h3>How to process this document</h3>
               <ProcessingGuide type={type} />

@@ -5,6 +5,7 @@ import {
 import { db } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
+import { applyAction, buildWorkflow, cancelWorkflow } from './workflow.js';
 
 // ---------- Users ----------
 
@@ -283,7 +284,54 @@ export async function saveAccountingEntries(id, data, user, history = []) {
   });
 }
 
+// ---------- Workflow ----------
+
+// Starts the route of a document (when it is marked complete): it sits with the preparer's office,
+// which releases it to the next office.
+export async function startWorkflow(id, type, user, offices) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const d = snap.data();
+    if (!d || d.workflow) return;
+    const start = buildWorkflow(type, d, offices, user);
+    if (!start) return;
+    tx.update(ref, { ...start, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('routing started', user)] });
+  });
+}
+
+// Receive, release, return or complete the current step. Runs as a transaction: the step must
+// still be the one the user saw (another office may have acted meanwhile).
+export async function workflowAction(id, action, user, { stage, remarks = '' } = {}) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const d = snap.data();
+    if (!d?.workflow) throw new Error('This document has no workflow.');
+    if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
+    const patch = applyAction(d, action, user, remarks);
+    const label = { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry(label, user, remarks)] });
+  });
+}
+
+// Documents waiting in an office (all routed documents for admins: office '').
+export async function listInbox({ office, all = false, max = 300 }) {
+  const q = all
+    ? query(collection(db, 'documents'), where('workflow.state', '==', 'in-progress'), limit(max))
+    : query(collection(db, 'documents'), where('currentOffice', '==', office), limit(max));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.updatedAt?.seconds || 0) - (b.updatedAt?.seconds || 0));
+}
+
 export async function setDocumentStatus(id, status, user, history = [], extra = {}, note = '') {
+  // Cancelling a routed document ends its route.
+  if (status === 'cancelled') {
+    const d = (await getDoc(doc(db, 'documents', id))).data();
+    const end = d ? cancelWorkflow(d, user) : null;
+    if (end) extra = { ...extra, ...end };
+  }
   await updateDoc(doc(db, 'documents', id), {
     ...extra,
     status,
@@ -297,14 +345,18 @@ export async function getDocument(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// Admins: every document. Others: their own and their office's (the Firestore rules allow
-// no more), merged.
+// Admins: every document. Others: their own, their office's and those routed through their
+// office (the Firestore rules allow no more), merged.
 export async function listDocuments({ uid, office = '', all = false, max = 300 } = {}) {
   const queries = all
     ? [query(collection(db, 'documents'), orderBy('updatedAt', 'desc'), limit(max))]
     : [
       query(collection(db, 'documents'), where('createdBy', '==', uid), limit(max)),
-      ...(office ? [query(collection(db, 'documents'), where('office', '==', office), limit(max))] : []),
+      ...(office ? [
+        query(collection(db, 'documents'), where('office', '==', office), limit(max)),
+        // Documents of other offices routed through this one (the workflow).
+        query(collection(db, 'documents'), where('routeOffices', 'array-contains', office), limit(max)),
+      ] : []),
     ];
   const byId = new Map();
   for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {

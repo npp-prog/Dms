@@ -8,6 +8,7 @@ import Formats from './pages/Formats.jsx';
 import FormatView from './pages/FormatView.jsx';
 import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
+import Inbox from './pages/Inbox.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
 import DocumentTypeEditor from './pages/admin/DocumentTypeEditor.jsx';
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="checklists/:code" element={<ChecklistView />} />
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
+        <Route path="inbox" element={<Inbox />} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />
         <Route path="documents/:docId/edit" element={<PrepareDocument />} />

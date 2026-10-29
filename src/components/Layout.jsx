@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
+import { listInbox } from '../lib/api.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -11,12 +12,19 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setOpen(false), [location.pathname]);
+  // Documents waiting in the user's office (refreshed as the user moves around).
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    if (!profile?.active || (!profile.office && !isAdmin)) return;
+    listInbox({ office: profile.office, all: !profile.office }).then((d) => setWaiting(d.length)).catch(() => {});
+  }, [location.pathname, profile?.office, profile?.active, isAdmin]);
 
   const groups = [
     { items: [['/', 'home', 'Dashboard', true]] },
     {
       label: 'Documents',
       items: [
+        ['/inbox', 'inbox', 'Inbox', false, waiting],
         ['/formats', 'formats', 'Document Formats'],
         ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],
@@ -61,9 +69,10 @@ export default function Layout() {
           {groups.map((g, gi) => (
             <div key={gi}>
               {g.label && <div className="group">{g.label}</div>}
-              {g.items.map(([to, icon, label, end]) => (
+              {g.items.map(([to, icon, label, end, count]) => (
                 <NavLink key={to} to={to} end={end}>
                   <Icon name={icon} className="nav-ic" /><span className="lbl">{label}</span>
+                  {count > 0 && <span className="count">{count}</span>}
                 </NavLink>
               ))}
             </div>

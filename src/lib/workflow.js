@@ -1,0 +1,127 @@
+// Document workflow: the route a document follows after it is encoded, built from its
+// document type's processing guide ("How to process this document"). Pure functions, no Firebase.
+//
+// document.workflow = {
+//   state: 'in-progress' | 'done' | 'cancelled',
+//   stage: index of the current step,
+//   received: whether the office holding it has received the paper,
+//   steps: [{ office (as in the guide), action, routedTo (office in Settings, or '' = preparer) }],
+//   events: [{ type: 'started' | 'received' | 'released' | 'returned' | 'completed' | 'cancelled',
+//              stage, office, by, uid, at, remarks }],
+// }
+// document.currentOffice: the office holding it (what the Inbox and the security rules use);
+// document.routeOffices: every office on the route (they can open the document).
+
+// Steps done by the preparer's own office (or by people it deals with directly).
+const PREPARER = /requesting|claimant|supervisor|payee|custodian|traveler|supplier|end[- ]?user/i;
+
+// Guide wording -> office in Settings.
+const KEYWORDS = [
+  [/treasur|disbursing/i, (o) => /treasur/i.test(o)],
+  [/accounting|accountant/i, (o) => /accounting/i.test(o)],
+  [/budget/i, (o) => /budget/i.test(o)],
+  [/vice mayor/i, (o) => /vice mayor/i.test(o)],
+  [/mayor/i, (o) => /municipal mayor/i.test(o) && !/vice/i.test(o)],
+  [/\bgso\b|general services|inspection|\bbac\b/i, (o) => /general services/i.test(o)],
+  [/sangguniang|\bsb\b/i, (o) => /sangguniang/i.test(o)],
+  [/assessor/i, (o) => /assessor/i.test(o)],
+  [/engineer/i, (o) => /engineering/i.test(o)],
+  [/hrm|human resource/i, (o) => /human resource/i.test(o)],
+];
+
+// The office (as named in Settings) that handles a step; '' means the preparer's office.
+export function resolveOffice(stepOffice, offices = []) {
+  const name = String(stepOffice || '').trim();
+  if (!name || PREPARER.test(name)) return '';
+  const exact = offices.find((o) => o.toLowerCase() === name.toLowerCase());
+  if (exact) return exact;
+  for (const [re, pick] of KEYWORDS) {
+    if (re.test(name)) {
+      const found = offices.find(pick);
+      if (found) return found;
+    }
+  }
+  return name;
+}
+
+// Who holds a step: the office it is routed to, or the preparer's office.
+export const officeOf = (step, doc) => step?.routedTo || doc?.office || '';
+
+export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
+  const steps = (type?.processing || []).map((p) => ({ office: p.office, action: p.action, routedTo: resolveOffice(p.office, offices) }));
+  if (!steps.length) return null;
+  const workflow = {
+    state: 'in-progress', stage: 0, received: true, steps,
+    events: [{ type: 'started', stage: 0, office: officeOf(steps[0], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }],
+  };
+  return { workflow, ...placement(workflow, doc) };
+}
+
+// currentOffice and routeOffices for the security rules and the Inbox.
+export function placement(workflow, doc) {
+  const offices = [...new Set(workflow.steps.map((s) => officeOf(s, doc)).filter(Boolean))];
+  const current = workflow.state === 'in-progress' ? officeOf(workflow.steps[workflow.stage], doc) : '';
+  return { currentOffice: current, routeOffices: offices };
+}
+
+// May this user act on the document's current step?
+export function canAct(doc, { uid, office, isAdmin }) {
+  const wf = doc?.workflow;
+  if (!wf || wf.state !== 'in-progress') return false;
+  if (isAdmin) return true;
+  const holder = officeOf(wf.steps[wf.stage], doc);
+  if (holder) return Boolean(office) && office === holder;
+  return doc.createdBy === uid; // preparer without an office
+}
+
+// The actions available on the current step.
+export function availableActions(doc) {
+  const wf = doc?.workflow;
+  if (!wf || wf.state !== 'in-progress') return [];
+  const last = wf.stage === wf.steps.length - 1;
+  return [
+    ...(!wf.received ? ['receive'] : []),
+    ...(wf.received ? [last ? 'complete' : 'release'] : []),
+    ...(wf.stage > 0 ? ['return'] : []),
+  ];
+}
+
+// Applies an action; returns the fields to write ({ workflow, currentOffice, routeOffices }).
+export function applyAction(doc, action, user, remarks = '', at = new Date().toISOString()) {
+  const wf = doc.workflow;
+  if (!availableActions(doc).includes(action)) throw new Error(`"${action}" is not possible at this step.`);
+  if (action === 'return' && !String(remarks).trim()) throw new Error('Say why the document is returned.');
+  const event = (type, stage) => ({ type, stage, office: officeOf(wf.steps[stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: String(remarks || '').trim() });
+  let next;
+  if (action === 'receive') next = { ...wf, received: true, events: [...wf.events, event('received', wf.stage)] };
+  if (action === 'release') next = { ...wf, stage: wf.stage + 1, received: false, events: [...wf.events, event('released', wf.stage)] };
+  if (action === 'return') next = { ...wf, stage: wf.stage - 1, received: false, events: [...wf.events, event('returned', wf.stage)] };
+  if (action === 'complete') next = { ...wf, state: 'done', events: [...wf.events, event('completed', wf.stage)] };
+  return { workflow: next, ...placement(next, doc) };
+}
+
+export function cancelWorkflow(doc, user, at = new Date().toISOString()) {
+  const wf = doc.workflow;
+  if (!wf || wf.state !== 'in-progress') return null;
+  const next = { ...wf, state: 'cancelled', events: [...wf.events, { type: 'cancelled', stage: wf.stage, office: officeOf(wf.steps[wf.stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }] };
+  return { workflow: next, ...placement(next, doc) };
+}
+
+// One line for lists: where the document is.
+export function whereIs(doc) {
+  const wf = doc?.workflow;
+  if (!wf) return '';
+  if (wf.state === 'done') return 'Processed';
+  if (wf.state === 'cancelled') return 'Cancelled';
+  const step = wf.steps[wf.stage];
+  return `${officeOf(step, doc) || 'Requesting office'}${wf.received ? '' : ' (to receive)'}`;
+}
+
+// The preparer may still change the document while it is at the first step (their office).
+export function editableByPreparer(doc) {
+  const wf = doc?.workflow;
+  if (!wf) return true;
+  return wf.state === 'in-progress' && wf.stage === 0;
+}
+
+export const ACTION_LABELS = { receive: 'Receive', release: 'Release', return: 'Return', complete: 'Mark processed' };

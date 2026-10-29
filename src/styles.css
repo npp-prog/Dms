@@ -252,6 +252,7 @@ button.badge { cursor: pointer; }
 .side a.active { background: var(--sb-active); color: #fff; font-weight: 600; }
 .side a.active::before { content: ""; position: absolute; left: -.75rem; top: 8px; bottom: 8px; width: 4px; border-radius: 0 4px 4px 0; background: var(--sb-blue); }
 .side a.active .nav-ic { color: #fff; opacity: 1; }
+.side a .count { flex: none; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--sand); color: var(--ink); font-size: .72rem; font-weight: 700; line-height: 20px; text-align: center; }
 .side .count { background: var(--bad); color: #fff; font-size: .7rem; border-radius: 99px; padding: .08rem .5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .side a.active .count { background: #fff; color: var(--sb-bg); }
 .main { flex: 1; min-width: 0; padding: 1.8rem 2rem 3.5rem; animation: page-in .22s var(--ease); }
@@ -696,3 +697,19 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .gbtn:hover { background: var(--hover); border-color: #94a3b8; box-shadow: var(--shadow); }
 .or { display: flex; align-items: center; gap: .7rem; color: var(--muted); font-size: .8rem; margin: 1.1rem 0; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+
+/* Document workflow: the route of a document and where it is now. */
+.workflow-card { border-left: 4px solid var(--primary); }
+.wf-steps { list-style: none; margin: .4rem 0 0; padding: 0; }
+.wf-steps li { position: relative; display: flex; gap: .7rem; padding: 0 0 .9rem; }
+.wf-steps li:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 2px; width: 2px; background: var(--line-2); }
+.wf-steps li.wf-done:not(:last-child)::before { background: var(--gold); }
+.wf-dot { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700;
+  background: var(--card); border: 2px solid var(--line-2); color: var(--muted); }
+.wf-done .wf-dot { background: var(--gold); border-color: var(--gold); color: #fff; }
+.wf-current .wf-dot { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: var(--ring); }
+.wf-office { font-weight: 600; color: var(--ink); }
+.wf-pending .wf-office { color: var(--muted); }
+.wf-now { color: var(--primary); font-weight: 600; }
+.wf-returned { color: var(--bad); }
+.wf-actions { border-top: 1px solid var(--line); padding-top: .8rem; margin-top: .2rem; }

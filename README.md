@@ -19,6 +19,7 @@ Stack: React + Vite, Firebase Authentication + Cloud Firestore, deployed on Netl
 | Document Formats | Browse and search every format by category. View the guided steps, the processing guide and the checklist, and print a blank form. |
 | Checklists | The disbursement and liquidation checklist library, searchable by number or words. Each checklist can be printed blank. Admins load, edit and add checklists. |
 | Prepare Document | Step-by-step wizard with per-step instructions and required-field checks, then the checklist and a review. Only the DV and the LR have a Checklist step, where the type of transaction is chosen. Table columns can be paragraphs (the DV's Explanation). Totals, net pay and amounts to be reimbursed are computed. A live print preview updates as you type. When printed, each form is portrait and fits one page: scaled down if it is too tall or too wide, and its main table stretched to fill the page if there is room. The preview is the exact printed page. |
+| Workflow and Inbox | A document marked complete starts along its route, built from its **How to process this document** steps (e.g. DV: requesting office → Accounting → Treasurer → Mayor → Treasurer → Accounting). Each office **receives** it, then **releases** it to the next office or **returns** it to the previous one with remarks; the last office marks it **processed**. Everyone on the route sees where the document is, who acted and when. **Inbox** lists the documents waiting in your office. The preparer can edit it only while it is still in their office. |
 | Documents | Each document gets an automatic FTS control number, e.g. `FTS-000001` (one series for all document types). Status goes Draft → Complete, or Cancelled. Each document shows **How to process this document**. You can filter, search, print and see the history of each document. |
 | Document Types (admin) | Field builder (text, long text, number, amount, date, dropdown, line-item tables with computed columns and totals), steps builder, checklist builder, processing-guide builder, and template editor with live preview. Import/export as JSON. Ten starter formats are included (DV, OBR, FURS, Payroll, PCV, LR, IT, PR, PO, JO), printed portrait and **fit to page** (width and height): the DV on Folio (8.5 × 13 in), everything else on A4. |
 | Users (admin) | New accounts wait for approval. Admins approve or deactivate users. Only the superadmin grants admin/superadmin. |
@@ -32,7 +33,7 @@ Each document stores a frozen copy of its format. A document therefore always pr
 |---|---|
 | `superadmin` | Everything, including assigning roles and changing settings. **`npp@mgocandoniaccounting.org` is the superadmin**, once Firebase has verified the address (Google sign-in, or the verification link sent on registration). Set in `src/lib/owner.js` and `firestore.rules`. |
 | `admin` | Manage document types, approve/deactivate regular users, view all documents |
-| `user` | View formats, prepare documents, see the documents of their **office** (assigned by an admin under Users) and their own |
+| `user` | View formats, prepare documents, see the documents of their **office** (assigned by an admin under Users), their own, and those routed through their office; receive, release and return documents waiting in their office |
 
 Firestore security rules (`firestore.rules`) enforce all of this on the server.
 
@@ -60,7 +61,7 @@ npm install
 npm run local        # local Firebase emulators + demo data + app at http://localhost:5173
 ```
 
-Demo logins: `npp@mgocandoniaccounting.org` / `admin123` (superadmin, local demo only) and `user@fts.local` / `user123` (end user). See [docs/LOCALHOST.md](docs/LOCALHOST.md).
+Demo logins: `npp@mgocandoniaccounting.org` / `admin123` (superadmin, local demo only) and `user@fts.local` / `user123` (end user); `acctg@`, `budget@`, `treasury@` and `mayor@fts.local` / `user123` are the offices on the route. See [docs/LOCALHOST.md](docs/LOCALHOST.md).
 
 **Against your real Firebase project:** paste the config into `src/firebase-config.js` (step 1), then `npm run dev`.
 
@@ -115,6 +116,7 @@ checklists/{code}     code, kind (disbursement | liquidation), category, title, 
 documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, controlNo, office,
                       data{}, checklist{itemId: 'Y' | 'NA'}, additionalDocs[], links{itemId: [FTS doc | other system]}, transaction,
                       signatories (frozen), status (draft | complete | cancelled), title,
+                      workflow {state, stage, received, steps[], events[]}, currentOffice, routeOffices[],
                       createdBy, createdByName, history[], createdAt, updatedAt
 counters/FTS          value  (FTS control number series)
 meta/settings         lguName, lguAddress, province, sealUrl, signatories{}, offices[]

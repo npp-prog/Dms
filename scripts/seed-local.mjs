@@ -20,6 +20,11 @@ export const DEMO = {
   // Same office as Juan (sees his documents) and another office (does not).
   colleague: { email: 'ana@fts.local', password: 'user123', displayName: 'Ana Reyes', office: 'Municipal Engineering Office' },
   other: { email: 'leo@fts.local', password: 'user123', displayName: 'Leo Santos', office: 'Municipal Health Office' },
+  // Offices on the route of a DV (workflow).
+  acctg: { email: 'acctg@fts.local', password: 'user123', displayName: 'Rosa Accounting', office: 'Municipal Accounting Office' },
+  budget: { email: 'budget@fts.local', password: 'user123', displayName: 'Ben Budget', office: 'Municipal Budget Office' },
+  treasury: { email: 'treasury@fts.local', password: 'user123', displayName: 'Tess Treasury', office: "Municipal Treasurer's Office" },
+  mayor: { email: 'mayor@fts.local', password: 'user123', displayName: 'Mario Mayor', office: 'Office of the Municipal Mayor' },
 };
 
 const app = initializeApp({ apiKey: 'demo-key', projectId: 'demo-fts' });
@@ -70,7 +75,7 @@ async function main() {
   // 3. End users: each registers (asking for an office), then the superadmin approves them
   //    and assigns the office.
   const approved = [];
-  for (const person of [DEMO.user, DEMO.colleague, DEMO.other]) {
+  for (const person of [DEMO.user, DEMO.colleague, DEMO.other, DEMO.acctg, DEMO.budget, DEMO.treasury, DEMO.mayor]) {
     const u = await createUserWithEmailAndPassword(auth, person.email, person.password);
     await updateProfile(u.user, { displayName: person.displayName });
     await setDoc(doc(db, 'users', u.user.uid), {
@@ -89,6 +94,7 @@ async function main() {
       End user    ${DEMO.user.email} / ${DEMO.user.password}  (${DEMO.user.office})
       Same office ${DEMO.colleague.email} / ${DEMO.colleague.password}
       Other office ${DEMO.other.email} / ${DEMO.other.password}  (${DEMO.other.office})
+      Workflow    acctg@, budget@, treasury@, mayor@fts.local / user123  (Accounting, Budget, Treasury, Mayor's Office)
       Formats     ${STARTER_TYPES.map((t) => t.code).join(', ')}
       Checklists  ${CHECKLISTS.length} (disbursement and liquidation)
 `);

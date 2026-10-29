@@ -54,6 +54,7 @@ You should see this in the terminal:
 [FTS] Demo data loaded:
       Superadmin  npp@mgocandoniaccounting.org / admin123
       End user    user@fts.local / user123
+      Offices     acctg@, budget@, treasury@, mayor@fts.local / user123
       Formats     DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO
       Checklists  210 (disbursement and liquidation)
 [FTS] Starting the app at http://localhost:5173 …
@@ -153,7 +154,7 @@ The completed document gets an FTS control number, e.g. `FTS-000001`. Above the 
 
 - **Portrait, one page.** Every form prints portrait on one page: the DV on Folio (8.5 × 13 in), everything else on A4. Forms that are too tall (many lines) or too wide (many columns) are scaled down to fit.
 - **Fills the page.** When there is room left, the main table (particulars, items, employees) stretches to the bottom of the page, like a pre-printed form.
-- **What you see is what prints.** The preview is the printed page, scaled to fit your screen. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then follow **How to process this document**. FTS doesn't route the document; the guide tells you where it goes next.
+- **What you see is what prints.** The preview is the printed page, scaled to fit your screen. A very long checklist, such as competitive bidding, stays readable and continues on a second page. In the browser's print dialog, leave the scale at **Default** and the paper size as set. Then send the paper along its route (next section).
 
 ![Completed document](images/13-dv-document.png)
 
@@ -162,6 +163,19 @@ The completed document gets an FTS control number, e.g. `FTS-000001`. Above the 
 | ![DV printout](images/14-dv-print.png) | ![Checklist printout](images/15-dv-checklist-print.png) |
 
 The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from the document.
+
+### Workflow: where is the document?
+
+When you mark a document complete, FTS starts its **workflow**: the route from **How to process this document**. For a DV: your office → Municipal Accounting Office → Municipal Treasurer's Office → Office of the Municipal Mayor → Treasurer's Office → Accounting. The **Workflow** card on the document shows each office, where the document is now, and who received or released it and when.
+
+- **Release.** When the paper leaves your office, click **Release to Municipal Accounting Office**. From then on you can't edit the document.
+- **Receive.** The next office finds it in its **Inbox** (left menu, with the number waiting) and clicks **Receive** when the paper arrives.
+- **Release or return.** After acting on it, the office releases it to the next office, or clicks **Return to …** and says why (e.g. *OBR not signed*). The document goes back one office.
+- **Mark processed.** The last office closes the route.
+
+**Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
+
+To try it locally, sign in one after the other (password `user123`) as `user@fts.local` (Engineering), `acctg@fts.local`, `treasury@fts.local` and `mayor@fts.local`. `budget@fts.local` is the Municipal Budget Office, on the OBR route.
 
 **Download all (ZIP).** On a DV, **Download all (ZIP)** puts the DV, its checklist and every document linked to the checklist into one ZIP, each as a PDF named **Fund_Payee_Checklist No._Document Type_FTS No.**, for example:
 

@@ -7,10 +7,11 @@ import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, miss
 import {
   acceptsDocument, carryOver, itemTypeCode, systemFor, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
-import { STARTER_TYPES } from './defaults.js';
+import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, fileBase, fundCode, ftsNo, uniqueNamer } from './naming.js';
+import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -175,6 +176,40 @@ test('changing the checklist keeps answers and links of shared requirements', ()
   assert.equal(kept.state[obrB.id], 'Y');
   assert.deepEqual(kept.links[obrB.id], [{ kind: 'fts', id: 'x' }]);
   assert.equal(Object.keys(kept.state).length, 2, 'only DV and OBR are on both checklists');
+});
+
+test('document workflow', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  assert.equal(resolveOffice('Requesting Office', offices), '');
+  assert.equal(resolveOffice('Municipal Accounting Office', offices), 'Municipal Accounting Office');
+  assert.equal(resolveOffice('Treasury / Disbursing Officer', offices), "Municipal Treasurer's Office");
+  assert.equal(resolveOffice('Office of the Municipal Mayor', offices), 'Office of the Municipal Mayor');
+  assert.equal(resolveOffice('Inspection / GSO', offices), 'General Services Office');
+  const dv = STARTER_TYPES.find((t) => t.code === 'DV');
+  const user = { uid: 'u1', displayName: 'Juan', office: 'Municipal Engineering Office' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office' };
+  doc = { ...doc, ...buildWorkflow(dv, doc, offices, user, 't0') };
+  assert.equal(doc.currentOffice, 'Municipal Engineering Office');
+  assert.ok(doc.routeOffices.includes('Municipal Accounting Office') && doc.routeOffices.includes('Office of the Municipal Mayor'));
+  assert.deepEqual(availableActions(doc), ['release']);
+  doc = { ...doc, ...applyAction(doc, 'release', user, '', 't1') };
+  assert.equal(doc.currentOffice, 'Municipal Accounting Office');
+  assert.equal(whereIs(doc), 'Municipal Accounting Office (to receive)');
+  const acct = { uid: 'a1', displayName: 'Ana', office: 'Municipal Accounting Office' };
+  assert.ok(canAct(doc, acct) && !canAct(doc, user));
+  assert.deepEqual(availableActions(doc), ['receive', 'return']);
+  assert.throws(() => applyAction(doc, 'return', acct, ''), /why/);
+  doc = { ...doc, ...applyAction(doc, 'return', acct, 'OBR not attached', 't2') };
+  assert.equal(doc.currentOffice, 'Municipal Engineering Office');
+  assert.equal(doc.workflow.events.at(-1).remarks, 'OBR not attached');
+  // to the end
+  while (doc.workflow.state === 'in-progress') {
+    const a = availableActions(doc)[0];
+    doc = { ...doc, ...applyAction(doc, a, { uid: 'x', displayName: 'X' }) };
+  }
+  assert.equal(doc.workflow.state, 'done');
+  assert.equal(doc.currentOffice, '');
+  assert.equal(whereIs(doc), 'Processed');
 });
 
 test('bulk download file names', () => {

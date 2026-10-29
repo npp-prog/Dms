@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { STATUSES } from '../lib/defaults.js';
+import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 
 function fmt(ts) {
@@ -67,10 +68,10 @@ export default function Documents() {
         <div className="card table-card">
           <table className="data-table">
             <thead>
-              <tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Office</th>}<th>Prepared by</th><th>Status</th><th>Updated</th></tr>
+              <tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Office</th>}<th>Prepared by</th><th>Status</th><th>Where</th><th>Updated</th></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={7} className="muted">No documents found.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={9} className="muted">No documents found.</td></tr>}
               {shown.map((d) => (
                 <tr key={d.id}>
                   <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
@@ -79,6 +80,7 @@ export default function Documents() {
                   {isAdmin && <td className="small">{d.office || '—'}</td>}
                   <td>{d.createdByName}</td>
                   <td><StatusBadge status={d.status} /></td>
+                  <td className="small">{whereIs(d) || '—'}</td>
                   <td className="small">{fmt(d.updatedAt)}</td>
                 </tr>
               ))}
