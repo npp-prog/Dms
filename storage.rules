@@ -34,6 +34,14 @@ service firebase.storage {
         && (d.createdBy == request.auth.uid || (myOffice() != '' && d.get('currentOffice', '') == myOffice())));
     }
 
+    // The signatory's own PNPKI certificate file (.p12/.pfx), kept so they sign with their
+    // password only. Nobody else can read it, not even admins. The password is never stored.
+    match /certificates/{uid}/signing.p12 {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 64 * 1024;
+    }
+
     match /documents/{docId}/{file} {
       allow read: if isActive() && canRead(docOf(docId));
       // resource == null: a new file only, never over an existing version.

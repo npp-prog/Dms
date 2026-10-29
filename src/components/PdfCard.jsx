@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { addPdfVersion, checkStorage, documentBasis, getPdfBytes, startWorkflow } from '../lib/api.js';
+import {
+  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, removeSavedCertificate,
+  saveCertificate, startWorkflow,
+} from '../lib/api.js';
 import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf } from '../lib/signing.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
@@ -20,7 +23,7 @@ function saveAs(bytes, name) {
 // finished document to PDF; then each signatory, while the document is in their office, signs
 // it in DMS with their certificate file, or signs it in Adobe Acrobat and uploads it back.
 // Every version is kept; the newest is the current PDF.
-export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged }) {
+export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView }) {
   const id = useId();
   const files = docData.pdf?.files || [];
   const current = files.at(-1);
@@ -36,6 +39,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [p12, setP12] = useState(null);
   const [password, setPassword] = useState('');
   const [why, setWhy] = useState(reason || '');
+  const [saved, setSaved] = useState(undefined); // the user's certificate kept in DMS (null: none)
+  const [useOther, setUseOther] = useState(false);
+  const [keep, setKeep] = useState(true);
 
   // Load the current PDF and check every signature in it.
   useEffect(() => {
@@ -44,13 +50,18 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (current) {
       // A version made in this page is already here: no need to download it again.
       (made.current[current.path] ? Promise.resolve(made.current[current.path]) : getPdfBytes(current.path))
-        .then((b) => { if (live) { setBytes(b); setSignatures(readSignatures(b)); } })
+        .then((b) => { if (live) { const s = readSignatures(b); setBytes(b); setSignatures(s); onLoaded?.({ bytes: b, signatures: s }); } })
         .catch((e) => live && setError(`Could not open the PDF: ${e.message}`));
     }
-    documentBasis(docData).then((b) => live && setStale(Boolean(docData.pdf?.basis) && b !== docData.pdf.basis));
+    // Only bases computed the current way (basisV 2) are compared; older ones could differ by key order alone.
+    documentBasis(docData).then((b) => live && setStale(docData.pdf?.basisV === 2 && Boolean(docData.pdf?.basis) && b !== docData.pdf.basis));
     return () => { live = false; };
   }, [current?.path, docData]);
   useEffect(() => setWhy(reason || ''), [reason]);
+  useEffect(() => {
+    if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch(() => setSaved(null));
+  }, [mode, saved, actor.uid]);
+  const withSaved = Boolean(saved) && !useOther;
 
   const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
   const run = async (label, fn) => {
@@ -73,9 +84,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   });
 
   const signHere = () => run('Signing…', async () => {
-    if (!p12) throw new Error('Choose your certificate file (.p12 or .pfx).');
-    const key = await readFile(p12);
+    if (!withSaved && !p12) throw new Error('Choose your certificate file (.p12 or .pfx).');
+    if (!password) throw new Error('Type your certificate password.');
+    const key = withSaved ? await getSavedCertificateBytes(actor.uid) : await readFile(p12);
     const cert = readCertificate(key, password);
+    // Keep a new certificate for next time (only after the password has opened it).
+    if (!withSaved && keep) {
+      await saveCertificate(actor.uid, key, cert);
+      setSaved({ ...cert, savedAt: new Date().toISOString() });
+      setUseOther(false);
+    }
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
@@ -83,6 +101,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (!check.ok) throw new Error(check.error);
     made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
     setP12(null); setPassword(''); setMode('');
+    onView?.();
     setNotice(`Signed by ${cert.name}.`);
     onChanged();
   });
@@ -99,7 +118,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     onChanged();
   });
 
-  const open = () => window.open(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), '_blank', 'noopener');
+  const forget = () => run('Removing…', async () => {
+    if (!window.confirm('Remove your certificate from DMS? You will choose the file again next time you sign.')) return;
+    await removeSavedCertificate(actor.uid);
+    setSaved(null);
+    setNotice('Your certificate was removed from DMS.');
+  });
 
   return (
     <section className="card pdf-card">
@@ -155,7 +179,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           )}
 
           <div className="row gap wrap">
-            <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={open}>Open PDF</button>
+            <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => onView?.()}>View PDF</button>
             <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
             {canSign && bytes && mode !== 'sign' && <button className="btn btn-primary btn-sm" onClick={() => setMode('sign')}>Sign with PNPKI</button>}
             {canSign && bytes && mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}
@@ -169,19 +193,39 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
               </div>
               {mode === 'sign' ? (
                 <>
-                  <p className="small muted">Your certificate file and password stay on this computer: DMS signs here, in your browser,
-                    and uploads only the signed PDF.</p>
-                  <div className="field field-wide">
-                    <label className="field-label" htmlFor={`${id}-p12`}>Your PNPKI certificate file (.p12 or .pfx)</label>
-                    <input id={`${id}-p12`} type="file" accept=".p12,.pfx,application/x-pkcs12" onChange={(e) => setP12(e.target.files[0] || null)} />
-                  </div>
+                  {saved === undefined && <div className="spinner" />}
+                  {withSaved ? (
+                    <div className="saved-cert">
+                      <div><b>{saved.name}</b> {saved.pnpki && <span className="badge badge-green">DICT PNPKI</span>}</div>
+                      <div className="small muted">Your certificate, kept in DMS{saved.notAfter ? ` · valid until ${when(saved.notAfter)}` : ''}</div>
+                      <div className="row gap small">
+                        <button type="button" className="link" onClick={() => setUseOther(true)}>Use another certificate file</button>
+                        <button type="button" className="link" onClick={forget}>Remove from DMS</button>
+                      </div>
+                    </div>
+                  ) : saved !== undefined && (
+                    <>
+                      <div className="field field-wide">
+                        <label className="field-label" htmlFor={`${id}-p12`}>Your PNPKI certificate file (.p12 or .pfx)</label>
+                        <input id={`${id}-p12`} type="file" accept=".p12,.pfx,application/x-pkcs12" onChange={(e) => setP12(e.target.files[0] || null)} />
+                      </div>
+                      <label className="check">
+                        <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
+                        Keep this certificate in DMS: next time, sign with the password only
+                      </label>
+                      {saved && <button type="button" className="link small" onClick={() => setUseOther(false)}>Use my saved certificate ({saved.name})</button>}
+                    </>
+                  )}
+                  <p className="small muted">{withSaved || keep
+                    ? 'Only you can use your saved certificate; not even an administrator can open it. Your password is never stored: you type it each time. Use a strong certificate password.'
+                    : 'Your certificate file and password stay on this computer: DMS signs here, in your browser, and uploads only the signed PDF.'}</p>
                   <div className="field field-wide">
                     <label className="field-label" htmlFor={`${id}-pw`}>Certificate password</label>
                     <input id={`${id}-pw`} type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && signHere()} />
                   </div>
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || !p12} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || saved === undefined || (!withSaved && !p12) || !password} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>

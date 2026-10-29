@@ -446,6 +446,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
   .layout { background: none; display: block; min-height: 0; }
   .main, .page { padding: 0; margin: 0; max-width: none; animation: none; }
   .split { display: block; }
+  .doc-split { display: block; }
   .paper { box-shadow: none; padding: 0 !important; width: auto !important; min-height: 0 !important; border-radius: 0; transform: none !important; }
   .paper-holder { width: auto !important; height: auto !important; }
   .print-area { overflow: visible; }
@@ -767,3 +768,21 @@ button.stat.active::before { background: var(--primary); }
   .route-types { max-height: 240px; }
   .route-fields { grid-template-columns: 1fr; }
 }
+
+/* Document page: the document in the centre, its cards (accounting, workflow, PDF and
+   signatures, details) on the right. */
+.doc-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 1.1rem; align-items: start; }
+.doc-split > .doc-main { grid-column: 1; grid-row: 1; min-width: 0; scroll-margin-top: calc(var(--top) + 1rem); }
+.doc-split > .doc-side { grid-column: 2; grid-row: 1; min-width: 0; }
+@media (max-width: 980px) {
+  .doc-split { grid-template-columns: 1fr; }
+  .doc-split > .doc-side { grid-column: 1; grid-row: 2; }
+}
+
+/* The PDF shown inside the page */
+.pdf-viewer { background: var(--sunken); border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem; }
+.pdf-viewer-head { display: flex; flex-wrap: wrap; gap: .4rem .7rem; align-items: center; padding: .1rem .2rem .6rem; }
+.pdf-viewer-sigs { display: flex; flex-wrap: wrap; gap: .3rem; margin-left: auto; }
+.pdf-pages { display: grid; gap: .7rem; }
+.pdf-pages canvas { display: block; max-width: 100%; height: auto; background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.18); }
+.saved-cert { padding: .6rem .7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); display: grid; gap: .25rem; }

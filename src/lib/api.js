@@ -2,7 +2,7 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { getBytes, getMetadata, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
@@ -362,6 +362,50 @@ function storageError(e, doing) {
   return e;
 }
 
+// ---------- The signatory's saved certificate ----------
+// certificates/{uid}/signing.p12: the PNPKI .p12/.pfx file a user chose to keep in DMS, so they
+// sign with their password only. Only that user can read, replace or remove it (storage.rules);
+// the password is never stored. Who it belongs to is kept in the file's metadata.
+const certRef = (uid) => storageRef(storage, `certificates/${uid}/signing.p12`);
+
+export async function getSavedCertificate(uid) {
+  try {
+    const meta = await getMetadata(certRef(uid));
+    const m = meta.customMetadata || {};
+    return { name: m.name || '', email: m.email || '', issuer: m.issuer || '', pnpki: m.pnpki === 'true', notAfter: m.notAfter || '', savedAt: meta.timeCreated };
+  } catch (e) {
+    if (e?.code === 'storage/object-not-found') return null;
+    throw storageError(e, 'download');
+  }
+}
+
+export async function getSavedCertificateBytes(uid) {
+  try {
+    return new Uint8Array(await getBytes(certRef(uid)));
+  } catch (e) {
+    throw storageError(e, 'download');
+  }
+}
+
+export async function saveCertificate(uid, bytes, info) {
+  try {
+    await uploadBytes(certRef(uid), bytes, {
+      contentType: 'application/x-pkcs12',
+      customMetadata: { name: info.name || '', email: info.email || '', issuer: info.issuer || '', pnpki: String(Boolean(info.pnpki)), notAfter: info.notAfter || '' },
+    });
+  } catch (e) {
+    throw storageError(e, 'upload');
+  }
+}
+
+export async function removeSavedCertificate(uid) {
+  try {
+    await deleteObject(certRef(uid));
+  } catch (e) {
+    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload');
+  }
+}
+
 // Checks, in a few seconds, that PDFs can be stored, before spending time drawing one.
 // Reading a file that does not exist answers "not found" when Storage and its rules are in place.
 export async function checkStorage(docId) {
@@ -403,7 +447,8 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     if (files.length !== n) throw new Error('Someone else added a version of this PDF first. Reload the page and try again.');
     const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
     tx.update(docRef, {
-      pdf: { basis: basis ?? d.pdf?.basis ?? null, files: [...files, file] },
+      // basisV 2: the basis is computed with sorted keys (older ones were not, and are not compared).
+      pdf: { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? 2 : d.pdf?.basisV ?? null, files: [...files, file] },
       updatedAt: serverTimestamp(),
       history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : 'converted to PDF', user, note)],
     });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
@@ -13,6 +13,7 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
+import PdfViewer from '../components/PdfViewer.jsx';
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 function ItemLinks({ item, links, canEdit, docId, onChange }) {
@@ -36,6 +37,10 @@ export default function DocumentView() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState('document');
+  // The current PDF, once PdfCard has loaded it, for the viewer in the main area.
+  const [pdfView, setPdfView] = useState(null);
+  const viewer = useRef(null);
+  const shownPdf = useRef(null); // a newly loaded PDF opens in the viewer once
   // Working copy of the data while the Accounting Office fills in its part.
   const [draft, setDraft] = useState(null);
 
@@ -91,7 +96,7 @@ export default function DocumentView() {
           <p className="muted">{docData.title} · Prepared by {docData.createdByName}</p>
         </div>
         <div className="row gap wrap">
-          <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>
+          {view !== 'pdf' && <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>}
           {type && (type.bulkDownload || docData.typeCode === 'DV') && <BulkDownload docData={docData} type={type} settings={settings} />}
           {canChange && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
           {canCancel && (
@@ -112,8 +117,8 @@ export default function DocumentView() {
           <b>PDF and digital signatures</b>: the PDF then follows its workflow from office to office.</div>
       )}
 
-      <div className="split">
-        <div className="no-print">
+      <div className="doc-split">
+        <div className="no-print doc-side">
           {isAdmin && editable && type && draft && (
             <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
@@ -131,6 +136,11 @@ export default function DocumentView() {
           {type && docData.status !== 'draft' && (
             <PdfCard docData={docData} type={type} settings={settings} actor={actor}
               canConvert={canConvert} canSign={canSign} onChanged={load}
+              onLoaded={(p) => {
+                setPdfView(p);
+                if (shownPdf.current !== p.bytes) { shownPdf.current = p.bytes; setView('pdf'); }
+              }}
+              onView={() => { setView('pdf'); viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
           {type && !wf && (
@@ -194,14 +204,19 @@ export default function DocumentView() {
           </section>
         </div>
         {type ? (
-          <div>
-            {activeChecklist && activeChecklist.items.length > 0 && (
+          <div className="doc-main" ref={viewer}>
+            {((activeChecklist && activeChecklist.items.length > 0) || pdfView) && (
               <div className="tabs view-toggle no-print">
+                {pdfView && <button className={view === 'pdf' ? 'active' : ''} onClick={() => setView('pdf')}>{hasSignature ? 'Signed PDF' : 'PDF'}</button>}
                 <button className={view === 'document' ? 'active' : ''} onClick={() => setView('document')}>{docData.typeCode}</button>
-                <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>
+                {activeChecklist && activeChecklist.items.length > 0 && (
+                  <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>
+                )}
               </div>
             )}
-            {view === 'checklist' && activeChecklist ? (
+            {view === 'pdf' && pdfView ? (
+              <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`} />
+            ) : view === 'checklist' && activeChecklist ? (
               <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (
           <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
