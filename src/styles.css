@@ -173,6 +173,18 @@ table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .data-table select { width: auto; min-height: 34px; padding-top: .2rem; padding-bottom: .2rem; }
 .data-table a { text-decoration: none; font-weight: 600; }
 .data-table a:hover { text-decoration: underline; }
+/* Prepare Document: the document types as a list. */
+.type-search { max-width: 360px; margin: .2rem 0 .9rem; }
+.type-list { padding: .3rem; max-width: 860px; }
+.type-list a { display: flex; align-items: center; gap: 1rem; padding: .75rem .9rem; border-radius: 10px; text-decoration: none; color: var(--ink); }
+.type-list a + a { box-shadow: 0 -1px 0 var(--line); }
+.type-list a:hover { background: var(--hover); box-shadow: none; }
+.type-list a:hover + a { box-shadow: none; }
+.type-list .code { flex: none; min-width: 5.2rem; font-weight: 600; font-size: .88rem; color: var(--primary); }
+.type-list .name { flex: 1; min-width: 0; font-size: .98rem; font-weight: 500; }
+.type-list .cat { flex: none; font-size: .8rem; color: var(--muted); }
+.type-list .go { flex: none; color: var(--faint); font-size: 1.3rem; line-height: 1; }
+@media (max-width: 600px) { .type-list .cat { display: none; } .type-list .code { min-width: 4.2rem; } }
 /* Document Types: the name with its upload-only tag under it, and the buttons in one right-aligned line. */
 .type-name .badge { display: flex; width: fit-content; margin-top: .35rem; }
 .type-actions { width: 1%; white-space: nowrap; }

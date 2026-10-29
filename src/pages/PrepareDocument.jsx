@@ -16,23 +16,28 @@ import ProcessingGuide from '../components/ProcessingGuide.jsx';
 function TypePicker() {
   const [types, setTypes] = useState(null);
   const [error, setError] = useState('');
+  const [q, setQ] = useState('');
   useEffect(() => { listDocumentTypes({ activeOnly: true }).then((t) => setTypes(t.filter((x) => !x.uploadOnly))).catch((e) => setError(e.message)); }, []);
   return (
     <div className="page">
       <h1>Prepare Document</h1>
       <p className="muted">Choose the document you need to prepare. You will be guided step by step, followed by the checklist of requirements.</p>
+      {types?.length > 6 && <input className="search type-search" placeholder="Search by code or name…" value={q} onChange={(e) => setQ(e.target.value)} />}
       {error && <div className="alert">{error}</div>}
       {!types && !error && <div className="spinner" />}
       {types?.length === 0 && <p className="muted">No document types are available yet.</p>}
-      <div className="format-grid">
-        {(types || []).map((t) => (
-          <Link key={t.id} to={`/new/${t.id}`} className="card format-card clickable">
-            <div className="format-code">{t.code}</div>
-            <h4>{t.name}</h4>
-            <p className="muted small">{t.description}</p>
-          </Link>
-        ))}
-      </div>
+      {types?.length > 0 && (
+        <div className="card type-list">
+          {types.filter((t) => `${t.code} ${t.name} ${t.category}`.toLowerCase().includes(q.trim().toLowerCase())).map((t) => (
+            <Link key={t.id} to={`/new/${t.id}`}>
+              <span className="code">{t.code}</span>
+              <span className="name">{t.name}</span>
+              {t.category && <span className="cat">{t.category}</span>}
+              <span className="go" aria-hidden="true">›</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
