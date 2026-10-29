@@ -476,7 +476,19 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
   const docRef = doc(db, 'documents', id);
   const current = (await getDoc(docRef)).data();
   const n = current?.pdf?.files?.length || 0;
-  const path = `documents/${id}/${n}-${kind}.pdf`;
+  // Files are never overwritten (storage.rules). A file can already be in this version's place if
+  // an earlier attempt was stored but not recorded (e.g. the record was refused): use the next
+  // free name, so that attempt cannot block signing for good.
+  let slot = n;
+  for (; slot < n + 20; slot++) {
+    try {
+      await getMetadata(storageRef(storage, `documents/${id}/${slot}-${kind}.pdf`));
+    } catch (e) {
+      if (e?.code === 'storage/object-not-found') break;
+      throw storageError(e, 'download', 'checking where to save the PDF');
+    }
+  }
+  const path = `documents/${id}/${slot}-${kind}.pdf`;
   await new Promise((resolve, reject) => {
     const task = uploadBytesResumable(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
     task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload', 'saving the PDF')), resolve);
