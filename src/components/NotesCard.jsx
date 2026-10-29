@@ -16,11 +16,15 @@ export default function NotesCard({ uid }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { listNotes(uid).then(setNotes).catch((e) => { setNotes([]); setError(e.message); }); }, [uid]);
+  // Refused by Firestore: the published security rules are older than My notes.
+  const explain = (e) => (e?.code === 'permission-denied'
+    ? 'My notes is not switched on yet: an administrator must publish the latest firestore.rules (Firebase console → Firestore → Rules).'
+    : e.message);
+  useEffect(() => { listNotes(uid).then(setNotes).catch((e) => { setNotes([]); setError(explain(e)); }); }, [uid]);
 
   const run = async (fn) => {
     setBusy(true); setError('');
-    try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(false); }
+    try { await fn(); } catch (e) { setError(explain(e)); } finally { setBusy(false); }
   };
   const add = (e) => {
     e.preventDefault();
@@ -36,7 +40,7 @@ export default function NotesCard({ uid }) {
     const flip = (x) => (x.id === note.id ? { ...x, done: !note.done, doneAt: note.done ? '' : new Date().toISOString() } : x);
     setNotes((n) => n.map(flip));
     setNoteDone(uid, note.id, !note.done).catch((e) => {
-      setError(e.message);
+      setError(explain(e));
       setNotes((n) => n.map((x) => (x.id === note.id ? note : x)));
     });
   };
@@ -64,7 +68,7 @@ export default function NotesCard({ uid }) {
       {error && <div className="alert small">{error}</div>}
       {notes === null ? <div className="spinner" /> : (
         <ul className="note-list">
-          {open.length === 0 && <li className="small muted note-empty">No notes. Add one above; tick it when done.</li>}
+          {open.length === 0 && !error && <li className="small muted note-empty">No notes. Add one above; tick it when done.</li>}
           {open.map((n) => (
             <li key={n.id}>
               <label className="check note-check">
