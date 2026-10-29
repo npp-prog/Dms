@@ -28,6 +28,7 @@ export default function Layout() {
         ['/inbox', 'inbox', 'Inbox', false, waiting],
         ['/tracking', 'workflow', 'Tracking'],
         ['/checklists', 'check', 'Checklists'],
+        ['/upload', 'upload', 'Upload Document'],
         ['/new', 'new', 'Prepare Document'],
       ],
     },
@@ -46,7 +47,7 @@ export default function Layout() {
   // The page name in the header: the menu item the page belongs to.
   const titles = [
     ...groups.flatMap((g) => g.items.map(([to, , label]) => [to, label])),
-    ['/upload', 'Upload Document'], ['/formats', 'Document Types'], ['/admin/checklists', 'Checklists'],
+    ['/formats', 'Document Types'], ['/admin/checklists', 'Checklists'],
   ];
   const path = location.pathname;
   const title = path === '/' ? 'Dashboard'
