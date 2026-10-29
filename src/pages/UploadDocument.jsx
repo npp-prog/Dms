@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import Icon from '../components/Icon.jsx';
 import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, listDocumentTypes, setDocumentStatus, startWorkflow } from '../lib/api.js';
 
 // A document that is not prepared in DMS but already exists as a file: a scanned OBR, a letter,
@@ -8,6 +9,7 @@ import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, lis
 // or scan is turned into one), and it follows the route of its type like a prepared document.
 const OTHER = { id: '', code: 'DOC', name: 'Other document', fields: [], steps: [], processing: [], template: '' };
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+const size = (n) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 // A picture (photo or scan) as a one-page A4 PDF.
 async function imageToPdf(file) {
@@ -39,6 +41,7 @@ export default function UploadDocument() {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [drag, setDrag] = useState(false);
 
   useEffect(() => { listDocumentTypes({ activeOnly: true }).then(setTypes).catch((e) => setError(e.message)); }, []);
   const type = (types || []).find((t) => t.id === typeId) || OTHER;
@@ -85,7 +88,7 @@ export default function UploadDocument() {
         </div>
       </div>
       <form className="card upload-form" onSubmit={submit}>
-        <div className="field">
+        <div className="field upload-wide">
           <label className="field-label" htmlFor={`${id}-t`}>Document type</label>
           <select id={`${id}-t`} value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!types}>
             <option value="">Other document (no workflow)</option>
@@ -100,22 +103,46 @@ export default function UploadDocument() {
           <input id={`${id}-s`} className="caps" value={form.title} onChange={set('title')} placeholder="e.g. NEIL P. PRIOLO" required />
         </div>
         <div className="field">
-          <label className="field-label" htmlFor={`${id}-f`}>Fund (optional)</label>
+          <label className="field-label" htmlFor={`${id}-f`}>Fund <span className="muted">(optional)</span></label>
           <input id={`${id}-f`} className="caps" value={form.fund} onChange={set('fund')} placeholder="e.g. GENERAL FUND" />
         </div>
-        <div className="field">
-          <label className="field-label" htmlFor={`${id}-n`}>Notes (optional)</label>
+        <div className="field upload-wide">
+          <label className="field-label" htmlFor={`${id}-n`}>Notes <span className="muted">(optional)</span></label>
           <input id={`${id}-n`} value={form.notes} onChange={set('notes')} placeholder="e.g. Signed copy from the Budget Office" />
         </div>
-        <div className="field">
-          <label className="field-label" htmlFor={`${id}-file`}>File (PDF, or a photo or scan)</label>
-          <input id={`${id}-file`} type="file" accept={ACCEPT} onChange={(e) => setFile(e.target.files[0] || null)} />
+
+        <div className="field upload-wide">
+          <span className="field-label">File</span>
+          {file ? (
+            <div className="file-chosen">
+              <span className="file-icon"><Icon name="doc" /></span>
+              <div className="file-meta">
+                <b>{file.name}</b>
+                <span className="small muted">{file.type === 'application/pdf' ? 'PDF' : 'Picture: becomes a PDF'} · {size(file.size)}</span>
+              </div>
+              <label className="btn btn-ghost btn-sm">
+                Change
+                <input type="file" hidden accept={ACCEPT} onChange={(e) => e.target.files[0] && setFile(e.target.files[0])} />
+              </label>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFile(null)}>Remove</button>
+            </div>
+          ) : (
+            <label className={`drop-zone${drag ? ' over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}>
+              <input id={`${id}-file`} type="file" hidden accept={ACCEPT} onChange={(e) => setFile(e.target.files[0] || null)} />
+              <span className="drop-icon"><Icon name="new" /></span>
+              <b>Choose a file</b>
+              <span className="small muted">or drop it here · PDF, or a photo or scan (JPG, PNG) · up to 25 MB</span>
+            </label>
+          )}
           <span className="small muted">A PDF signed elsewhere keeps its signatures; DMS shows and checks them.</span>
         </div>
-        {error && <div className="alert">{error}</div>}
-        <div className="row gap">
-          <button className="btn btn-primary" disabled={!!busy}>{busy || 'Upload'}</button>
+
+        {error && <div className="alert upload-wide">{error}</div>}
+        <div className="upload-actions upload-wide">
           <Link className="btn btn-ghost" to="/documents">Cancel</Link>
+          <button className="btn btn-primary" disabled={!!busy || !file}>{busy || 'Upload document'}</button>
         </div>
       </form>
     </div>
