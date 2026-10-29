@@ -839,3 +839,19 @@ a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 .verify-verdict.bad { background: var(--bad-bg); color: var(--bad); }
 .verify-hash { overflow-wrap: anywhere; margin-bottom: 0; }
 .verify-link { margin-top: 1.4rem; }
+
+/* Signatures on the PDF: click one to see it and its certificate */
+.pdf-viewer-sigs button.badge { border: 0; cursor: pointer; font: inherit; font-size: .72rem; }
+.pdf-sig-hit { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; border-radius: 3px; }
+.pdf-sig-hit:hover, .pdf-sig-hit:focus-visible { background: rgba(62,106,128,.12); outline: 2px solid var(--primary); }
+.pdf-sig-hit.bad:hover, .pdf-sig-hit.bad:focus-visible { background: rgba(179,37,37,.12); outline-color: var(--bad); }
+.sig-details-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.35); display: grid; place-items: center; padding: 1rem; }
+.sig-details { width: min(520px, 100%); max-height: 90vh; overflow: auto; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 1.1rem 1.25rem; }
+.sig-details-head { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: .6rem; }
+.sig-details-head > div { flex: 1; }
+.sig-details-head .sig-mark.ok { background: var(--ok-bg); color: var(--ok); }
+.sig-details-head .sig-mark.bad { background: var(--bad-bg); color: var(--bad); }
+.sig-details h4 { margin: .9rem 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--gold-ink); }
+.sig-details .details { font-size: .88rem; }
+.sig-valid { color: var(--ok); font-weight: 600; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; overflow-wrap: anywhere; }

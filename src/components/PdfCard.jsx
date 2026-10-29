@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
 } from '../lib/api.js';
-import { addSignatureMark, checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
+import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
 import { markPixels } from '../lib/markImage.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
@@ -109,11 +109,11 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
-    // The mark is added first; the signature then covers it.
-    const base = placingMark
-      ? await addSignatureMark(bytes, { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, stampDate()] })
-      : bytes;
-    const out = await signPdf(base, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
+    // The signature appears where the mark was placed; clicking it shows its certificate.
+    const visible = placingMark
+      ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, stampDate()] }
+      : null;
+    const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;

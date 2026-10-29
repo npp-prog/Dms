@@ -189,16 +189,9 @@ Each signature is added after the ones already there, so they all stay valid, as
 
 To try it locally you need a certificate file. Real PNPKI certificates come from DICT; for testing, any `.p12` works (DMS shows *Not PNPKI* for certificates from other issuers and asks before signing).
 
-### Verify a signed document (anyone, no sign-in)
+### See a signature and its certificate
 
-Anyone who has a copy of a DMS PDF (downloaded, emailed, on a flash drive) can check it at **/verify**: the link is on the sign-in page, in the left menu (**Verify a Document**), and printed at the bottom of every page of the PDF. Choose or drop the PDF. It is checked on that device and not uploaded. The page shows:
-
-- a verdict: **Valid** (every signature intact, nothing changed after signing), **NOT valid** (the document was altered), a warning if something was added after the last signature, or that the PDF has no signature;
-- the **DMS record** of that exact file (e.g. *Disbursement Voucher DMS-2026-000002, version 2, signed by …*), looked up by its SHA-256 fingerprint; a file DMS never made, or one changed even slightly, has no record;
-- each signature: who signed, when, the certificate issuer with a **DICT PNPKI** badge, and whether the certificate chain inside the signature verifies;
-- the PDF itself.
-
-To check that the certificate authority is trusted, the PDF can also be opened in Adobe Acrobat with the DICT PNPKI root certificates installed.
+Each signature with a mark is the signature itself, on the face of the PDF. **Click it** (in the PDF tab of the document page) to see its details: whether it is valid (the document has not changed since it was signed), when it was signed, the reason and location, and the certificate: who it was issued to, the issuer with a **DICT PNPKI** badge, its validity, serial number and certificate chain. The names at the top of the PDF open the same details, also for signatures without a mark. In a downloaded copy, click the signature in Adobe Acrobat or Foxit to see the same, with the trust of the DICT PNPKI root checked by the reader.
 
 **Download all (ZIP).** On a DV, **Download all (ZIP)** puts the DV (its signed PDF, once converted), its checklist and every document linked to the checklist into one ZIP, each as a PDF named **Fund_Payee_Checklist No._Document Type_FTS No.**, for example:
 

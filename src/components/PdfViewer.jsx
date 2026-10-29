@@ -16,7 +16,58 @@ async function loadPdfjs() {
   return pdfjs;
 }
 
+const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'medium' }) : '—');
+const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—');
+const CHAIN = { verified: 'Verified', partial: 'Partly included in the signature', broken: 'Does not verify' };
+
+// The details of one signature and its certificate, as Acrobat's signature properties show them.
+function SignatureDetails({ sig, onClose }) {
+  const c = sig.signer || {};
+  useEffect(() => {
+    const esc = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onClose]);
+  return (
+    <div className="sig-details-backdrop" role="presentation" onClick={onClose}>
+      <div className="sig-details" role="dialog" aria-modal="true" aria-label={`Signature of ${c.name || 'unknown signer'}`} onClick={(e) => e.stopPropagation()}>
+        <div className="sig-details-head">
+          <span className={`sig-mark ${sig.valid ? 'ok' : 'bad'}`}>{sig.valid ? '✓' : '✗'}</span>
+          <div>
+            <b>{c.name || 'Unknown signer'}</b>
+            <div className={`small ${sig.valid ? 'sig-valid' : 'sig-problem'}`}>{sig.valid
+              ? 'Signature is valid: the document has not been changed since it was signed.'
+              : sig.problem}</div>
+          </div>
+          <button type="button" className="btn-icon" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+        <h4>Signature</h4>
+        <dl className="details">
+          <dt>Signed on</dt><dd>{when(sig.signedAt)}</dd>
+          {sig.reason && <><dt>Reason</dt><dd>{sig.reason}</dd></>}
+          {sig.location && <><dt>Location</dt><dd>{sig.location}</dd></>}
+          {sig.field && <><dt>Field</dt><dd>{sig.field}</dd></>}
+          <dt>Covers</dt><dd>{sig.coversWholeFile ? 'The whole document' : 'The document up to this signature (later signatures were added after it)'}</dd>
+        </dl>
+        <h4>Certificate</h4>
+        <dl className="details">
+          <dt>Issued to</dt><dd>{c.name || '—'}{c.org ? `, ${c.org}` : ''}</dd>
+          {c.email && <><dt>Email</dt><dd>{c.email}</dd></>}
+          <dt>Issued by</dt><dd>{c.issuer || '—'}{c.issuerOrg && c.issuerOrg !== c.issuer ? `, ${c.issuerOrg}` : ''} {c.pnpki
+            ? <span className="badge badge-green">DICT PNPKI</span> : <span className="badge badge-yellow">Not PNPKI</span>}</dd>
+          <dt>Valid</dt><dd>{day(c.notBefore)} to {day(c.notAfter)}{sig.certValidWhenSigned === false ? ' (not valid when it signed)' : ''}</dd>
+          <dt>Serial no.</dt><dd className="mono">{c.serial || '—'}</dd>
+          <dt>Chain</dt><dd>{CHAIN[sig.chain?.status] || '—'}{sig.chain?.names?.length ? ` (${sig.chain.names.join(' → ')})` : ''}</dd>
+        </dl>
+        <p className="xs muted">Checked on this device. That the certificate authority itself is trusted can be confirmed in Adobe Acrobat with
+          the DICT PNPKI root certificates installed (click the signature there too).</p>
+      </div>
+    </div>
+  );
+}
+
 export default function PdfViewer({ bytes, signatures = [], title = '', placing = null, mark = null, onPlace }) {
+  const [details, setDetails] = useState(null);
   const host = useRef(null);
   const canvases = useRef([]);
   const [doc, setDoc] = useState(null);
@@ -45,8 +96,12 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
         loaded = await lib.getDocument({ data: bytes.slice() }).promise;
         const list = [];
         for (let n = 1; n <= loaded.numPages; n++) {
-          const vp = (await loaded.getPage(n)).getViewport({ scale: 1 });
-          list.push({ w: vp.width, h: vp.height });
+          const page = await loaded.getPage(n);
+          const vp = page.getViewport({ scale: 1 });
+          // Visible signature fields on this page: clicking one shows the signature's details.
+          const sigs = (await page.getAnnotations()).filter((a) => a.fieldType === 'Sig' && a.rect[2] > a.rect[0] && a.rect[3] > a.rect[1])
+            .map((a) => ({ field: a.fieldName, rect: a.rect }));
+          list.push({ w: vp.width, h: vp.height, sigs });
         }
         if (!cancelled) { setDoc(loaded); setSizes(list); }
       } catch (e) {
@@ -95,9 +150,10 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
         {signatures.length > 0 && (
           <span className="pdf-viewer-sigs">
             {signatures.map((s, i) => (
-              <span key={i} className={`badge ${s.valid ? 'badge-green' : 'badge-red'}`} title={s.valid ? 'Signature valid' : s.problem}>
+              <button type="button" key={i} className={`badge ${s.valid ? 'badge-green' : 'badge-red'}`} title="Show the signature and its certificate"
+                onClick={() => setDetails(s)}>
                 {s.valid ? '✓' : '✗'} {s.signer?.name || 'Unknown signer'}
-              </span>
+              </button>
             ))}
           </span>
         )}
@@ -105,10 +161,25 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
       {placing && <div className="pdf-place-hint">Tap the page where your signature mark goes (e.g. the Signature line of your box).</div>}
       {error && <div className="alert">{error}</div>}
       {!sizes.length && !error && <div className="spinner" />}
+      {details && <SignatureDetails sig={details} onClose={() => setDetails(null)} />}
       <div className="pdf-pages">
         {sizes.map((s, i) => (
           <div key={i} className="pdf-page" style={{ aspectRatio: `${s.w} / ${s.h}` }} onClick={(e) => place(i, e)}>
             <canvas ref={(el) => { canvases.current[i] = el; }} aria-label={`Page ${i + 1} of ${sizes.length}`} />
+            {!placing && s.sigs.map((w) => {
+              const sig = signatures.find((x) => x.field === w.field);
+              if (!sig) return null;
+              return (
+                <button type="button" key={w.field} className={`pdf-sig-hit ${sig.valid ? '' : 'bad'}`}
+                  title={`Signed by ${sig.signer?.name || 'unknown'}: click to see the signature and certificate`}
+                  aria-label={`Signature of ${sig.signer?.name || 'unknown signer'}: show details`}
+                  style={{
+                    left: `${(w.rect[0] / s.w) * 100}%`, bottom: `${(w.rect[1] / s.h) * 100}%`,
+                    width: `${((w.rect[2] - w.rect[0]) / s.w) * 100}%`, height: `${((w.rect[3] - w.rect[1]) / s.h) * 100}%`,
+                  }}
+                  onClick={(e) => { e.stopPropagation(); setDetails(sig); }} />
+              );
+            })}
             {mark && mark.page === i && (
               <div className="pdf-mark" style={{
                 left: `${(mark.rect[0] / s.w) * 100}%`,

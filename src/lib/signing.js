@@ -28,11 +28,9 @@ export function fixBufferLastIndexOf(B) {
 async function signpdfLibs() {
   if (!globalThis.Buffer) globalThis.Buffer = Buffer;
   fixBufferLastIndexOf(globalThis.Buffer);
-  const [{ plainAddPlaceholder }, { P12Signer }, signpdf] = await Promise.all([
-    import('@signpdf/placeholder-plain'), import('@signpdf/signer-p12'), import('@signpdf/signpdf'),
-  ]);
+  const [{ P12Signer }, signpdf] = await Promise.all([import('@signpdf/signer-p12'), import('@signpdf/signpdf')]);
   const SignPdf = signpdf.SignPdf || signpdf.default?.SignPdf;
-  return { plainAddPlaceholder, P12Signer, signpdf: new SignPdf() };
+  return { P12Signer, signpdf: new SignPdf() };
 }
 
 const OID = {
@@ -87,18 +85,11 @@ export function readCertificate(p12Bytes, password) {
 }
 
 // Adds a signature to the PDF. Returns the signed PDF (the original bytes plus an update).
-export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '' } = {}) {
-  const { plainAddPlaceholder, P12Signer, signpdf } = await signpdfLibs();
+// mark: { page, rect, image, lines } puts the signature, with the signatory's mark, where they placed it.
+export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '', mark = null } = {}) {
+  const { P12Signer, signpdf } = await signpdfLibs();
   const B = globalThis.Buffer; // the Buffer @signpdf checks against
-  let withPlaceholder;
-  try {
-    withPlaceholder = plainAddPlaceholder({
-      pdfBuffer: B.from(pdfBytes), reason, location, name, contactInfo,
-      signatureLength: 16384, appName: 'Candoni.DMS', // a PDF name: no spaces
-    });
-  } catch (e) {
-    throw new Error(`DMS cannot add a signature to this PDF (${e.message}). Download it and sign it in Adobe Acrobat instead.`);
-  }
+  const withPlaceholder = await addSignatureField(pdfBytes, { reason, location, name, contactInfo, mark });
   let signer;
   try {
     signer = new P12Signer(B.from(p12Bytes), { passphrase: password });
@@ -180,6 +171,19 @@ function checkCms(bytes, der, ranges) {
   return out;
 }
 
+// The signature dictionary around a ByteRange: reason, location, and the field (widget) showing it.
+const pdfString = (dict, key) => {
+  const m = dict.match(new RegExp(`\\/${key}\\s*\\(((?:\\\\.|[^\\\\)])*)\\)`));
+  return m ? m[1].replace(/\\([\\()])/g, '$1') : '';
+};
+function sigFieldInfo(text, at) {
+  const head = text.lastIndexOf(' obj', at);
+  const id = head > 0 ? text.slice(Math.max(0, head - 24), head).match(/(\d+)\s+\d+$/)?.[1] : null;
+  const dict = text.slice(head, text.indexOf('endobj', at));
+  const field = id ? [...text.matchAll(new RegExp(`/T\\s*\\(([^)]*)\\)[^>]*?/V\\s+${id}\\s+0\\s+R|/V\\s+${id}\\s+0\\s+R[^>]*?/T\\s*\\(([^)]*)\\)`, 'g'))].at(-1) : null;
+  return { field: field ? (field[1] ?? field[2]) : '', reason: pdfString(dict, 'Reason'), location: pdfString(dict, 'Location') };
+}
+
 // Every signature in a PDF, oldest first: who signed, when, and whether it is intact.
 export function readSignatures(pdfBytes) {
   const bytes = pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes);
@@ -192,7 +196,7 @@ export function readSignatures(pdfBytes) {
     if (a !== 0 || c + d > bytes.length || a + b >= c) continue;
     const hex = text.slice(a + b, c).replace(/[<>\s]/g, '');
     if (!/^[0-9a-f]+$/i.test(hex) || /^0+$/.test(hex)) continue;
-    const sig = { byteRange: [a, b, c, d], coversWholeFile: c + d === bytes.length, signedUpTo: c + d };
+    const sig = { byteRange: [a, b, c, d], coversWholeFile: c + d === bytes.length, signedUpTo: c + d, ...sigFieldInfo(text, m.index) };
     try {
       Object.assign(sig, checkCms(bytes, forge.util.hexToBytes(hex), [[a, b], [c, d]]));
     } catch (e) {
@@ -227,11 +231,11 @@ export function checkSignedVersion(previousBytes, signedBytes) {
   return { ok: true, signatures, added: signatures.slice(before) };
 }
 
-// ---------- The signature mark on the face of the PDF ----------
-// A signatory's mark (their handwritten signature as an image) with "Digitally signed by ..."
-// and the date, drawn where they placed it (e.g. Box A). It is added as a locked stamp in an
-// incremental update just before their digital signature, so that signature covers it and the
-// signatures already on the PDF stay valid.
+// ---------- The signature field (with the signature mark on the face of the PDF) ----------
+// Each signature is a signature field added in an incremental update, so the signatures already on
+// the PDF stay valid. With a mark (the signatory's handwritten signature as an image), the field
+// is visible where they placed it: the mark with "Digitally signed by ..." and the date. Clicking
+// it in Adobe Acrobat or Foxit, or in the DMS viewer, shows the signature and its certificate.
 
 async function deflate(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
@@ -241,17 +245,34 @@ async function deflate(bytes) {
 // Text for a PDF string in WinAnsi (Helvetica): escape, and replace what it cannot show.
 const pdfText = (s) => String(s).normalize('NFC').replace(/[^\x20-\x7e\xa0-\xff]/g, '?').replace(/([\\()])/g, '\\$1');
 const num = (n) => (Math.round(n * 100) / 100).toString();
+const p2 = (n) => String(n).padStart(2, '0');
 
-// The date as signatures show it: 2026.10.29 15:11:05 +08'00'
+// The date on the mark: 2026.10.29 15:11 (the exact time is in the signature itself).
 export function stampDate(d = new Date()) {
-  const p = (n) => String(n).padStart(2, '0');
-  const off = -d.getTimezoneOffset();
-  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${off >= 0 ? '+' : '-'}${p(Math.floor(Math.abs(off) / 60))}'${p(Math.abs(off) % 60)}'`;
+  return `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+const pdfDate = (d) => `D:${d.getUTCFullYear()}${p2(d.getUTCMonth() + 1)}${p2(d.getUTCDate())}${p2(d.getUTCHours())}${p2(d.getUTCMinutes())}${p2(d.getUTCSeconds())}Z`;
+
+// The appearance of a visible signature: the mark, and the text beside it (wide box) or below.
+function appearance({ w, h, image, lines }) {
+  const wide = w / h >= 2.2;
+  const text = lines.filter(Boolean);
+  const longest = Math.max(1, ...text.map((l) => l.length));
+  // The lines fit the height they have and (Helvetica ~0.55 em per character) the width.
+  const fs = Math.max(3, Math.min(8, (wide ? h : h * 0.36) / (text.length * 1.25 || 1), ((wide ? w * 0.5 : w) - 2) / (longest * 0.55)));
+  const area = wide ? { x: 0, y: 0, w: w * 0.48, h } : { x: 0, y: text.length * fs * 1.25, w, h: h - text.length * fs * 1.25 };
+  const k = Math.min(area.w / image.width, area.h / image.height);
+  const iw = image.width * k;
+  const ih = image.height * k;
+  const tx = wide ? w * 0.5 : 1;
+  const top = wide ? (h + text.length * fs * 1.25) / 2 - fs : text.length * fs * 1.25 - fs;
+  return `q ${num(iw)} 0 0 ${num(ih)} ${num(area.x + (area.w - iw) / 2)} ${num(area.y + (area.h - ih) / 2)} cm /Im1 Do Q\n0 0 0.35 rg\n${
+    text.map((l, i) => `BT /F1 ${num(fs)} Tf ${num(tx)} ${num(top - i * fs * 1.25)} Td (${pdfText(l)}) Tj ET`).join('\n')}\n`;
 }
 
-// image: { width, height, rgb (width*height*3 bytes), alpha (width*height bytes, optional) }
-// rect: [x1, y1, x2, y2] in PDF points on page `page` (0 = first page); lines: text under/next to it.
-export async function addSignatureMark(pdfBytes, { page = 0, rect, image, lines = [] }) {
+// Adds an empty signature field (the placeholder @signpdf fills in). mark: { page, rect, image,
+// lines } for a visible signature; without it the signature is invisible (on the first page).
+export async function addSignatureField(pdfBytes, { reason = '', location = '', name = '', contactInfo = '', mark = null, signatureLength = 16384, at = new Date() } = {}) {
   if (!globalThis.Buffer) globalThis.Buffer = Buffer;
   fixBufferLastIndexOf(globalThis.Buffer);
   const B = globalThis.Buffer;
@@ -262,72 +283,74 @@ export async function addSignatureMark(pdfBytes, { page = 0, rect, image, lines 
     import('@signpdf/placeholder-plain/dist/getPagesDictionaryRef.js'),
   ])).map(def);
   const pdf = B.from(pdfBytes);
+  const cannot = (why) => new Error(`DMS cannot add a signature to this PDF (${why}). Download it and sign it in Adobe Acrobat instead.`);
   let info;
-  try {
-    info = readPdf(pdf);
-  } catch (e) {
-    throw new Error(`DMS cannot add your signature mark to this PDF (${e.message}). Sign without the mark, or in Adobe Acrobat.`);
-  }
-  const kids = findObject(pdf, info.xref, getPagesDictionaryRef(info)).toString().match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
-  const pageRef = kids[page];
-  if (!pageRef) throw new Error('That page is not in the PDF.');
-  const pageDict = findObject(pdf, info.xref, pageRef).toString();
-  if (/\/Annots\s+\d+\s+\d+\s+R/.test(pageDict)) throw new Error('DMS cannot place a mark on this page. Sign without the mark, or in Adobe Acrobat.');
-  const pageIndex = Number(pageRef.split(/\s+/)[0]);
+  try { info = readPdf(pdf); } catch (e) { throw cannot(e.message); }
+  const obj = (ref) => findObject(pdf, info.xref, ref).toString();
+  const idOf = (ref) => Number(String(ref).trim().split(/\s+/)[0]);
 
-  const [x1, y1, x2, y2] = rect;
-  const w = x2 - x1;
-  const h = y2 - y1;
+  const kids = obj(getPagesDictionaryRef(info)).match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
+  const pageRef = kids[mark ? mark.page : 0];
+  if (!pageRef) throw cannot('page not found');
+  const pageDict = obj(pageRef);
+  if (/\/Annots\s+\d+\s+\d+\s+R/.test(pageDict)) throw cannot('page annotations in a separate object');
+  const root = info.root;
+  const acroRef = root.match(/\/AcroForm\s+(\d+\s+\d+\s+R)/)?.[1];
+  if (!acroRef && /\/AcroForm\s*<</.test(root)) throw cannot('form inside the catalog');
+  const acroDict = acroRef ? obj(acroRef) : '';
+  const fields = acroDict.match(/\/Fields\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
+
   let next = info.xref.maxIndex + 1;
-  const ids = { img: next++, smask: image.alpha ? next++ : null, form: next++, annot: next++ };
-
-  // Layout: a wide box puts the mark on the left and the text on the right (as Acrobat does);
-  // otherwise the mark on top and the text below.
-  const wide = w / h >= 2.2;
-  const textLines = lines.filter(Boolean);
-  // Font size: the lines fit the height they have and (Helvetica ~0.55 em per character) the width.
-  const longest = Math.max(1, ...textLines.map((l) => l.length));
-  const fs = Math.max(3.5, Math.min(8, (wide ? h : h * 0.36) / (textLines.length * 1.25 || 1), ((wide ? w * 0.5 : w) - 2) / (longest * 0.55)));
-  const area = wide ? { x: 0, y: 0, w: w * 0.48, h } : { x: 0, y: textLines.length * fs * 1.25, w, h: h - textLines.length * fs * 1.25 };
-  const k = Math.min(area.w / image.width, area.h / image.height);
-  const iw = image.width * k;
-  const ih = image.height * k;
-  const ix = area.x + (area.w - iw) / 2;
-  const iy = area.y + (area.h - ih) / 2;
-  const tx = wide ? w * 0.5 : 1;
-  const top = wide ? (h + textLines.length * fs * 1.25) / 2 - fs : textLines.length * fs * 1.25 - fs;
-  const text = textLines.map((l, i) => `BT /F1 ${num(fs)} Tf ${num(tx)} ${num(top - i * fs * 1.25)} Td (${pdfText(l)}) Tj ET`).join('\n');
-  const content = `q ${num(iw)} 0 0 ${num(ih)} ${num(ix)} ${num(iy)} cm /Im1 Do Q\n0 0 0.35 rg\n${text}\n`;
+  const ids = {
+    img: mark ? next++ : null, smask: mark?.image.alpha ? next++ : null, form: mark ? next++ : null,
+    sig: next++, widget: next++, acro: acroRef ? idOf(acroRef) : next++,
+  };
+  const rect = mark ? mark.rect : [0, 0, 0, 0];
 
   const chunks = [B.from('\n')];
-  let at = pdf.length + 1;
+  let pos = pdf.length + 1;
   const offsets = [];
   const put = (id, head, stream) => {
-    offsets.push([id, at]);
+    offsets.push([id, pos]);
     const parts = stream
       ? [B.from(`${id} 0 obj\n${head}\nstream\n`, 'latin1'), B.from(stream), B.from('\nendstream\nendobj\n')]
       : [B.from(`${id} 0 obj\n${head}\nendobj\n`, 'latin1')];
-    for (const p of parts) { chunks.push(p); at += p.length; }
+    for (const part of parts) { chunks.push(part); pos += part.length; }
   };
-  const rgb = await deflate(image.rgb);
-  put(ids.img, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode${ids.smask ? ` /SMask ${ids.smask} 0 R` : ''} /Length ${rgb.length} >>`, rgb);
-  if (ids.smask) {
-    const a = await deflate(image.alpha);
-    put(ids.smask, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${a.length} >>`, a);
-  }
-  const body = B.from(content, 'latin1');
-  put(ids.form, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /XObject << /Im1 ${ids.img} 0 R >> /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
-  // Flags 4 + 128 + 512: printed, locked, contents locked.
-  put(ids.annot, `<< /Type /Annot /Subtype /Stamp /Name /DMSSignatureMark /Rect [${[x1, y1, x2, y2].map(num).join(' ')}] /F 644 /P ${pageRef} /AP << /N ${ids.form} 0 R >> /Contents (${pdfText(textLines.join(' '))}) >>`);
-  const annots = /\/Annots\s*\[/.test(pageDict)
-    ? pageDict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${ids.annot} 0 R]`)
-    : `${pageDict}\n/Annots [${ids.annot} 0 R]`;
-  put(pageIndex, `<<\n${annots.trim()}\n>>`);
 
-  const xrefAt = at;
-  const rows = offsets.sort((a, b) => a[0] - b[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
+  if (mark) {
+    const { image } = mark;
+    const w = rect[2] - rect[0];
+    const h = rect[3] - rect[1];
+    const rgb = await deflate(image.rgb);
+    put(ids.img, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode${ids.smask ? ` /SMask ${ids.smask} 0 R` : ''} /Length ${rgb.length} >>`, rgb);
+    if (ids.smask) {
+      const alpha = await deflate(image.alpha);
+      put(ids.smask, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${alpha.length} >>`, alpha);
+    }
+    const body = B.from(appearance({ w, h, image, lines: mark.lines || [] }), 'latin1');
+    put(ids.form, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /XObject << /Im1 ${ids.img} 0 R >> /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
+  }
+  // The signature value: @signpdf replaces the ByteRange and fills Contents (it looks for the
+  // ByteRange placeholder, then the /Contents after it).
+  put(ids.sig, `<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /ByteRange [0 /********** /********** /**********] /Contents <${'0'.repeat(signatureLength * 2)}> /Reason (${pdfText(reason)}) /M (${pdfDate(at)}) /ContactInfo (${pdfText(contactInfo)}) /Name (${pdfText(name)}) /Location (${pdfText(location)}) /Prop_Build << /App << /Name /Candoni.DMS >> >> >>`);
+  // The field and its widget (flags 4 + 128: printed, locked).
+  put(ids.widget, `<< /Type /Annot /Subtype /Widget /FT /Sig /T (Signature${fields.length + 1}) /V ${ids.sig} 0 R /Rect [${rect.map(num).join(' ')}] /F 132 /P ${pageRef}${mark ? ` /AP << /N ${ids.form} 0 R >>` : ''} >>`);
+  const fieldsArr = `/Fields [${[...fields, `${ids.widget} 0 R`].join(' ')}]`;
+  const acro = acroDict
+    ? (/\/Fields\s*\[/.test(acroDict) ? acroDict.replace(/\/Fields\s*\[[^\]]*\]/, fieldsArr) : `${acroDict}\n${fieldsArr}`)
+    : `/Type /AcroForm\n${fieldsArr}`;
+  put(ids.acro, `<<\n${(/\/SigFlags/.test(acro) ? acro.replace(/\/SigFlags\s+\d+/, '/SigFlags 3') : `${acro}\n/SigFlags 3`).trim()}\n>>`);
+  if (!acroRef) put(idOf(info.rootRef), `<<\n${root.trim()}\n/AcroForm ${ids.acro} 0 R\n>>`);
+  const annots = /\/Annots\s*\[/.test(pageDict)
+    ? pageDict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${ids.widget} 0 R]`)
+    : `${pageDict}\n/Annots [${ids.widget} 0 R]`;
+  put(idOf(pageRef), `<<\n${annots.trim()}\n>>`);
+
+  const xrefAt = pos;
+  const rows = offsets.sort((x, y) => x[0] - y[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
   chunks.push(B.from(`xref\n0 1\n0000000000 65535 f \n${rows}trailer\n<<\n/Size ${next}\n/Root ${info.rootRef}\n${info.infoRef ? `/Info ${info.infoRef}\n` : ''}/Prev ${info.xRefPosition}\n>>\nstartxref\n${xrefAt}\n%%EOF\n`, 'latin1'));
-  return new Uint8Array(B.concat([pdf, ...chunks]));
+  return B.concat([pdf, ...chunks]);
 }
 
 // Everything a reader needs to trust a signed PDF: every signature checked, and whether anything

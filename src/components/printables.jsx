@@ -33,8 +33,7 @@ export async function documentPdf(type, d, settings, onStep = () => {}) {
     parts.push(await renderPages(checklistElement(checklist, d, settings), 'A4', 'portrait'));
   }
   onStep('Making the PDF…');
-  const footer = `${d.controlNo} · Digitally signed document. Verify it at ${window.location.origin}/verify`;
-  return makePdf(parts, { title: `${d.typeName} ${d.controlNo}`, author: d.createdByName, footer });
+  return makePdf(parts, { title: `${d.typeName} ${d.controlNo}`, author: d.createdByName });
 }
 
 // File name of the document's PDF: Fund_Payee_Checklist No._Type_Control No.

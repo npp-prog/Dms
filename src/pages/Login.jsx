@@ -120,7 +120,6 @@ export default function Login() {
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('register')}>Create an account</button>}
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('reset')}>Forgot password?</button>}
           </div>
-          <p className="small verify-link">Received a signed PDF from DMS? <a href="/verify">Verify a document</a> (no sign-in needed).</p>
           <p className="xs muted" style={{ marginTop: '2rem' }}>For official use of the Municipal Government of Candoni. Personal information is processed under the Data Privacy Act of 2012 (RA 10173).</p>
         </div>
       </section>
