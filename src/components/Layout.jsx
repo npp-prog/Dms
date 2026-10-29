@@ -43,44 +43,63 @@ export default function Layout() {
     },
   ].filter(Boolean);
 
+  // The page name in the header: the menu item the page belongs to.
+  const titles = [
+    ...groups.flatMap((g) => g.items.map(([to, , label]) => [to, label])),
+    ['/upload', 'Upload Document'], ['/formats', 'Document Types'], ['/admin/checklists', 'Checklists'],
+  ];
+  const path = location.pathname;
+  const title = path === '/' ? 'Dashboard'
+    : titles.filter(([to]) => to !== '/' && (path === to || path.startsWith(`${to}/`))).sort((a, b) => b[0].length - a[0].length)[0]?.[1] || 'DMS';
+
+  // The panel button hides the menu (remembered on this device); on a phone it opens it.
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem('dms-side') === 'hidden'; } catch { return false; } });
+  const togglePanel = () => {
+    if (window.matchMedia('(max-width: 900px)').matches) { setOpen(!open); return; }
+    setHidden(!hidden);
+    try { localStorage.setItem('dms-side', hidden ? 'shown' : 'hidden'); } catch { /* not remembered */ }
+  };
+  const name = profile?.displayName || profile?.email;
+
   return (
-    <div className={open ? 'nav-open' : ''}>
-      <header className="topbar">
-        <button className="icon-btn menu-btn" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <Icon name="menu" />
-        </button>
-        <img className="seal" src="/municipal-seal.png" alt="" />
-        <div className="brand">
-          <b>DMS</b>
-          <span>Document Management System · {settings.lguName || 'Municipal Government of Candoni'}</span>
-        </div>
-        <div className="spacer" />
-        <Link to="/profile" className="me" title="My Profile">
-          <Avatar name={profile?.displayName || profile?.email} size="sm" />
-          <div className="who">
-            <div>{profile?.displayName}</div>
-            <div className="role">{ROLE_NAMES[profile?.role] || profile?.role}</div>
-          </div>
+    <div className={`shell${open ? ' nav-open' : ''}${hidden ? ' side-hidden' : ''}`}>
+      <nav className="side" aria-label="Main">
+        <Link to="/" className="side-brand">
+          <img className="seal" src="/municipal-seal.png" alt="" />
+          <span><b>DMS</b><small>{settings.lguName || 'Municipal Government of Candoni'}</small></span>
         </Link>
-        <button className="icon-btn" title="Log out" onClick={logout}>
-          <Icon name="logout" /><span className="lo-txt">Log out</span>
-        </button>
-      </header>
-      <div className="layout">
-        <nav className="side" aria-label="Main">
-          {groups.map((g, gi) => (
-            <div key={gi}>
-              {g.label && <div className="group">{g.label}</div>}
-              {g.items.map(([to, icon, label, end, count]) => (
-                <NavLink key={to} to={to} end={end}>
-                  <Icon name={icon} className="nav-ic" /><span className="lbl">{label}</span>
-                  {count > 0 && <span className="count">{count}</span>}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="scrim" onClick={() => setOpen(false)} />
+        {groups.map((g, gi) => (
+          <div key={gi}>
+            {g.label && <div className="group">{g.label}</div>}
+            {g.items.map(([to, icon, label, end, count]) => (
+              <NavLink key={to} to={to} end={end}>
+                <Icon name={icon} className="nav-ic" /><span className="lbl">{label}</span>
+                {count > 0 && <span className="count">{count}</span>}
+              </NavLink>
+            ))}
+          </div>
+        ))}
+        <div className="side-foot">Document Management System</div>
+      </nav>
+      <div className="scrim" onClick={() => setOpen(false)} />
+      <div className="shell-main">
+        <header className="topbar">
+          <button className="icon-btn panel-btn" aria-label="Show or hide the menu" aria-expanded={open || !hidden} onClick={togglePanel}>
+            <Icon name="panel" />
+          </button>
+          <span className="top-title">{title}</span>
+          <div className="spacer" />
+          <Link to="/profile" className="pill-btn hide-sm" title="My Profile">{ROLE_NAMES[profile?.role] || profile?.role}</Link>
+          <button className="pill-btn" title="Log out" onClick={logout}>
+            <Icon name="logout" /><span className="lo-txt">Log out</span>
+          </button>
+          <Link to="/inbox" className="square-btn" title={waiting ? `${waiting} waiting in your inbox` : 'Inbox'}>
+            <Icon name="bell" />{waiting > 0 && <span className="dot" />}
+          </Link>
+          <Link to="/profile" className="me" title={`${name} · My Profile`}>
+            <Avatar name={name} size="sm" />
+          </Link>
+        </header>
         <main className="main">
           <BackButton />
           <Outlet />
