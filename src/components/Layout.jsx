@@ -24,11 +24,11 @@ export default function Layout() {
     {
       label: 'Documents',
       items: [
+        ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/inbox', 'inbox', 'Inbox', false, waiting],
         ['/formats', 'formats', 'Document Formats'],
         ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],
-        ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
       ],
     },
     { label: 'Account', items: [['/profile', 'user', 'My Profile']] },
