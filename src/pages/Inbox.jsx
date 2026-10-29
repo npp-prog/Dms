@@ -59,9 +59,11 @@ export default function Inbox() {
                     <td>{d.typeCode}</td>
                     <td>{d.title}</td>
                     <td className="small">{d.office || d.createdByName}</td>
-                    {!office && <td className="small">{officeOf(step, d) || 'Requesting office'}</td>}
-                    <td className="small">{step.action}</td>
-                    <td>{wf.received
+                    {!office && <td className="small">{wf.referral ? `${wf.referral.name} (referred)` : officeOf(step, d) || 'Requesting office'}</td>}
+                    <td className="small">{wf.referral
+                      ? <><span className="badge badge-blue">Referred{wf.referral.uid === user.uid ? ' to you' : ''}</span> by {wf.referral.by}{wf.referral.note && <> — <i>{wf.referral.note}</i></>}</>
+                      : step.action}</td>
+                    <td>{(wf.referral ? wf.referral.received : wf.received)
                       ? <span className="badge badge-blue">Received</span>
                       : <span className="badge badge-yellow">{wf.events.at(-1)?.type === 'returned' ? 'Returned' : 'To receive'}</span>}</td>
                     <td className="small">{since(d.updatedAt)}</td>

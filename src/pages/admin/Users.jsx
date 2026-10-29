@@ -27,7 +27,8 @@ export default function Users() {
           <h1>Users</h1>
           <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees the documents they prepared and
             those waiting in their office; the <b>office head</b> sees every document of the office. Only the superadmin can grant admin
-            rights. The list of offices is in Settings.</p>
+            rights. A user who <b>may route documents to any person</b> can send a document they hold to any active user outside its route
+            (admins always can). The list of offices is in Settings.</p>
         </div>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All users</option>
@@ -60,6 +61,12 @@ export default function Users() {
                         Office head (sees all documents of the office)
                       </label>
                     ) : u.head && <div className="small"><span className="badge badge-blue">Office head</span></div>)}
+                    {u.role === 'user' && (canManage(u) ? (
+                      <label className="check small head-check">
+                        <input type="checkbox" checked={Boolean(u.canRefer)} onChange={(e) => change(u, { canRefer: e.target.checked })} />
+                        May route documents to any person
+                      </label>
+                    ) : u.canRefer && <div className="small"><span className="badge badge-blue">Routes to any person</span></div>)}
                   </td>
                   <td>
                     {isSuper && u.id !== me.uid ? (

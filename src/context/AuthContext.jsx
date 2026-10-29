@@ -72,6 +72,9 @@ export function AuthProvider({ children }) {
     isSuper: profile?.active && profile.role === 'superadmin',
     // The office head sees every document of the office (Users > Office head).
     isHead: Boolean(profile?.active && profile.office && profile.head),
+    // May refer a document they hold to any active user outside its route (Users > May route to
+    // any person); admins always may.
+    canRefer: Boolean(profile?.active && (['admin', 'superadmin'].includes(profile.role) || profile.canRefer)),
     // Saves changes to the user's own profile (e.g. their name) and shows them at once.
     updateMyProfile: async (patch) => {
       await updateUser(user.uid, patch);

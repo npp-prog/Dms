@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { routeFromGuide } from '../../lib/workflow.js';
@@ -63,7 +62,9 @@ function Routes() {
           <button key={t.id} type="button" className={t.id === selected ? 'active' : ''} onClick={() => setSelected(t.id)}>
             <span className="code">{t.code}</span>
             <span className="t">{t.name}
-              <span className="small muted">{t.route?.length ? `${t.route.length} steps` : 'From the processing guide'}{t.active === false ? ' · inactive' : ''}</span>
+              {(t.route?.length > 0 || t.altRoutes?.length > 0 || t.active === false) && (
+                <span className="small muted">{[t.route?.length && `${t.route.length} steps`, t.altRoutes?.length && `${t.altRoutes.length + 1} routes`, t.active === false && 'inactive'].filter(Boolean).join(' · ')}</span>
+              )}
             </span>
           </button>
         ))}
@@ -75,12 +76,29 @@ function Routes() {
 
 function RouteEditor({ type, offices, actor, onSaved }) {
   const guide = useMemo(() => routeFromGuide(type, offices), [type, offices]);
-  const saved = useMemo(() => clean(type.route?.length ? type.route : guide), [type, guide]);
-  const [route, setRoute] = useState(saved);
+  // The main route and any alternate routes (the preparer chooses one); one is edited at a time.
+  const savedAll = useMemo(() => [
+    { id: 'main', name: type.routeName || '', steps: clean(type.route?.length ? type.route : guide) },
+    ...(type.altRoutes || []).map((r) => ({ id: r.id, name: r.name || '', steps: clean(r.steps || []) })),
+  ], [type, guide]);
+  const [routes, setRoutes] = useState(savedAll);
+  const [cur, setCur] = useState(0);
+  const route = routes[cur].steps;
+  const setRoute = (steps) => setRoutes(routes.map((r, i) => (i === cur ? { ...r, steps } : r)));
+  const saved = savedAll[cur]?.steps || [];
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const custom = Boolean(type.route?.length);
-  const dirty = !same(clean(route), saved) || !custom;
+  const dirty = !same(routes.map((r) => ({ ...r, steps: clean(r.steps) })), savedAll) || !custom;
+  const routeLabel = (r, i) => r.name || (i === 0 ? 'Main route' : `Alternate route ${i}`);
+  const addAlternate = () => {
+    setRoutes([...routes, { id: '', name: '', steps: clean(routes[0].steps) }]);
+    setCur(routes.length); setOpen(null);
+  };
+  const removeAlternate = () => {
+    if (!window.confirm(`Remove ${routeLabel(routes[cur], cur)}?`)) return;
+    setRoutes(routes.filter((_, i) => i !== cur)); setCur(0); setOpen(null);
+  };
 
   // Offices in Settings, plus any office a step names that is not (or no longer) in the list.
   // The type's fields that can take a reference no. and its date; a sensible first choice.
@@ -90,12 +108,6 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     const field = textFields.find((f) => f.filledBy === 'accounting' && /no\.?$/i.test(f.label)) || textFields.find((f) => /no\.?/i.test(f.label)) || textFields[0];
     const date = dateFields.find((f) => f.filledBy === 'accounting') || null;
     return { field: field?.key || '', dateField: date?.key || '', pattern: DEFAULT_REF_PATTERN };
-  };
-  // Fields an office can fill in at its step: those not typed by the preparer first.
-  const fillable = (type.fields || []).filter((f) => ['text', 'date', 'select', 'number', 'currency'].includes(f.type) && !f.compute);
-  const suggestFills = () => {
-    const office = fillable.filter((f) => f.filledBy && f.filledBy !== 'accounting').map((f) => f.key);
-    return office.length ? office : [];
   };
   // One step open for editing at a time; the others show as one-line summaries.
   const [open, setOpen] = useState(null);
@@ -109,18 +121,21 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     setOpen((o) => (o === i ? i + d : o === i + d ? i : o));
   };
   const problems = [
-    !route.length && 'Add at least one step.',
+    routes.some((r) => !r.steps.length) && 'Every route needs at least one step.',
+    routes.length > 1 && routes.some((r, i) => i > 0 && !r.name.trim()) && 'Name each alternate route (e.g. "With BAC", "Below ₱50,000"), so the preparer knows which to choose.',
     route.some((s) => !s.action.trim()) && 'Every step needs an action (what the office does).',
     route.some((s, i) => i > 0 && s.office === route[i - 1].office) && 'Two steps in a row are in the same office: merge them into one step.',
     route.some((s) => s.office && !offices.includes(s.office)) && 'A step names an office that is not in Settings: users of that office will not receive it.',
   ].filter(Boolean);
-  const blocking = !route.length || route.some((s) => !s.action.trim());
+  const blocking = routes.some((r) => !r.steps.length || r.steps.some((s) => !s.action.trim()));
 
   const save = async () => {
     setBusy(true); setMsg(null);
     try {
-      await saveRoute(type.id, route, actor);
-      setMsg({ ok: true, text: `Saved. New ${type.code} documents follow this route; documents already on their way keep theirs.` });
+      await saveRoute(type.id, routes[0].steps, actor, { routeName: routes[0].name, altRoutes: routes.slice(1) });
+      setMsg({ ok: true, text: routes.length > 1
+        ? `Saved. The preparer of a new ${type.code} chooses one of its ${routes.length} routes; documents already on their way keep theirs.`
+        : `Saved. New ${type.code} documents follow this route; documents already on their way keep theirs.` });
       onSaved();
     } catch (e) {
       setMsg({ ok: false, text: e.message });
@@ -136,9 +151,28 @@ function RouteEditor({ type, offices, actor, onSaved }) {
           <h3>{type.code} — {type.name}</h3>
           <p className="small muted">{custom
             ? `Route set by ${type.routeUpdatedBy || 'an admin'}.`
-            : <>No route set yet: documents follow the steps of <Link to={`/admin/types/${type.id}`}>its processing guide</Link>. Adjust them below and save.</>}</p>
+            : 'No route saved yet. Adjust the steps below and save.'}</p>
         </div>
       </div>
+
+      <div className="route-tabs" role="tablist" aria-label="Routes">
+        {routes.map((r, i) => (
+          <button key={i} type="button" role="tab" aria-selected={i === cur} className={i === cur ? 'active' : ''}
+            onClick={() => { setCur(i); setOpen(null); }}>{routeLabel(r, i)}</button>
+        ))}
+        <button type="button" className="add" onClick={addAlternate} title="Another route the preparer can choose instead">+ Alternate route</button>
+      </div>
+      {routes.length > 1 && (
+        <div className="route-name row gap wrap">
+          <label className="field">
+            <span className="field-label">Route name (shown to the preparer)</span>
+            <input value={routes[cur].name} placeholder={cur === 0 ? 'Main route' : 'e.g. With BAC, Below ₱50,000'}
+              onChange={(e) => setRoutes(routes.map((r, i) => (i === cur ? { ...r, name: e.target.value } : r)))} />
+          </label>
+          {cur > 0 && <button type="button" className="btn btn-danger btn-sm" onClick={removeAlternate}>Remove this route</button>}
+        </div>
+      )}
+      {routes.length > 1 && <p className="small muted">The preparer chooses which route the document follows before releasing it.</p>}
 
       <div className="route-chain" aria-label="Route preview">
         {route.map((s, i) => (
@@ -184,7 +218,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
               <label className="check">
                 <input type="checkbox" checked={Boolean(s.assign)} disabled={!textFields.length}
                   onChange={(e) => set(i, { assign: e.target.checked ? suggestAssign() : undefined })} />
-                Assigns a reference no. when it receives the document (e.g. the DV No.)
+                Assigns a reference no. when it receives the document
               </label>
               {s.assign && (
                 <div className="assign-fields">
@@ -211,33 +245,6 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                   </label>
                 </div>
               )}
-              <label className="check">
-                <input type="checkbox" checked={Boolean(s.fills)} disabled={!fillable.length}
-                  onChange={(e) => set(i, { fills: e.target.checked ? suggestFills() : undefined })} />
-                Fills in details before releasing (e.g. Check/ADA No., date and bank)
-              </label>
-              {s.fills && (
-                <div className="assign-fields fill-fields">
-                  {fillable.map((f) => (
-                    <label key={f.key} className="check">
-                      <input type="checkbox" checked={s.fills.includes(f.key)}
-                        onChange={(e) => set(i, { fills: e.target.checked ? [...s.fills, f.key] : s.fills.filter((k) => k !== f.key) })} />
-                      {f.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-              <label className="check">
-                <input type="checkbox" checked={s.upload !== undefined}
-                  onChange={(e) => set(i, { upload: e.target.checked ? 'DV signed by the payee in Box E (scanned)' : undefined })} />
-                Must upload a file before releasing (e.g. the DV signed by the payee in Box E)
-              </label>
-              {s.upload !== undefined && (
-                <label className="field assign-fields">
-                  <span className="field-label">What to upload</span>
-                  <input value={s.upload} onChange={(e) => set(i, { upload: e.target.value })} placeholder="e.g. DV signed by the payee in Box E (scanned)" />
-                </label>
-              )}
             </div>
             )}
             <div className="route-tools">
@@ -253,8 +260,8 @@ function RouteEditor({ type, offices, actor, onSaved }) {
       {problems.length > 0 && <ul className="route-problems small">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       {msg && <div className={msg.ok ? 'alert alert-ok' : 'alert'}>{msg.text}</div>}
       <div className="row gap wrap route-actions">
-        <button className="btn btn-primary" disabled={busy || blocking || !dirty} onClick={save}>{busy ? 'Saving…' : custom ? 'Save route' : 'Save as the route'}</button>
-        {!same(clean(route), saved) && <button className="btn btn-ghost" onClick={() => setRoute(saved)}>Undo changes</button>}
+        <button className="btn btn-primary" disabled={busy || blocking || !dirty} onClick={save}>{busy ? 'Saving…' : routes.length > 1 ? 'Save routes' : custom ? 'Save route' : 'Save as the route'}</button>
+        {custom && dirty && <button className="btn btn-ghost" onClick={() => { setRoutes(savedAll); setCur(0); setOpen(null); }}>Undo changes</button>}
         {!same(clean(route), guide) && <button className="btn btn-ghost" onClick={() => setRoute(guide)}>Start from the processing guide</button>}
       </div>
     </section>

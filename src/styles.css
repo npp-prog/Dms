@@ -776,6 +776,29 @@ button.stat.active::before { background: var(--primary); }
 .route-types button.active { background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--gold); }
 .route-types .code { flex: none; min-width: 4.2rem; font-weight: 700; color: var(--ink); font-size: .85rem; }
 .route-types .t { display: grid; font-size: .9rem; line-height: 1.3; }
+.route-tabs { display: flex; flex-wrap: wrap; gap: .3rem; margin: .1rem 0 .8rem; border-bottom: 1px solid var(--line); }
+.route-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: .45rem .7rem; margin-bottom: -1px; font-size: .9rem; font-weight: 500; color: var(--muted); }
+.route-tabs button.active { color: var(--ink); border-bottom-color: var(--ink); }
+.route-tabs button:hover { color: var(--ink); }
+.route-tabs .add { color: var(--primary); }
+.route-name { align-items: flex-end; margin-bottom: .4rem; }
+.route-name .field { flex: 1 1 260px; margin: 0; }
+/* Document page: the preparer's route choice; referring a document to a person. */
+.route-choice { margin: .2rem 0 .9rem; padding: .8rem; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: .5rem; }
+.route-choice.needed { border-color: #f0c36d; background: #fffbeb; }
+.route-options { display: grid; gap: .4rem; }
+.route-option { display: flex; gap: .55rem; align-items: flex-start; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
+.route-option.on { border-color: var(--ink); }
+.route-option input { margin-top: .25rem; width: auto; }
+.route-option > span { display: grid; gap: .1rem; }
+.refer-panel { display: grid; gap: .6rem; }
+.person-picker { position: relative; }
+.person-picker ul { list-style: none; margin: .3rem 0 0; padding: .25rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow); max-height: 260px; overflow: auto; }
+.person-picker li button { display: grid; width: 100%; text-align: left; background: none; border: 0; padding: .45rem .55rem; border-radius: 8px; }
+.person-picker li button:hover { background: var(--hover); }
+.person-picker li.none { padding: .45rem .55rem; }
+.person-chosen { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 10px; }
+.person-chosen > span { display: grid; }
 .route-chain { display: flex; flex-wrap: wrap; gap: .35rem; margin: .2rem 0 1rem; }
 .route-chip { display: inline-flex; gap: .35rem; align-items: center; padding: .25rem .6rem; border-radius: 999px; background: var(--sunken); font-size: .8rem; color: var(--ink); }
 .route-chip b { color: var(--primary); }

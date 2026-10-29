@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, fillsMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, availableActions, buildWorkflow, canAct, chooseRoute, fillsMissing, referDocument, resolveOffice, routeFromGuide, routeSteps, routesOf, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -325,4 +325,57 @@ test('reference numbers from a pattern', () => {
   assert.notEqual(refNumber('{FUND}-{YYYY}-{MM}-{####}', { fund: 'Special Education Fund', date: oct }).counterId, dv.counterId);
   assert.equal(refNumber('101-{YY}-{MM}-{###}', { date: oct }).format(7), '101-26-10-007');
   assert.equal(refNumber('TO-{YYYY}', { date: oct }).format(3), 'TO-2026-0003'); // no series token: one is added
+});
+
+test('alternate routes: the preparer chooses one before releasing', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const type = {
+    code: 'PR', routeName: 'Regular',
+    route: [{ office: '', action: 'Prepare' }, { office: 'Municipal Budget Office', action: 'Certify' }],
+    altRoutes: [{ id: 'bac', name: 'With BAC', steps: [{ office: '', action: 'Prepare' }, { office: 'General Services Office', action: 'BAC' }, { office: 'Municipal Budget Office', action: 'Certify' }] }],
+  };
+  assert.deepEqual(routesOf(type, offices).map((r) => r.name), ['Regular', 'With BAC']);
+  const user = { uid: 'u1', displayName: 'Juan' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, user, 't0') };
+  assert.equal(doc.workflow.route.choose, true);
+  assert.throws(() => applyAction(doc, 'release', user), /Choose the route/);
+  doc = { ...doc, ...chooseRoute(doc, routesOf(type, offices)[1], offices, user, 't1') };
+  assert.equal(doc.workflow.steps.length, 3);
+  assert.equal(doc.workflow.route.name, 'With BAC');
+  doc = { ...doc, ...applyAction(doc, 'release', user, '', 't2') };
+  assert.equal(doc.currentOffice, 'General Services Office');
+  assert.throws(() => chooseRoute(doc, routesOf(type, offices)[0], offices, user), /before the document is first released/);
+  // A type without alternates: nothing to choose.
+  assert.equal(buildWorkflow({ route: type.route }, doc, offices, user).workflow.route, undefined);
+});
+
+test('referring a document to a person outside the route', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const type = { route: [{ office: '', action: 'Prepare' }, { office: 'Municipal Accounting Office', action: 'Pre-audit', sign: true }, { office: 'Office of the Municipal Mayor', action: 'Approve' }] };
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  const ana = { uid: 'a1', displayName: 'Ana', office: 'Municipal Accounting Office' };
+  const legal = { uid: 'l1', displayName: 'Atty. Cruz', office: 'Legal Office', email: 'legal@x' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
+  assert.throws(() => referDocument(doc, legal, '', ana), /Receive the document/);
+  doc = { ...doc, ...applyAction(doc, 'receive', ana, '', 't2') };
+  doc = { ...doc, ...referDocument(doc, legal, 'Please review', ana, 't3') };
+  assert.equal(doc.currentOffice, 'person:l1');
+  assert.equal(doc.atPreparer, false);
+  assert.ok(canAct(doc, legal) && !canAct(doc, ana));
+  assert.deepEqual(availableActions(doc), ['receive']);
+  assert.equal(whereIs(doc), 'Atty. Cruz (referred, to receive)');
+  doc = { ...doc, ...applyAction(doc, 'receive', legal, '', 't4') };
+  assert.deepEqual(availableActions(doc), ['back']);
+  // A signature by the person referred to is not the step's own.
+  doc.pdf.files.push({ kind: 'signed', stage: 1, referral: true });
+  doc = { ...doc, ...applyAction(doc, 'back', legal, 'Reviewed', 't5') };
+  assert.equal(doc.workflow.referral, undefined);
+  assert.equal(doc.currentOffice, 'Municipal Accounting Office');
+  assert.equal(doc.workflow.stage, 1);
+  assert.ok(doc.workflow.received);
+  assert.equal(signatureMissing(doc), true);
+  assert.deepEqual(doc.workflow.events.slice(-3).map((e) => e.type), ['referred', 'referral received', 'referral back']);
 });

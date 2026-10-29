@@ -1,0 +1,44 @@
+import { useEffect, useState } from 'react';
+import { listDirectory } from '../lib/api.js';
+
+// Choose an active DMS user by name or email (from the directory of active users).
+export default function PersonPicker({ value, onChange, exclude = [], placeholder = 'Type a name or email…' }) {
+  const [people, setPeople] = useState(null);
+  const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  useEffect(() => { listDirectory().then(setPeople).catch((e) => setError(e.message)); }, []);
+
+  if (value) {
+    return (
+      <div className="person-chosen">
+        <span><b>{value.displayName || value.email}</b>
+          <span className="small muted">{[value.email, value.office].filter(Boolean).join(' · ')}</span></span>
+        <button type="button" className="link small" onClick={() => onChange(null)}>Change</button>
+      </div>
+    );
+  }
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = words.length
+    ? (people || []).filter((p) => !exclude.includes(p.uid)
+      && words.every((w) => `${p.displayName} ${p.email || ''} ${p.office}`.toLowerCase().includes(w))).slice(0, 8)
+    : [];
+  return (
+    <div className="person-picker">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={people ? placeholder : 'Loading…'} disabled={!people} />
+      {error && <div className="alert small">{error}</div>}
+      {words.length > 0 && people && (
+        <ul>
+          {matches.length === 0 && <li className="small muted none">No active user matches.</li>}
+          {matches.map((p) => (
+            <li key={p.uid}>
+              <button type="button" onClick={() => { onChange(p); setQ(''); }}>
+                <b>{p.displayName || p.email}</b>
+                <span className="small muted">{[p.email, p.office].filter(Boolean).join(' · ')}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

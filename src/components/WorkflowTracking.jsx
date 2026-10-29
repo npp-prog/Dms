@@ -5,13 +5,14 @@ import { listDocuments } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled' };
+const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Route chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
 
 // Where a routed document is: its state for the filters.
-export function stateOf(d, office) {
+export function stateOf(d, office, uid = '') {
   const wf = d.workflow;
   if (wf.state === 'done') return 'done';
   if (wf.state === 'cancelled') return 'cancelled';
+  if (wf.referral) return uid && wf.referral.uid === uid ? 'mine' : 'moving';
   if (office && officeOf(wf.steps[wf.stage], d) === office) return 'mine';
   if (wf.events.at(-1)?.type === 'returned') return 'returned';
   return 'moving';
@@ -45,7 +46,7 @@ export default function WorkflowTracking() {
       .catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, isHead]);
 
-  const rows = useMemo(() => (docs || []).map((d) => ({ d, state: stateOf(d, profile.office) })), [docs, profile.office]);
+  const rows = useMemo(() => (docs || []).map((d) => ({ d, state: stateOf(d, profile.office, user.uid) })), [docs, profile.office, user.uid]);
   const count = (fn) => rows.filter(fn).length;
   const views = trackingViews(profile.office);
   const offices = useMemo(() => [...new Set([...(settings.offices || []),
@@ -104,6 +105,7 @@ export default function WorkflowTracking() {
                         <>
                           <b>{officeOf(step, d) || 'Requesting office'}</b>
                           <div className="small">{step.action}</div>
+                          {wf.referral && <div className="small">Referred to <b>{wf.referral.name}</b></div>}
                           <span className={`badge ${state === 'mine' ? 'badge-blue' : last?.type === 'returned' ? 'badge-red' : wf.received ? 'badge-green' : 'badge-yellow'}`}>
                             {last?.type === 'returned' && !wf.received ? 'Returned' : wf.received ? 'Received' : 'To receive'}
                           </span>

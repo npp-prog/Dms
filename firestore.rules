@@ -69,8 +69,9 @@ service cloud.firestore {
         // Admin may approve/deactivate and edit regular users only.
         || (isAdmin() && request.auth.uid != uid
             && resource.data.role == 'user' && request.resource.data.role == 'user')
-        // Anyone may edit their own name (not their office or office head: they decide what they can see).
-        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head']))
+        // Anyone may edit their own name (not their office, office head or routing to any person:
+        // they decide what they can see and do).
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer']))
         // The owner becomes superadmin once their email is verified.
         || (request.auth.uid == uid && isOwnerEmail()
             && request.resource.data.role == 'superadmin' && request.resource.data.active == true
@@ -108,6 +109,22 @@ service cloud.firestore {
         return myOffice() != '' && holder() == myOffice()
           && resource.data.get('atPreparer', true) == false;
       }
+      // Referred by the office holding it to this user (outside the route): they receive it, act
+      // (e.g. sign) and send it back.
+      function referredToMe() {
+        return holder() == 'person:' + request.auth.uid;
+      }
+      // The office that referred it keeps seeing it while it is out (read only).
+      function referredByMyOffice() {
+        return myOffice() != '' && holder().matches('person:.*')
+          && resource.data.workflow.get('referral', {}).get('fromOffice', '') == myOffice();
+      }
+      // Referring a document to a person: admins, and users allowed to route to any person.
+      function referralAllowed() {
+        return !request.resource.data.get('currentOffice', '').matches('person:.*')
+          || resource.data.get('currentOffice', '').matches('person:.*')
+          || isAdmin() || profile().get('canRefer', false) == true;
+      }
       // The fields the current route step assigns on receiving (e.g. dvNo and dvDate) or fills in
       // (e.g. checkNo, checkDate, bankName), if any.
       function assignedKeys() {
@@ -124,7 +141,7 @@ service cloud.firestore {
         return unchanged(['workflow', 'currentOffice', 'routeOffices', 'atPreparer']);
       }
       allow read: if isActive()
-        && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees()
+        && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees() || referredToMe() || referredByMyOffice()
             // forwarded to this user
             || request.auth.uid in resource.data.get('sharedWith', []));
       allow create: if isActive()
@@ -132,7 +149,12 @@ service cloud.firestore {
         && request.resource.data.get('office', '') == myOffice();
       allow update: if isActive()
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
+        && referralAllowed()
         && (isAdmin()
+            // The person it is referred to receives it, signs its PDF and sends it back.
+            || (referredToMe()
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history']))
             // The preparer edits their document; its route only while it is with their office
             // (or before it is routed).
             || (resource.data.createdBy == request.auth.uid && resource.data.status != 'cancelled'
@@ -156,8 +178,9 @@ service cloud.firestore {
     match /directory/{uid} {
       allow read: if isActive();
       allow write: if isActive() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['displayName', 'office'])
-        && request.resource.data.office == myOffice();
+        && request.resource.data.keys().hasOnly(['displayName', 'office', 'email'])
+        && request.resource.data.office == myOffice()
+        && request.resource.data.get('email', '') in ['', request.auth.token.email];
     }
 
     // ---- Verification records ----

@@ -44,7 +44,7 @@ export default function Dashboard() {
   }, [user.uid, profile.office, isAdmin, isHead]);
 
   const mine = docs.filter((d) => d.createdBy === user.uid);
-  const routed = docs.filter((d) => d.workflow).map((d) => ({ d, state: stateOf(d, profile.office) }));
+  const routed = docs.filter((d) => d.workflow).map((d) => ({ d, state: stateOf(d, profile.office, user.uid) }));
   const count = (list, status) => list.filter((d) => d.status === status).length;
   const year = String(new Date().getFullYear());
   const thisYear = docs.filter((d) => String(d.createdAt?.toDate?.().getFullYear()) === year);

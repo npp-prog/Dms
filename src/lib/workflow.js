@@ -8,10 +8,15 @@
 //   received: whether the office holding it has received the paper,
 //   steps: [{ office (as in the guide), action, routedTo (office in Settings, or '' = preparer),
 //            sign (the office must sign the PDF before releasing it) }],
-//   events: [{ type: 'started' | 'received' | 'released' | 'returned' | 'completed' | 'cancelled',
-//              stage, office, by, uid, at, remarks }],
+//   events: [{ type: 'started' | 'received' | 'released' | 'returned' | 'completed' | 'cancelled'
+//              | 'route' | 'referred' | 'referral received' | 'referral back', stage, office, by, uid, at, remarks }],
+//   route: { id, name, choose } the route followed, when the type has alternate routes: the
+//          preparer chooses one (choose: true until they do) before releasing it,
+//   referral: { uid, name, office, fromOffice, by, byUid, at, note, received } while the document is
+//          with a person outside the route (referred by the office holding it); they send it back.
 // }
-// document.currentOffice: the office holding it (what the Inbox and the security rules use);
+// document.currentOffice: the office holding it (what the Inbox and the security rules use), or
+// 'person:<uid>' while it is referred to a person;
 // document.atPreparer: it is at a step of the preparer's office (only the preparer and the office
 // head see it then, not the preparer's colleagues);
 // document.routeOffices: every office on the route (their office heads can open the document).
@@ -59,10 +64,17 @@ export function routeFromGuide(type, offices = []) {
   }));
 }
 
-// The steps a new document of this type follows: the admin's route, else the processing guide.
-export function routeSteps(type, offices = []) {
-  const route = type?.route?.length ? type.route : routeFromGuide(type, offices);
-  return route.map((s) => ({
+// The routes of a type: its main route (the admin's, else the processing guide) and any alternate
+// routes (Administration > Workflow), as [{ id, name, steps }].
+export function routesOf(type, offices = []) {
+  const main = { id: 'main', name: type?.routeName || 'Main route', steps: type?.route?.length ? type.route : routeFromGuide(type, offices) };
+  return [main, ...(type?.altRoutes || []).filter((r) => r.steps?.length).map((r, i) => ({ id: r.id || `alt${i + 1}`, name: r.name || `Alternate route ${i + 1}`, steps: r.steps }))];
+}
+
+// The steps a new document of this type follows: the given route (default: the main route).
+export function routeSteps(type, offices = [], route = null) {
+  const steps = route?.steps || routesOf(type, offices)[0].steps;
+  return steps.map((s) => ({
     office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign),
     // The reference no. this office assigns when it receives the document (e.g. the DV No.).
     ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
@@ -74,10 +86,13 @@ export function routeSteps(type, offices = []) {
 }
 
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
-  const steps = routeSteps(type, offices);
+  const routes = routesOf(type, offices);
+  const steps = routeSteps(type, offices, routes[0]);
   if (!steps.length) return null;
   const workflow = {
     state: 'in-progress', stage: 0, received: true, steps,
+    // With alternate routes, the preparer chooses which one before releasing it.
+    ...(routes.length > 1 ? { route: { id: routes[0].id, name: routes[0].name, choose: true } } : {}),
     events: [{ type: 'started', stage: 0, office: officeOf(steps[0], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }],
   };
   return { workflow, ...placement(workflow, doc) };
@@ -87,6 +102,7 @@ export function buildWorkflow(type, doc, offices, user, at = new Date().toISOStr
 export function placement(workflow, doc) {
   const offices = [...new Set(workflow.steps.map((s) => officeOf(s, doc)).filter(Boolean))];
   const moving = workflow.state === 'in-progress';
+  if (moving && workflow.referral) return { currentOffice: `person:${workflow.referral.uid}`, atPreparer: false, routeOffices: offices };
   const current = moving ? officeOf(workflow.steps[workflow.stage], doc) : '';
   return { currentOffice: current, atPreparer: moving && !workflow.steps[workflow.stage].routedTo, routeOffices: offices };
 }
@@ -97,6 +113,7 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false }) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return false;
   if (isAdmin) return true;
+  if (wf.referral) return wf.referral.uid === uid;
   const step = wf.steps[wf.stage];
   const holder = officeOf(step, doc);
   if (!step.routedTo) return doc.createdBy === uid || (isHead && Boolean(office) && office === holder);
@@ -107,6 +124,7 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false }) {
 export function availableActions(doc) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return [];
+  if (wf.referral) return wf.referral.received ? ['back'] : ['receive'];
   const last = wf.stage === wf.steps.length - 1;
   return [
     ...(!wf.received ? ['receive'] : []),
@@ -126,7 +144,7 @@ export function signatureMissing(doc) {
   const files = doc.pdf?.files || [];
   // Since the last new PDF (converted, or uploaded as the document itself).
   const current = files.slice(Math.max(...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1))) + 1);
-  return !current.some((f) => f.kind === 'signed' && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
+  return !current.some((f) => f.kind === 'signed' && !f.referral && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 
 // Fields the current step's office must fill in that are still empty.
@@ -161,9 +179,21 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');
   }
+  if (action === 'release' && wf.stage === 0 && wf.route?.choose) throw new Error('Choose the route this document follows before releasing it.');
   if (action === 'return' && !String(remarks).trim()) throw new Error('Say why the document is returned.');
   const event = (type, stage) => ({ type, stage, office: officeOf(wf.steps[stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: String(remarks || '').trim() });
   let next;
+  if (wf.referral) {
+    // With a person outside the route: they receive it, act (e.g. sign), and send it back.
+    const r = wf.referral;
+    const ev = (type) => ({ ...event(type, wf.stage), office: r.office || r.name });
+    if (action === 'receive') next = { ...wf, referral: { ...r, received: true }, events: [...wf.events, ev('referral received')] };
+    if (action === 'back') {
+      const { referral, ...rest } = wf;
+      next = { ...rest, events: [...wf.events, ev('referral back')] };
+    }
+    return { workflow: next, ...placement(next, doc) };
+  }
   if (action === 'receive') next = { ...wf, received: true, events: [...wf.events, event('received', wf.stage)] };
   if (action === 'release') next = { ...wf, stage: wf.stage + 1, received: false, events: [...wf.events, event('released', wf.stage)] };
   if (action === 'return') next = { ...wf, stage: wf.stage - 1, received: false, events: [...wf.events, event('returned', wf.stage)] };
@@ -171,10 +201,35 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   return { workflow: next, ...placement(next, doc) };
 }
 
+// Refers the document to a person outside the route (an active user): it waits for them to
+// receive it, act and send it back to the office holding it, then the route goes on.
+export function referDocument(doc, to, note, user, at = new Date().toISOString()) {
+  const wf = doc.workflow;
+  if (!wf || wf.state !== 'in-progress' || wf.referral) throw new Error('This document cannot be referred now.');
+  if (!wf.received) throw new Error('Receive the document before referring it.');
+  if (!to?.uid) throw new Error('Choose the person to refer it to.');
+  if (to.uid === user.uid) throw new Error('Choose someone other than yourself.');
+  const fromOffice = officeOf(wf.steps[wf.stage], doc);
+  const referral = { uid: to.uid, name: to.displayName || to.email || '', office: to.office || '', fromOffice, by: user.displayName || user.email, byUid: user.uid, at, note: String(note || '').trim(), received: false };
+  const next = { ...wf, referral, events: [...wf.events, { type: 'referred', stage: wf.stage, office: fromOffice, by: user.displayName || user.email, uid: user.uid, at, remarks: `to ${referral.name}${referral.office ? ` (${referral.office})` : ''}${referral.note ? ` — ${referral.note}` : ''}` }] };
+  return { workflow: next, ...placement(next, doc) };
+}
+
+// The preparer chooses the route (main or alternate) while the document is still at the first step.
+export function chooseRoute(doc, route, offices, user, at = new Date().toISOString()) {
+  const wf = doc.workflow;
+  if (!wf || wf.state !== 'in-progress' || wf.stage !== 0 || wf.referral) throw new Error('The route can only be chosen before the document is first released.');
+  const steps = routeSteps(null, offices, route);
+  if (!steps.length) throw new Error('This route has no steps.');
+  const next = { ...wf, steps, route: { id: route.id, name: route.name, choose: false }, events: [...wf.events, { type: 'route', stage: 0, office: officeOf(steps[0], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: route.name }] };
+  return { workflow: next, ...placement(next, doc) };
+}
+
 export function cancelWorkflow(doc, user, at = new Date().toISOString()) {
   const wf = doc.workflow;
   if (!wf || wf.state !== 'in-progress') return null;
-  const next = { ...wf, state: 'cancelled', events: [...wf.events, { type: 'cancelled', stage: wf.stage, office: officeOf(wf.steps[wf.stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }] };
+  const { referral, ...rest } = wf;
+  const next = { ...rest, state: 'cancelled', events: [...wf.events, { type: 'cancelled', stage: wf.stage, office: officeOf(wf.steps[wf.stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }] };
   return { workflow: next, ...placement(next, doc) };
 }
 
@@ -184,6 +239,7 @@ export function whereIs(doc) {
   if (!wf) return '';
   if (wf.state === 'done') return 'Processed';
   if (wf.state === 'cancelled') return 'Cancelled';
+  if (wf.referral) return `${wf.referral.name} (referred${wf.referral.received ? '' : ', to receive'})`;
   const step = wf.steps[wf.stage];
   return `${officeOf(step, doc) || 'Requesting office'}${wf.received ? '' : ' (to receive)'}`;
 }
@@ -192,7 +248,10 @@ export function whereIs(doc) {
 export function editableByPreparer(doc) {
   const wf = doc?.workflow;
   if (!wf) return true;
-  return wf.state === 'in-progress' && wf.stage === 0;
+  return wf.state === 'in-progress' && wf.stage === 0 && !wf.referral;
 }
 
-export const ACTION_LABELS = { receive: 'Receive', release: 'Release', return: 'Return', complete: 'Mark processed' };
+// Has the one holding the document (the office, or the person it is referred to) received it?
+export const isReceived = (wf) => Boolean(wf && (wf.referral ? wf.referral.received : wf.received));
+
+export const ACTION_LABELS = { receive: 'Receive', release: 'Release', return: 'Return', complete: 'Mark processed', back: 'Send back' };

@@ -1,8 +1,66 @@
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, availableActions, fillsMissing, officeOf, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { ACTION_LABELS, availableActions, fillsMissing, officeOf, routesOf, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { getDocumentType } from '../lib/api.js';
+import PersonPicker from './PersonPicker.jsx';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const EVENT_TEXT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned' };
+const EVENT_TEXT = {
+  started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned',
+  route: 'Route chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back',
+};
+
+// The preparer chooses the route (main or alternate) while the document is at the first step.
+function RouteChoice({ doc, offices, busy, onChoose }) {
+  const wf = doc.workflow;
+  const [routes, setRoutes] = useState(null);
+  const [pick, setPick] = useState(wf.route?.choose ? '' : wf.route?.id || '');
+  useEffect(() => {
+    if (!doc.typeId) return;
+    getDocumentType(doc.typeId).then((t) => setRoutes(routesOf(t, offices))).catch(() => setRoutes([]));
+  }, [doc.typeId, offices]);
+  if (!routes || routes.length < 2) return null;
+  const chosen = routes.find((r) => r.id === pick);
+  return (
+    <div className={`route-choice${wf.route?.choose ? ' needed' : ''}`}>
+      <div className="field-label">{wf.route?.choose ? 'Choose the route this document follows' : 'Route'}</div>
+      <div className="route-options">
+        {routes.map((r) => (
+          <label key={r.id} className={`route-option${pick === r.id ? ' on' : ''}`}>
+            <input type="radio" name="wf-route" checked={pick === r.id} onChange={() => setPick(r.id)} />
+            <span><b>{r.name}</b>
+              <span className="small muted">{r.steps.map((s) => s.office || "Preparer's office").join(' → ')}</span></span>
+          </label>
+        ))}
+      </div>
+      {chosen && (wf.route?.choose || chosen.id !== wf.route?.id) && (
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onChoose(chosen.id)}>Use {chosen.name}</button>
+      )}
+    </div>
+  );
+}
+
+// The office holding the document sends it to a person outside the route; they send it back.
+function ReferPanel({ me, busy, onRefer, onCancel }) {
+  const [person, setPerson] = useState(null);
+  const [note, setNote] = useState('');
+  return (
+    <div className="refer-panel">
+      <div className="field">
+        <span className="field-label">Refer to a person (outside the route)</span>
+        <PersonPicker value={person} onChange={setPerson} exclude={[me]} />
+      </div>
+      <label className="field">
+        <span className="field-label">What should they do? (optional)</span>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Please review and initial the attached liquidation" />
+      </label>
+      <p className="xs muted">They receive it in their Inbox, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
+      <div className="row gap">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy || !person} onClick={() => onRefer(person, note)}>Refer to {person?.displayName || 'this person'}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 // The route of a document: each office on it, where the document is now, who received and
 // released it and when, and the actions open to the office holding it.
@@ -51,9 +109,10 @@ function StepTasks({ doc, step, busy, onFill, onUpload, onOpenFile, children }) 
   );
 }
 
-export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, onStart, onFill, onUpload, onOpenFile, sendPanel }) {
+export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, onStart, onFill, onUpload, onOpenFile, sendPanel, me, offices = [], canRefer, onRefer, onChooseRoute }) {
   const wf = doc.workflow;
   const [returning, setReturning] = useState(false);
+  const [referring, setReferring] = useState(false);
   const [remarks, setRemarks] = useState('');
 
   if (!wf) {
@@ -77,7 +136,10 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
   const actions = canAct ? availableActions(doc) : [];
   const next = wf.steps[wf.stage + 1];
   const prev = wf.steps[wf.stage - 1];
-  const unsigned = signatureMissing(doc);
+  const referral = wf.referral;
+  const unsigned = !referral && signatureMissing(doc);
+  const released = wf.events.some((e) => e.type === 'released');
+  const showRoutes = wf.state === 'in-progress' && wf.route && wf.stage === 0 && !released && !referral && canAct;
   const blocked = fillsMissing(doc).length > 0 || uploadMissing(doc);
   const act = (action) => onAction(action, remarks, () => { setRemarks(''); setReturning(false); });
 
@@ -100,7 +162,10 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
                 <div className="wf-office">{nameOf(step)}{step.routedTo === '' && doc.office ? '' : ''}</div>
                 <div className="small"><b>{step.action}</b>{step.sign && <span className="muted"> · signs the PDF</span>}
                   {step.assign && <span className="muted"> · assigns the {fieldLabel(step.assign.field)} on receiving</span>}</div>
-                {state === 'current' && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
+                {state === 'current' && !referral && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
+                {state === 'current' && referral && (
+                  <div className="small wf-now">Referred to <b>{referral.name}</b>{referral.office ? ` (${referral.office})` : ''}: {referral.received ? 'with them now' : 'waiting to be received'}</div>
+                )}
                 {events.map((e, j) => (
                   <div key={j} className={`small ${e.type === 'returned' ? 'wf-returned' : 'muted'}`}>
                     {e.type === 'assigned'
@@ -120,9 +185,34 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
         })}
       </ol>
 
-      {actions.length > 0 && (
+      {wf.route && !showRoutes && wf.state === 'in-progress' && <p className="small muted">Route: <b>{wf.route.name}</b>{wf.route.choose ? ' (not chosen yet)' : ''}</p>}
+      {showRoutes && <RouteChoice doc={doc} offices={offices} busy={busy} onChoose={onChooseRoute} />}
+
+      {referral && actions.length > 0 && (
         <div className="wf-actions no-print">
-          {returning ? (
+          <div className="alert-info small">
+            <b>{referral.by}</b> ({referral.fromOffice || 'the office holding it'}) referred this document to you{referral.note ? <>: <i>{referral.note}</i></> : '.'}
+            {' '}{referral.received ? 'Act on it (you can sign the PDF), then send it back.' : 'Receive it to act on it.'}
+          </div>
+          {referral.received && (
+            <div className="field field-wide" style={{ marginBottom: '.6rem' }}>
+              <label className="field-label" htmlFor="wf-back">Remarks (optional)</label>
+              <input id="wf-back" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Reviewed and signed" />
+            </div>
+          )}
+          <div className="row gap wrap">
+            {actions.includes('receive') && <button className="btn btn-primary" disabled={busy} onClick={() => act('receive')}>{ACTION_LABELS.receive}</button>}
+            {actions.includes('back') && <button className="btn btn-primary" disabled={busy} onClick={() => act('back')}>Send back to {referral.fromOffice || referral.by}</button>}
+          </div>
+        </div>
+      )}
+
+      {!referral && actions.length > 0 && (
+        <div className="wf-actions no-print">
+          {referring ? (
+            <ReferPanel me={me} busy={busy} onCancel={() => setReferring(false)}
+              onRefer={(to, note) => onRefer(to, note, () => setReferring(false))} />
+          ) : returning ? (
             <div className="fields">
               <div className="field field-wide">
                 <label className="field-label" htmlFor="wf-remarks">Why is it returned to {prev ? nameOf(prev) : 'the previous office'}?</label>
@@ -155,9 +245,10 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               )}
               <div className="row gap wrap">
                 {actions.includes('receive') && <button className="btn btn-primary" disabled={busy} onClick={() => act('receive')}>{ACTION_LABELS.receive}</button>}
-                {actions.includes('release') && <button className="btn btn-primary" disabled={busy || unsigned || blocked} onClick={() => act('release')}>Release to {nameOf(next)}</button>}
+                {actions.includes('release') && <button className="btn btn-primary" disabled={busy || unsigned || blocked || (wf.stage === 0 && wf.route?.choose)} onClick={() => act('release')}>Release to {nameOf(next)}</button>}
                 {actions.includes('complete') && <button className="btn btn-primary" disabled={busy || unsigned || blocked} onClick={() => act('complete')}>{ACTION_LABELS.complete}</button>}
                 {actions.includes('return') && <button className="btn btn-ghost" disabled={busy} onClick={() => setReturning(true)}>Return to {nameOf(prev)}</button>}
+                {canRefer && wf.received && <button className="btn btn-ghost" disabled={busy} onClick={() => setReferring(true)}>Refer to a person…</button>}
               </div>
             </>
           )}

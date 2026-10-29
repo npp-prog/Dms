@@ -7,7 +7,7 @@ import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
-import { applyAction, buildWorkflow, cancelWorkflow, placement } from './workflow.js';
+import { applyAction, buildWorkflow, cancelWorkflow, chooseRoute, placement, referDocument as referPatch, routesOf } from './workflow.js';
 
 // ---------- Users ----------
 
@@ -47,14 +47,15 @@ export async function listUsers() {
 }
 
 // ---------- Directory (names and offices, to forward a document to someone) ----------
-// directory/{uid}: { displayName, office }. Each active user keeps their own entry up to date
-// when they sign in; every active user can read it (no emails or roles).
+// directory/{uid}: { displayName, office, email }. Each active user keeps their own entry up to
+// date when they sign in; every active user can read it (to forward or refer a document to
+// someone by name or email; no roles).
 export async function syncDirectoryEntry(uid, profile) {
   if (!profile?.active) return;
-  const entry = { displayName: profile.displayName || '', office: profile.office || '' };
+  const entry = { displayName: profile.displayName || '', office: profile.office || '', email: profile.email || '' };
   const ref = doc(db, 'directory', uid);
   const cur = await getDoc(ref).catch(() => null);
-  if (!cur?.exists() || cur.data().displayName !== entry.displayName || cur.data().office !== entry.office) await setDoc(ref, entry);
+  if (!cur?.exists() || Object.keys(entry).some((k) => cur.data()[k] !== entry[k])) await setDoc(ref, entry);
 }
 
 export async function listDirectory() {
@@ -106,14 +107,19 @@ export async function saveDocumentType(id, data, user) {
 
 // The route of a document type (Administration > Workflow). Not part of the format: saving it
 // does not change the format's version, and starter-format updates keep it.
-export async function saveRoute(typeId, route, user) {
+const cleanSteps = (route) => route.map((s) => ({
+  office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign),
+  ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
+  ...(s.fills?.length ? { fills: [...s.fills] } : {}),
+  ...(String(s.upload || '').trim() ? { upload: String(s.upload).trim() } : {}),
+}));
+// The main route and any alternate routes ([{ id, name, steps }]); the preparer of a document
+// chooses among them.
+export async function saveRoute(typeId, route, user, { routeName = '', altRoutes = [] } = {}) {
   await updateDoc(doc(db, 'documentTypes', typeId), {
-    route: route.map((s) => ({
-      office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign),
-      ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
-      ...(s.fills?.length ? { fills: [...s.fills] } : {}),
-      ...(String(s.upload || '').trim() ? { upload: String(s.upload).trim() } : {}),
-    })),
+    route: cleanSteps(route),
+    routeName: String(routeName || '').trim(),
+    altRoutes: altRoutes.map((r, i) => ({ id: r.id || `alt${Date.now().toString(36)}${i}`, name: String(r.name || '').trim() || `Alternate route ${i + 1}`, steps: cleanSteps(r.steps) })),
     routeUpdatedAt: serverTimestamp(), routeUpdatedBy: user.displayName || user.email,
   });
 }
@@ -392,9 +398,34 @@ export async function startWorkflow(id, type, user, offices) {
     const d = snap.data();
     if (!d || d.workflow) return;
     const live = d.typeId ? (await tx.get(doc(db, 'documentTypes', d.typeId))).data() : null;
-    const start = buildWorkflow(live?.route?.length ? live : type, d, offices, user);
+    const start = buildWorkflow(live || type, d, offices, user);
     if (!start) return;
     tx.update(ref, { ...start, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('routing started', user)] });
+  });
+}
+
+// The preparer chooses the route (main or alternate) before the document is first released.
+// The routes are the type's as set now (Administration > Workflow).
+export async function chooseDocumentRoute(id, routeId, user, offices) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const type = d.typeId ? (await tx.get(doc(db, 'documentTypes', d.typeId))).data() : null;
+    const route = routesOf(type, offices).find((r) => r.id === routeId);
+    if (!route) throw new Error('That route no longer exists. Reload the page.');
+    const patch = chooseRoute(d, route, offices, user);
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('route chosen', user, route.name)] });
+  });
+}
+
+// The office holding the document refers it to a person outside the route (users allowed to:
+// admins, and users with "May route documents to any person"). They send it back.
+export async function referDocument(id, to, note, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const patch = referPatch(d, to, note, user);
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('referred', user, patch.workflow.events.at(-1).remarks)] });
   });
 }
 
@@ -408,12 +439,13 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
     if (!d?.workflow) throw new Error('This document has no workflow.');
     if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
     const patch = applyAction(d, action, user, remarks);
-    const label = { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
+    const label = d.workflow.referral ? { receive: 'received (referred)', back: 'sent back' }[action]
+      : { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
     const history = [...(d.history || []), historyEntry(label, user, remarks)];
     // Received at a step that assigns a reference no. (e.g. Accounting, the DV No.): the next number
     // of its series and today's date, unless the field already has one.
     const step = d.workflow.steps[d.workflow.stage];
-    const assign = action === 'receive' ? step.assign : null;
+    const assign = action === 'receive' && !d.workflow.referral ? step.assign : null;
     if (assign?.field && !String(d.data?.[assign.field] || '').trim()) {
       const field = (d.typeSnapshot?.fields || []).find((f) => f.key === assign.field);
       const now = new Date();
@@ -604,6 +636,8 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
   const file = {
     path, size: bytes.length, sha256: await sha256(bytes), kind, method, reason,
     stage: wf?.state === 'in-progress' ? wf.stage : null, // the workflow step it was signed at
+    // signed by a person the document was referred to: not the step's own signature
+    ...(wf?.state === 'in-progress' && wf.referral ? { referral: true } : {}),
     at: new Date().toISOString(), by: user.displayName || user.email, uid: user.uid, signer,
   };
   const verifyRef = doc(db, 'verifications', file.sha256);
@@ -699,7 +733,9 @@ export async function listInbox({ office, uid, all = false, head = false, max = 
       ...(office ? [head
         ? query(docs, where('currentOffice', '==', office), limit(max))
         : query(docs, where('currentOffice', '==', office), where('atPreparer', '==', false), limit(max))] : []),
-      ...(uid ? [query(docs, where('createdBy', '==', uid), where('atPreparer', '==', true), limit(max))] : []),
+      ...(uid ? [query(docs, where('createdBy', '==', uid), where('atPreparer', '==', true), limit(max)),
+        // referred to this user by the office holding it
+        query(docs, where('currentOffice', '==', `person:${uid}`), limit(max))] : []),
     ];
   const byId = new Map();
   for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {
@@ -739,6 +775,7 @@ export async function listDocuments({ uid, office = '', all = false, head = fals
     ? [query(docs, orderBy('updatedAt', 'desc'), limit(max))]
     : [
       query(docs, where('createdBy', '==', uid), limit(max)),
+      query(docs, where('currentOffice', '==', `person:${uid}`), limit(max)),
       ...(office && head ? [
         query(docs, where('office', '==', office), limit(max)),
         query(docs, where('routeOffices', 'array-contains', office), limit(max)),

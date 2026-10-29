@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
-import { canAct, editableByPreparer, officeOf } from '../lib/workflow.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseDocumentRoute } from '../lib/api.js';
+import { canAct, editableByPreparer, isReceived, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
@@ -83,7 +83,7 @@ function FileView({ file, bytes }) {
 export default function DocumentView() {
   const { docId } = useParams();
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, isHead, user, profile } = useAuth();
+  const { actor, settings, isAdmin, isHead, canRefer, user, profile } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -151,15 +151,19 @@ export default function DocumentView() {
   const isOwner = docData.createdBy === user.uid;
   const wf = docData.workflow;
   // Once the document has left the preparer's office, only the offices on its route move it.
-  const atPreparer = !wf || (wf.state === 'in-progress' && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
+  const atPreparer = !wf || (wf.state === 'in-progress' && !wf.referral && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
   // A signed PDF is the record of what was signed: the document can no longer be edited.
   const hasSignature = (docData.pdf?.files || []).some((f) => f.kind === 'signed');
   // An uploaded document's file is its PDF: nothing to encode, edit or convert.
   const uploaded = Boolean(docData.uploaded);
   const canChange = !uploaded && editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = !uploaded && editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? wf.received && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
+  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
   // (An office signs once it has received the document.)
+  // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is
+  // returned to the preparer's office for revision.
+  const accountingOpen = !(docData.pdf?.files || []).length
+    || (wf?.state === 'in-progress' && wf.stage === 0 && !wf.referral && wf.events.at(-1)?.type === 'returned');
   const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
   const run = async (fn) => {
     setBusy(true);
@@ -215,31 +219,7 @@ export default function DocumentView() {
 
       <div className="doc-split">
         <div className="no-print doc-side">
-          {isAdmin && editable && type && draft && !uploaded && (
-            <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
-              saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
-              onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
-          )}
-          {type && (type.processing || []).length > 0 && docData.status !== 'draft' && (
-            <WorkflowCard doc={docData} busy={busy}
-              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead })}
-              canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
-              onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
-              onAction={(action, remarks, done) => run(async () => {
-                try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
-              })}
-              onFill={(values) => run(() => fillStepFields(docId, values, actor, wf.stage))}
-              onUpload={(file) => file && run(async () => {
-                const link = await uploadAttachment(docId, `step-${wf.stage}`, file, actor);
-                await addStepFile(docId, wf.stage, link, actor);
-              })}
-              onOpenFile={openFile}
-              sendPanel={wf?.steps?.[wf.stage]?.fills && (
-                <SendPanel doc={docData} me={user.uid} busy={busy}
-                  onDownload={pdfView ? () => downloadBytes(pdfView.bytes, pdfFileName(type, docData), 'application/pdf') : null}
-                  onForward={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor); done(); })} />
-              )} />
-          )}
+          {/* PDF and digital signatures first, at the top right. */}
           {type && docData.status !== 'draft' && (
             <PdfCard docData={docData} type={type} settings={settings} actor={actor}
               canConvert={canConvert} canSign={canSign} onChanged={load}
@@ -263,6 +243,36 @@ export default function DocumentView() {
                 }
               }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
+          )}
+          {isAdmin && editable && type && draft && !uploaded && accountingOpen && (
+            <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
+              saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
+              onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
+          )}
+          {type && (wf || (type.processing || []).length > 0) && docData.status !== 'draft' && (
+            <WorkflowCard doc={docData} busy={busy}
+              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead })}
+              canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
+              onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
+              onAction={(action, remarks, done) => run(async () => {
+                try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
+                // Sent back by the person it was referred to: it is no longer theirs to open.
+                if (action === 'back' && !isAdmin) navigate('/inbox', { replace: true });
+              })}
+              onFill={(values) => run(() => fillStepFields(docId, values, actor, wf.stage))}
+              onUpload={(file) => file && run(async () => {
+                const link = await uploadAttachment(docId, `step-${wf.stage}`, file, actor);
+                await addStepFile(docId, wf.stage, link, actor);
+              })}
+              onOpenFile={openFile}
+              me={user.uid} offices={settings.offices || []} canRefer={canRefer}
+              onRefer={(to, note, done) => run(async () => { await referDocument(docId, to, note, actor); done(); })}
+              onChooseRoute={(routeId) => run(() => chooseDocumentRoute(docId, routeId, actor, settings.offices || []))}
+              sendPanel={wf?.steps?.[wf.stage]?.fills && (
+                <SendPanel doc={docData} me={user.uid} busy={busy}
+                  onDownload={pdfView ? () => downloadBytes(pdfView.bytes, pdfFileName(type, docData), 'application/pdf') : null}
+                  onForward={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor); done(); })} />
+              )} />
           )}
           {type && !wf && (
             <section className="card guide-card">
