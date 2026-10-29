@@ -5,6 +5,7 @@ import {
 } from '../lib/api.js';
 import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
 import { markPixels } from '../lib/markImage.js';
+import { certId, forgetPassword, rememberedPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
 // Mark sizes in points (width, height): small fits a DV signature line.
@@ -73,6 +74,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   }, [mode, mark, actor.uid]);
   const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
   const placingMark = mode === 'sign' && Boolean(mark) && useMark;
+  // A password remembered on this device (My Profile): sign without typing it.
+  const [remembered, setRemembered] = useState(null);
+  const [typeIt, setTypeIt] = useState(false);
+  useEffect(() => {
+    if (mode === 'sign' && saved) rememberedStatus(actor.uid, certId(saved)).then(setRemembered);
+  }, [mode, saved, actor.uid]);
+  const useRemembered = Boolean(remembered) && !typeIt;
   // Ask the viewer to take a tap for the mark while signing with it.
   useEffect(() => {
     if (!placingMark) { onPlacing?.(null); return; }
@@ -103,9 +111,17 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
 
   const signHere = () => run('Signing…', async () => {
     if (!saved) throw new Error('Register your certificate in My Profile first.');
-    if (!password) throw new Error('Type your certificate password.');
+    const pw = useRemembered ? await rememberedPassword(actor.uid, certId(saved)) : password;
+    if (!pw) throw new Error('Type your certificate password.');
     const key = await getSavedCertificateBytes(actor.uid);
-    const cert = readCertificate(key, password);
+    let cert;
+    try {
+      cert = readCertificate(key, pw);
+    } catch (e) {
+      // The remembered password no longer opens the certificate: forget it and ask.
+      if (useRemembered) { await forgetPassword(actor.uid); setRemembered(null); throw new Error('Your remembered password no longer works. Type your certificate password.'); }
+      throw e;
+    }
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
@@ -113,7 +129,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const visible = placingMark
       ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, stampDate()] }
       : null;
-    const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible });
+    const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
@@ -240,13 +256,18 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                         {' '}<Link to="/profile">Add your signature mark in My Profile</Link>.</p>
                     )}
                   </div>
-                  <div className="field field-wide">
-                    <label className="field-label" htmlFor={`${id}-pw`}>Certificate password</label>
-                    <input id={`${id}-pw`} type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && signHere()} />
-                  </div>
+                  {useRemembered ? (
+                    <p className="small muted">Your password is remembered on this device until {when(remembered.until)}.
+                      {' '}<button type="button" className="link" onClick={() => setTypeIt(true)}>Type it instead</button></p>
+                  ) : (
+                    <div className="field field-wide">
+                      <label className="field-label" htmlFor={`${id}-pw`}>Certificate password</label>
+                      <input id={`${id}-pw`} type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && signHere()} />
+                    </div>
+                  )}
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || !password || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || (!useRemembered && !password) || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>

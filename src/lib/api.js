@@ -390,7 +390,7 @@ export async function getSavedCertificate(uid) {
   try {
     const meta = await getMetadata(certRef(uid));
     const m = meta.customMetadata || {};
-    return { name: m.name || '', email: m.email || '', issuer: m.issuer || '', pnpki: m.pnpki === 'true', notAfter: m.notAfter || '', savedAt: meta.timeCreated };
+    return { name: m.name || '', email: m.email || '', issuer: m.issuer || '', pnpki: m.pnpki === 'true', notAfter: m.notAfter || '', serial: m.serial || '', savedAt: meta.timeCreated };
   } catch (e) {
     if (e?.code === 'storage/object-not-found') return null;
     throw storageError(e, 'download', 'checking your registered certificate');
@@ -409,7 +409,7 @@ export async function saveCertificate(uid, bytes, info) {
   try {
     await uploadBytes(certRef(uid), bytes, {
       contentType: 'application/x-pkcs12',
-      customMetadata: { name: info.name || '', email: info.email || '', issuer: info.issuer || '', pnpki: String(Boolean(info.pnpki)), notAfter: info.notAfter || '' },
+      customMetadata: { name: info.name || '', email: info.email || '', issuer: info.issuer || '', pnpki: String(Boolean(info.pnpki)), notAfter: info.notAfter || '', serial: info.serial || '' },
     });
   } catch (e) {
     throw storageError(e, 'upload', 'saving your certificate');

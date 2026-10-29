@@ -1,8 +1,9 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  getSavedCertificate, getSavedMark, removeSavedCertificate, removeSavedMark, saveCertificate, saveMark,
+  getSavedCertificate, getSavedCertificateBytes, getSavedMark, removeSavedCertificate, removeSavedMark, saveCertificate, saveMark,
 } from '../lib/api.js';
+import { REMEMBER_CHOICES, certId, forgetPassword, rememberPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { isValidAt, readCertificate } from '../lib/signing.js';
 import { prepareMark } from '../lib/markImage.js';
 
@@ -23,11 +24,19 @@ export default function Profile() {
   const [replacing, setReplacing] = useState(false);
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState(null);
+  // When signing: ask for the password every time, or remember it on this device for a while.
+  const [remembered, setRemembered] = useState(null);
+  const [askMode, setAskMode] = useState('ask');
+  const [days, setDays] = useState(REMEMBER_CHOICES[0].days);
+  const [rememberPw, setRememberPw] = useState('');
 
   useEffect(() => {
     getSavedCertificate(user.uid).then(setCert).catch((e) => { setCert(null); setMsg({ ok: false, text: e.message }); });
     getSavedMark(user.uid).then(setMark).catch(() => setMark(null));
   }, [user.uid]);
+  useEffect(() => {
+    if (cert) rememberedStatus(user.uid, certId(cert)).then((r) => { setRemembered(r); setAskMode(r ? 'remember' : 'ask'); });
+  }, [cert, user.uid]);
   const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
 
   const run = async (label, fn) => {
@@ -49,6 +58,8 @@ export default function Profile() {
     if (!isValidAt(info)) throw new Error(`This certificate is not valid today (valid ${day(info.notBefore)} to ${day(info.notAfter)}). Renew it with DICT.`);
     if (!info.pnpki && !window.confirm(`This certificate was issued by "${info.issuer}", not by the DICT PNPKI. Register it anyway?`)) return;
     await saveCertificate(user.uid, bytes, info);
+    await forgetPassword(user.uid); // a remembered password belonged to the previous certificate
+    setRemembered(null); setAskMode('ask');
     setCert({ ...info, savedAt: new Date().toISOString() });
     setFile(null); setPassword(''); setReplacing(false);
     setMsg({ ok: true, text: `Certificate of ${info.name} registered. When you sign, you only type its password.` });
@@ -57,8 +68,22 @@ export default function Profile() {
   const removeCert = () => run('Removing…', async () => {
     if (!window.confirm('Remove your certificate from DMS? You will need to register it again to sign in DMS.')) return;
     await removeSavedCertificate(user.uid);
-    setCert(null);
+    await forgetPassword(user.uid);
+    setCert(null); setRemembered(null);
     setMsg({ ok: true, text: 'Your certificate was removed from DMS.' });
+  });
+
+  // The password is checked against the registered certificate before it is remembered.
+  const remember = () => run('Checking your password…', async () => {
+    readCertificate(await getSavedCertificateBytes(user.uid), rememberPw);
+    const until = await rememberPassword(user.uid, certId(cert), rememberPw, days);
+    setRemembered({ until }); setRememberPw('');
+    setMsg({ ok: true, text: `Your password is remembered on this device until ${new Date(until).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}. You sign without typing it.` });
+  });
+  const forget = () => run('Forgetting…', async () => {
+    await forgetPassword(user.uid);
+    setRemembered(null); setAskMode('ask');
+    setMsg({ ok: true, text: 'Your password is no longer remembered on this device. You type it each time you sign.' });
   });
 
   const changeMark = (f) => run('Preparing your signature mark…', async () => {
@@ -106,7 +131,7 @@ export default function Profile() {
         <section className="card">
           <h3>Digital signature certificate</h3>
           <p className="small muted">Your DICT PNPKI certificate file (.p12 or .pfx). Only you can use it in DMS; not even an administrator can
-            open it. Your password is never stored: you type it each time you sign, so use a strong one.</p>
+            open it. Your password is never stored on the server, so use a strong one.</p>
           {cert === undefined && <div className="spinner" />}
           {cert && !replacing && (
             <div className="saved-cert">
@@ -117,6 +142,38 @@ export default function Profile() {
                 <button type="button" className="link" onClick={() => setReplacing(true)}>Change certificate</button>
                 <button type="button" className="link" disabled={!!busy} onClick={removeCert}>Remove</button>
               </div>
+            </div>
+          )}
+          {cert && !replacing && (
+            <div className="pw-choice">
+              <div className="field-label">When I sign</div>
+              <label className="check"><input type="radio" name={`${id}-ask`} checked={askMode === 'ask'}
+                onChange={() => (remembered ? forget() : setAskMode('ask'))} /> Ask for my password every time (recommended)</label>
+              <label className="check"><input type="radio" name={`${id}-ask`} checked={askMode === 'remember'}
+                onChange={() => setAskMode('remember')} /> Remember my password on this device</label>
+              {askMode === 'remember' && (remembered ? (
+                <div className="small">
+                  Remembered on this device until <b>{new Date(remembered.until).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</b>.
+                  {' '}<button type="button" className="link" disabled={!!busy} onClick={forget}>Forget it now</button>
+                </div>
+              ) : (
+                <div className="sign-panel">
+                  <div className="field">
+                    <label className="field-label" htmlFor={`${id}-days`}>For</label>
+                    <select id={`${id}-days`} value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                      {REMEMBER_CHOICES.map((c) => <option key={c.label} value={c.days}>{c.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor={`${id}-rpw`}>Certificate password</label>
+                    <input id={`${id}-rpw`} type="password" autoComplete="off" value={rememberPw} onChange={(e) => setRememberPw(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && remember()} />
+                  </div>
+                  <p className="xs muted">Kept only in this browser, encrypted with a key it cannot export, never sent to DMS. While it is remembered,
+                    anyone using your DMS account on this device can sign as you: use it only on a device that is yours, and log out of shared ones.</p>
+                  <div><button className="btn btn-primary btn-sm" disabled={!!busy || !rememberPw} onClick={remember}>{busy || 'Remember'}</button></div>
+                </div>
+              ))}
             </div>
           )}
           {cert !== undefined && (!cert || replacing) && (
