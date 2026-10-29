@@ -174,6 +174,10 @@ table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .data-table select { width: auto; min-height: 34px; padding-top: .2rem; padding-bottom: .2rem; }
 .data-table a { text-decoration: none; font-weight: 600; }
 .data-table a:hover { text-decoration: underline; }
+/* Document Types: the name with its upload-only tag under it, and the buttons in one right-aligned line. */
+.type-name .badge { display: flex; width: fit-content; margin-top: .35rem; }
+.type-actions { width: 1%; white-space: nowrap; }
+.type-actions > div { display: flex; gap: .45rem; justify-content: flex-end; }
 .empty { text-align: center; color: var(--muted); padding: 2rem 1rem; }
 
 /* Badges and notices */

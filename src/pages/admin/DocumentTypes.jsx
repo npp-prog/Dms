@@ -93,7 +93,7 @@ export default function DocumentTypes() {
               {types.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.code}</b></td>
-                  <td><Link to={`/admin/types/${t.id}`}>{t.name}</Link>{t.uploadOnly && <> <span className="badge badge-blue">Upload only</span></>}</td>
+                  <td className="type-name"><Link to={`/admin/types/${t.id}`}>{t.name}</Link>{t.uploadOnly && <span className="badge badge-blue">Upload only</span>}</td>
                   <td>{t.category}</td>
                   <td>{t.uploadOnly ? '—' : (t.fields || []).length}</td>
                   <td>{t.uploadOnly ? '—' : (t.steps || []).length}</td>
@@ -106,7 +106,7 @@ export default function DocumentTypes() {
                       {t.active === false ? 'Inactive' : 'Active'}
                     </button>
                   </td>
-                  <td className="row gap">
+                  <td className="type-actions"><div>
                     {newerStarter(t) && (
                       <button className="btn btn-gold btn-sm" disabled={busy} title="DMS has a newer version of this starter format"
                         onClick={() => updateToStarter(t, newerStarter(t))}>Update format</button>
@@ -116,7 +116,7 @@ export default function DocumentTypes() {
                     <button className="btn btn-danger btn-sm" disabled={busy}
                       onClick={() => window.confirm(`Delete ${t.code}? Existing documents keep their own copy of the format.`)
                         && run(() => deleteDocumentType(t.id))}>Delete</button>
-                  </td>
+                  </div></td>
                 </tr>
               ))}
             </tbody>
