@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { addPdfVersion, documentBasis, getPdfBytes } from '../lib/api.js';
+import { addPdfVersion, checkStorage, documentBasis, getPdfBytes } from '../lib/api.js';
 import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf } from '../lib/signing.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
@@ -56,10 +56,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(''); }
   };
 
-  const convert = () => run('Converting…', async () => {
-    const blob = await documentPdf(type, docData, settings);
+  const uploading = (p) => setBusy(`Saving… ${Math.round(p * 100)}%`);
+  const convert = () => run('Checking file storage…', async () => {
+    await checkStorage(docData.id); // fails in seconds if Storage is not set up, before drawing
+    const blob = await documentPdf(type, docData, settings, setBusy);
     const pdf = new Uint8Array(await blob.arrayBuffer());
-    await addPdfVersion(docData.id, pdf, actor, { kind: 'generated', basis: await documentBasis(docData) });
+    uploading(0);
+    await addPdfVersion(docData.id, pdf, actor, { kind: 'generated', basis: await documentBasis(docData), onProgress: uploading });
     setNotice('Converted to PDF. It is ready to be signed.');
     onChanged();
   });
@@ -73,7 +76,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
-    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } });
+    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } });
     setP12(null); setPassword(''); setMode('');
     setNotice(`Signed by ${cert.name}.`);
     onChanged();
@@ -85,7 +88,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     const last = check.added.at(-1);
-    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'upload', reason: why.trim(), signer: signerOf(last) });
+    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'upload', onProgress: uploading, reason: why.trim(), signer: signerOf(last) });
     setMode('');
     setNotice(`Signature of ${last.signer?.name || 'the signatory'} checked and saved.`);
     onChanged();

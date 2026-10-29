@@ -2,7 +2,7 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { getBytes, ref as storageRef, uploadBytes } from 'firebase/storage';
+import { getBytes, getMetadata, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
@@ -343,17 +343,50 @@ export async function documentBasis(d) {
   return (await sha256(new TextEncoder().encode(text))).slice(0, 16);
 }
 
+// Storage errors in words an admin can act on.
+const SETUP = 'See the README, Setup steps 5 to 7.';
+function storageError(e, doing) {
+  const code = e?.code || '';
+  if (code === 'storage/unauthorized') {
+    return new Error(`Firebase Storage refused the file. An admin must publish the latest storage.rules (Firebase console → Storage → Rules). ${SETUP}`);
+  }
+  if (['storage/retry-limit-exceeded', 'storage/unknown', 'storage/bucket-not-found', 'storage/project-not-found'].includes(code)) {
+    return new Error(doing === 'download'
+      ? `Could not download the PDF from Firebase Storage. If this keeps happening, an admin must allow downloads (CORS) for the storage bucket. ${SETUP}`
+      : `Firebase Storage is not set up for this site yet, so the PDF cannot be saved. An admin must open the Firebase console → Storage → Get started (it needs the Blaze plan), then publish storage.rules. ${SETUP}`);
+  }
+  return e;
+}
+
+// Checks, in a few seconds, that PDFs can be stored, before spending time drawing one.
+// Reading a file that does not exist answers "not found" when Storage and its rules are in place.
+export async function checkStorage(docId) {
+  try {
+    await getMetadata(storageRef(storage, `documents/${docId}/0-generated.pdf`));
+  } catch (e) {
+    if (e?.code === 'storage/object-not-found') return;
+    throw storageError(e, 'upload');
+  }
+}
+
 export async function getPdfBytes(path) {
-  return new Uint8Array(await getBytes(storageRef(storage, path)));
+  try {
+    return new Uint8Array(await getBytes(storageRef(storage, path)));
+  } catch (e) {
+    throw storageError(e, 'download');
+  }
 }
 
 // Stores a new version of the document's PDF (converted, or signed) and records it.
-export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', signer = null, reason = '', basis = null }) {
+export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', signer = null, reason = '', basis = null, onProgress }) {
   const docRef = doc(db, 'documents', id);
   const current = (await getDoc(docRef)).data();
   const n = current?.pdf?.files?.length || 0;
   const path = `documents/${id}/${n}-${kind}.pdf`;
-  await uploadBytes(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
+  await new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
+    task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload')), resolve);
+  });
   const wf = current?.workflow;
   const file = {
     path, size: bytes.length, sha256: await sha256(bytes), kind, method, reason,

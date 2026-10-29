@@ -26,6 +26,12 @@ export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 // PDFs and signed PDFs (Firebase Storage; rules in storage.rules).
 export const storage = app ? getStorage(app) : null;
+// Give up on a failing upload or download after a minute instead of the SDK's default 10 minutes
+// (a bucket that is not set up looks like a network error, which the SDK keeps retrying).
+if (storage) {
+  storage.maxUploadRetryTime = 60 * 1000;
+  storage.maxOperationRetryTime = 15 * 1000;
+}
 
 // Local development against the Firebase emulators (`npm run local` sets VITE_USE_EMULATOR=true).
 if (app && env.VITE_USE_EMULATOR === 'true') {

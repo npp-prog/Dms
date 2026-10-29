@@ -23,10 +23,16 @@ export function ownItemNo(type, d) {
 }
 
 // The PDF that is signed: the document, then its checklist (DV and LR).
-export async function documentPdf(type, d, settings) {
-  const parts = [await renderPages(documentElement(type, d, settings), type.paperSize, type.orientation)];
+export async function documentPdf(type, d, settings, onStep = () => {}) {
   const checklist = effectiveChecklist(type, d.transaction);
-  if (checklist?.items?.length) parts.push(await renderPages(checklistElement(checklist, d, settings), 'A4', 'portrait'));
+  const withChecklist = checklist?.items?.length > 0;
+  onStep(`Drawing the ${d.typeCode}…`);
+  const parts = [await renderPages(documentElement(type, d, settings), type.paperSize, type.orientation)];
+  if (withChecklist) {
+    onStep('Drawing the checklist…');
+    parts.push(await renderPages(checklistElement(checklist, d, settings), 'A4', 'portrait'));
+  }
+  onStep('Making the PDF…');
   return makePdf(parts, { title: `${d.typeName} ${d.controlNo}`, author: d.createdByName });
 }
 
