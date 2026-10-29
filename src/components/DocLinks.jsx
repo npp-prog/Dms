@@ -120,7 +120,7 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
               {SYSTEMS.map((s) => <option key={s}>{s}</option>)}
             </Select></div>
           <div className="field"><label className="field-label" htmlFor={`${id}-r`}>Reference no. (optional)</label>
-            <input id={`${id}-r`} className="caps" value={ext.ref} onChange={(e) => setExt({ ...ext, ref: e.target.value })} placeholder="e.g. PO-2026-10-005" /></div>
+            <input id={`${id}-r`} className="caps" value={ext.ref} onChange={(e) => setExt({ ...ext, ref: e.target.value })} /></div>
           <div className="field field-wide"><label className="field-label" htmlFor={`${id}-u`}>Link</label>
             <input id={`${id}-u`} value={ext.url} onChange={(e) => setExt({ ...ext, url: e.target.value })} placeholder="https://…" /></div>
           <div><button type="button" className="btn btn-primary btn-sm" onClick={addExternal}>Add link</button></div>

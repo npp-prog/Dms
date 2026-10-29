@@ -24,7 +24,7 @@ export default function TransactionPicker({ kind, value, onPick }) {
   return (
     <div className="card" style={{ boxShadow: 'none' }}>
       <label className="field-label" htmlFor="tx-q">What type of transaction is this?</label>
-      <input id="tx-q" type="search" autoFocus placeholder="Type a checklist number or words, e.g. 1613, direct acquisition, travel"
+      <input id="tx-q" type="search" autoFocus placeholder="Type a checklist number or words"
         value={q} onChange={(e) => setQ(e.target.value)} />
       {error && <div className="alert">{error}</div>}
       {!all && !error && <div className="spinner" />}

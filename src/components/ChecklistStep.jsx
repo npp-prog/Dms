@@ -104,7 +104,7 @@ export default function ChecklistStep({ type, transaction, state, onState, onTra
           {additional.map((text, i) => (
             <div key={i} className="row gap additional-row">
               <span className="muted">{(checklist?.items.length || 0) + i + 1}.</span>
-              <input className="caps" value={text} placeholder="Document, e.g. Certificate of Appearance"
+              <input className="caps" value={text} placeholder="Document"
                 onChange={(e) => onAdditional(additional.map((t, j) => (j === i ? toCaps(e.target.value) : t)))} />
               <button type="button" className="btn-icon" title="Remove" onClick={() => onAdditional(additional.filter((_, j) => j !== i))}>×</button>
             </div>

@@ -91,7 +91,7 @@ export default function ChecklistEditor() {
             <h3>Checklist</h3>
             <div className="fields">
               <div className="field"><label className="field-label">Checklist No. <span className="req">*</span></label>
-                <input value={c.code} disabled={!!code} placeholder="e.g. 1613" onChange={(e) => patch({ code: e.target.value })} /></div>
+                <input value={c.code} disabled={!!code} onChange={(e) => patch({ code: e.target.value })} /></div>
               <div className="field"><label className="field-label">Kind</label>
                 <Select value={c.kind} onChange={(e) => patch({ kind: e.target.value, ...(e.target.value === 'liquidation' ? { category: 'Liquidation' } : {}) })}>
                   <option value="disbursement">Disbursement</option><option value="liquidation">Liquidation</option>
@@ -116,14 +116,14 @@ export default function ChecklistEditor() {
               “If applicable” prints Y and N/A boxes. Items with the same group are printed under a heading.</p>
             {c.items.map((it, i) => (
               <div key={it.id} className="editor-block">
-                <input value={it.label} placeholder="Document type, e.g. Oath of Office" onChange={(e) => setItem(i, { label: e.target.value })} />
-                <textarea rows={2} value={it.details || ''} placeholder="Document details (optional), e.g. Certified copy of Oath of Office" onChange={(e) => setItem(i, { details: e.target.value })} />
+                <input value={it.label} placeholder="Document type" onChange={(e) => setItem(i, { label: e.target.value })} />
+                <textarea rows={2} value={it.details || ''} placeholder="Document details (optional)" onChange={(e) => setItem(i, { details: e.target.value })} />
                 <div className="editor-row compact">
                   <Select value={it.required ? 'y' : 'na'} onChange={(e) => setItem(i, { required: e.target.value === 'y' })}>
                     <option value="y">Always required (Y)</option>
                     <option value="na">If applicable (Y / N/A)</option>
                   </Select>
-                  <input placeholder="Group heading (optional), e.g. Final Payment" value={it.group || ''} onChange={(e) => setItem(i, { group: e.target.value })} />
+                  <input placeholder="Group heading (optional)" value={it.group || ''} onChange={(e) => setItem(i, { group: e.target.value })} />
                   <div className="row-actions">
                     <button type="button" className="btn-icon" onClick={() => patch({ items: move(c.items, i, -1) })}>↑</button>
                     <button type="button" className="btn-icon" onClick={() => patch({ items: move(c.items, i, 1) })}>↓</button>

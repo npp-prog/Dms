@@ -109,15 +109,15 @@ export default function UploadDocument() {
         </div>
         <div className="field">
           <label className="field-label" htmlFor={`${id}-s`}>Payee / Subject</label>
-          <input id={`${id}-s`} className="caps" value={form.title} onChange={set('title')} placeholder="e.g. NEIL P. PRIOLO" required />
+          <input id={`${id}-s`} className="caps" value={form.title} onChange={set('title')} required />
         </div>
         <div className="field">
           <label className="field-label" htmlFor={`${id}-f`}>Fund <span className="muted">(optional)</span></label>
-          <input id={`${id}-f`} className="caps" value={form.fund} onChange={set('fund')} placeholder="e.g. GENERAL FUND" />
+          <input id={`${id}-f`} className="caps" value={form.fund} onChange={set('fund')} />
         </div>
         <div className="field upload-wide">
           <label className="field-label" htmlFor={`${id}-n`}>Notes <span className="muted">(optional)</span></label>
-          <input id={`${id}-n`} value={form.notes} onChange={set('notes')} placeholder="e.g. Signed copy from the Budget Office" />
+          <input id={`${id}-n`} value={form.notes} onChange={set('notes')} />
         </div>
 
         <div className="field upload-wide">

@@ -22,7 +22,7 @@ export default function SendPanel({ doc, me, busy, onDownload, onForward }) {
         </div>
         <label className="field">
           <span className="field-label">Note (optional)</span>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Check ready for release" />
+          <input value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         <div><button type="button" className="btn btn-primary btn-sm" disabled={busy || !person}
           onClick={() => onForward(person, note, () => { setPerson(null); setNote(''); })}>Forward</button></div>

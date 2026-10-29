@@ -31,7 +31,7 @@ export default function Settings() {
       <form className="card" onSubmit={submit}>
         <div className="fields">
           <div className="field"><label className="field-label">LGU name</label>
-            <input value={form.lguName} onChange={set('lguName')} placeholder="e.g. Municipal Government of Candoni" />
+            <input value={form.lguName} onChange={set('lguName')} />
             <div className="help">Printed on document headers as <code>{'{{lgu.name}}'}</code></div></div>
           <div className="field"><label className="field-label">Province</label>
             <input value={form.province} onChange={set('province')} /></div>
@@ -50,7 +50,7 @@ export default function Settings() {
             <div key={r.key} className="field field-wide">
               <label className="field-label">{r.label}</label>
               <div className="editor-row">
-                <input placeholder="Name, as printed (e.g. JUAN DELA CRUZ, CPA)" value={form.signatories[r.key]} onChange={setSig(r.key)} />
+                <input placeholder="Name, as printed" value={form.signatories[r.key]} onChange={setSig(r.key)} />
                 <input placeholder="Position" value={form.signatories[`${r.key}Position`]} onChange={setSig(`${r.key}Position`)} />
               </div>
               <div className="help">Template: <code>{`{{sig.${r.key}}}`}</code> <code>{`{{sig.${r.key}Position}}`}</code></div>

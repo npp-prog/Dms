@@ -191,7 +191,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
               </div>
               <label className="field">
                 <span className="field-label">Action</span>
-                <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} placeholder="e.g. Pre-audit, Box B and the JEV" />
+                <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} />
               </label>
               <label className="check">
                 <input type="checkbox" checked={s.sign} onChange={(e) => set(i, { sign: e.target.checked })} />

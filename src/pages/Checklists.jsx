@@ -71,7 +71,7 @@ export default function Checklists() {
           <button className={kind === 'disbursement' ? 'active' : ''} onClick={() => setKind('disbursement')}>Disbursement ({count('disbursement')})</button>
           <button className={kind === 'liquidation' ? 'active' : ''} onClick={() => setKind('liquidation')}>Liquidation ({count('liquidation')})</button>
         </div>
-        <input className="search" type="search" placeholder="Search by number or name, e.g. 1613 or direct acquisition"
+        <input className="search" type="search" placeholder="Search by number or name"
           value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 

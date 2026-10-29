@@ -146,11 +146,11 @@ export default function DocumentTypeEditor() {
         <section className="card">
           <div className="fields">
             <div className="field"><label className="field-label">Code <span className="req">*</span></label>
-              <input value={type.code} placeholder="e.g. DV" onChange={(e) => patch({ code: e.target.value })} /></div>
+              <input value={type.code} onChange={(e) => patch({ code: e.target.value })} /></div>
             <div className="field"><label className="field-label">Name <span className="req">*</span></label>
-              <input value={type.name} placeholder="e.g. Disbursement Voucher" onChange={(e) => patch({ name: e.target.value })} /></div>
+              <input value={type.name} onChange={(e) => patch({ name: e.target.value })} /></div>
             <div className="field"><label className="field-label">Category</label>
-              <input value={type.category} placeholder="e.g. Disbursement, Procurement, Budget" onChange={(e) => patch({ category: e.target.value })} /></div>
+              <input value={type.category} onChange={(e) => patch({ category: e.target.value })} /></div>
             <div className="field field-wide"><label className="field-label">Documents of this type are</label>
               <Select value={type.uploadOnly ? 'upload' : 'prepare'} onChange={(e) => { patch({ uploadOnly: e.target.value === 'upload' }); setTab('General'); }}>
                 <option value="prepare">Prepared in DMS from its format (fields, steps and template)</option>
@@ -283,9 +283,9 @@ export default function DocumentTypeEditor() {
             <div key={p.id} className="editor-block">
               <div className="editor-row">
                 <span className="step-num">{i + 1}</span>
-                <input placeholder="Office (e.g. Municipal Accounting Office)" value={p.office}
+                <input placeholder="Office" value={p.office}
                   onChange={(e) => setItem('processing', i, { office: e.target.value })} />
-                <input placeholder="Action (e.g. Pre-audit and sign Box C)" value={p.action}
+                <input placeholder="Action" value={p.action}
                   onChange={(e) => setItem('processing', i, { action: e.target.value })} />
                 <RowActions list={type.processing} i={i} onChange={setList('processing')} />
               </div>

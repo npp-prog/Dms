@@ -89,7 +89,7 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
     control = <TableInput field={field} value={value} onChange={onChange} disabled={disabled} />;
   } else if (field.type === 'textarea') {
     control = <textarea id={`f-${field.key}`} rows={3} value={value ?? ''} disabled={disabled} className="caps"
-      placeholder={field.placeholder} onChange={(e) => onChange(toCaps(e.target.value))} />;
+      onChange={(e) => onChange(toCaps(e.target.value))} />;
   } else if (field.type === 'select') {
     control = (
       <Select id={`f-${field.key}`} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
@@ -100,7 +100,7 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
   } else {
     control = <input id={`f-${field.key}`} type={inputType(field.type)} value={value ?? ''} disabled={disabled}
       readOnly={Boolean(field.compute)} className={field.compute ? 'computed' : 'caps'}
-      step={field.type === 'currency' ? '0.01' : undefined} placeholder={field.placeholder}
+      step={field.type === 'currency' ? '0.01' : undefined}
       onChange={(e) => onChange(inputType(field.type) === 'text' ? toCaps(e.target.value) : e.target.value)} />;
   }
   return (

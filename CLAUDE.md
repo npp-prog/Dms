@@ -6,3 +6,5 @@
   (search by name or email).
 - Tests: `npm test` (node --test on `src/lib/*.test.js`); build: `npm run build`.
 - After changing `firestore.rules` or `storage.rules`, the live site needs them republished in the Firebase console.
+- **No example data in fields:** inputs have no "e.g. …" placeholders or sample values (names, numbers, offices).
+  A placeholder may only say what to do (e.g. "Search…"); explanations go in help text under the field.

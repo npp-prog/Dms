@@ -50,7 +50,7 @@ function ReferPanel({ me, busy, onRefer, onCancel }) {
       </div>
       <label className="field">
         <span className="field-label">What should they do? (optional)</span>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Please review and initial the attached liquidation" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
       <p className="xs muted">They receive it in their Inbox, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
       <div className="row gap">
@@ -196,7 +196,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
           {referral.received && (
             <div className="field field-wide" style={{ marginBottom: '.6rem' }}>
               <label className="field-label" htmlFor="wf-back">Remarks (optional)</label>
-              <input id="wf-back" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Reviewed and signed" />
+              <input id="wf-back" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
             </div>
           )}
           <div className="row gap wrap">
@@ -216,7 +216,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               <div className="field field-wide">
                 <label className="field-label" htmlFor="wf-remarks">Why is it returned to {prev ? nameOf(prev) : 'the previous office'}?</label>
                 <textarea id="wf-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="e.g. OBR not attached; Box A not signed" />
+                  />
               </div>
               <div className="row gap">
                 <button className="btn btn-danger" disabled={busy || !remarks.trim()} onClick={() => act('return')}>Return</button>
@@ -228,7 +228,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               {(actions.includes('release') || actions.includes('complete')) && (
                 <div className="field field-wide" style={{ marginBottom: '.6rem' }}>
                   <label className="field-label" htmlFor="wf-note">Remarks (optional)</label>
-                  <input id="wf-note" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Signed Box B; DV No. 101-2026-10-0045" />
+                  <input id="wf-note" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
                 </div>
               )}
               {wf.received && (wf.steps[wf.stage].fills || wf.steps[wf.stage].upload) && (

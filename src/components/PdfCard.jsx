@@ -242,7 +242,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <div className="sign-panel">
               <div className="field field-wide">
                 <label className="field-label" htmlFor={`${id}-why`}>Reason (shown in the signature)</label>
-                <input id={`${id}-why`} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. Box A: Certified" />
+                <input id={`${id}-why`} value={why} onChange={(e) => setWhy(e.target.value)} />
               </div>
               {mode === 'sign' && saved && (
                 <div className="mark-box note-box">
@@ -250,7 +250,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                   {addText && (
                     <>
                       <textarea rows={2} value={noteText} onChange={(e) => setNoteText(e.target.value)} maxLength={300}
-                        placeholder="e.g. Approved for payment; Funds available; Noted" aria-label="Text to add on the PDF" />
+                        aria-label="Text to add on the PDF" />
                       <div className="row gap wrap small">
                         Size:
                         {Object.keys(NOTE_SIZES).map((k) => (
