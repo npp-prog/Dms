@@ -154,8 +154,10 @@ export default function DocumentView() {
   const atPreparer = !wf || (wf.state === 'in-progress' && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
   // A signed PDF is the record of what was signed: the document can no longer be edited.
   const hasSignature = (docData.pdf?.files || []).some((f) => f.kind === 'signed');
-  const canChange = editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canConvert = editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
+  // An uploaded document's file is its PDF: nothing to encode, edit or convert.
+  const uploaded = Boolean(docData.uploaded);
+  const canChange = !uploaded && editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canConvert = !uploaded && editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? wf.received && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
   // (An office signs once it has received the document.)
   const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
@@ -169,7 +171,7 @@ export default function DocumentView() {
     run(async () => { await deleteDocument(docId); navigate('/documents'); });
   };
 
-  const activeChecklist = type ? effectiveChecklist(type, docData.transaction) : null;
+  const activeChecklist = type && !docData.uploaded ? effectiveChecklist(type, docData.transaction) : null;
   // Tabs after the checklist: the documents linked or uploaded to its items, numbered as on it.
   const linkTabs = (activeChecklist?.items || []).flatMap((item, i) => (docData.links?.[item.id] || [])
     .map((l, j) => ({ link: l, key: `${item.id}:${j}`, n: i + 1 }))
@@ -187,7 +189,7 @@ export default function DocumentView() {
         <div>
           <div className="crumbs"><Link to="/documents">Documents</Link> / {docData.controlNo}</div>
           <h1>{docData.typeName} <StatusBadge status={docData.status} /></h1>
-          <p className="muted">{docData.title} · Prepared by {docData.createdByName}</p>
+          <p className="muted">{docData.title} · {docData.uploaded ? 'Uploaded' : 'Prepared'} by {docData.createdByName}</p>
         </div>
         <div className="row gap wrap">
           {view !== 'pdf' && <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>}
@@ -206,14 +208,14 @@ export default function DocumentView() {
       {docData.status === 'draft' && (
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}
-      {docData.status === 'complete' && !wf && (
+      {docData.status === 'complete' && !wf && !uploaded && (
         <div className="alert alert-ok no-print"><b>Encoding complete.</b> Check the document, then click <b>Convert to PDF</b> under
           <b>PDF and digital signatures</b>: the PDF then follows its workflow from office to office.</div>
       )}
 
       <div className="doc-split">
         <div className="no-print doc-side">
-          {isAdmin && editable && type && draft && (
+          {isAdmin && editable && type && draft && !uploaded && (
             <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
               onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
@@ -272,6 +274,8 @@ export default function DocumentView() {
             <h3>Details</h3>
             <dl className="details">
               <dt>Control No.</dt><dd>{docData.controlNo}</dd>
+              {uploaded && <><dt>Uploaded file</dt><dd>{docData.uploaded.name}</dd></>}
+              {uploaded && docData.data?.notes && <><dt>Notes</dt><dd>{docData.data.notes}</dd></>}
               {Object.entries(docData.refNos || {}).filter(([, r]) => !r.of).map(([k, r]) => (
                 <Fragment key={k}><dt>{r.label}</dt><dd><b>{r.value}</b><div className="small muted">Assigned by {r.by}{r.office ? `, ${r.office}` : ''}</div></dd></Fragment>
               ))}
@@ -331,7 +335,7 @@ export default function DocumentView() {
             {((activeChecklist && activeChecklist.items.length > 0) || pdfView) && (
               <div className="tabs view-toggle no-print">
                 {pdfView && <button className={view === 'pdf' ? 'active' : ''} onClick={() => setView('pdf')}>{hasSignature ? 'Signed PDF' : 'PDF'}</button>}
-                <button className={view === 'document' ? 'active' : ''} onClick={() => setView('document')}>{docData.typeCode}</button>
+                {!uploaded && <button className={view === 'document' ? 'active' : ''} onClick={() => setView('document')}>{docData.typeCode}</button>}
                 {activeChecklist && activeChecklist.items.length > 0 && (
                   <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>
                 )}
@@ -367,6 +371,10 @@ export default function DocumentView() {
               <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`}
                 placing={placing} onPlace={setPlacement}
                 mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} />
+            ) : uploaded ? (
+              pdfView ? <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${docData.uploaded.name}`}
+                placing={placing} onPlace={setPlacement}
+                mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} /> : <div className="spinner" />
             ) : view === 'checklist' && activeChecklist ? (
               <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (

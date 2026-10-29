@@ -11,6 +11,7 @@ import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
+import UploadDocument from './pages/UploadDocument.jsx';
 import Workflow from './pages/admin/Workflow.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="formats" element={<Formats />} />
         <Route path="formats/:typeId" element={<FormatView />} />
         <Route path="new" element={<PrepareDocument />} />
+        <Route path="upload" element={<UploadDocument />} />
         <Route path="new/:typeId" element={<PrepareDocument />} />
         <Route path="checklists" element={<Checklists />} />
         <Route path="checklists/:code" element={<ChecklistView />} />

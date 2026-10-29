@@ -43,7 +43,10 @@ export default function Documents() {
                 : 'Your documents. An administrator has not assigned you to an office yet.'}</p>
           )}
         </div>
-        <Link to="/new" className="btn btn-primary">+ Prepare document</Link>
+        <div className="row gap wrap">
+          <Link to="/upload" className="btn btn-ghost">↑ Upload document</Link>
+          <Link to="/new" className="btn btn-primary">+ Prepare document</Link>
+        </div>
       </div>
       <div className="filters">
         <input className="search" placeholder="Search control no., DV/OBR no., payee…" value={filters.q}

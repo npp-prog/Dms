@@ -124,7 +124,8 @@ export function signatureMissing(doc) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress' || !wf.steps[wf.stage]?.sign) return false;
   const files = doc.pdf?.files || [];
-  const current = files.slice(files.map((f) => f.kind).lastIndexOf('generated') + 1);
+  // Since the last new PDF (converted, or uploaded as the document itself).
+  const current = files.slice(Math.max(...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1))) + 1);
   return !current.some((f) => f.kind === 'signed' && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 

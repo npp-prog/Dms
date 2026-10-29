@@ -258,6 +258,36 @@ async function nextControlNo() {
   return formatControlNo(year, value);
 }
 
+// A document that already exists as a file (scanned, or made outside DMS): it gets a control
+// number and follows the route of its type like a prepared one; its file is its PDF.
+export async function createUploadedDocument(type, { title, fund = '', notes = '', fileName }, user) {
+  const controlNo = await nextControlNo();
+  const ref = await addDoc(collection(db, 'documents'), {
+    typeId: type.id || '',
+    typeCode: type.code,
+    typeName: type.name,
+    typeVersion: type.version || 1,
+    typeSnapshot: snapshotType(type),
+    controlNo,
+    data: { payee: title, fund, notes },
+    checklist: {},
+    additionalDocs: [],
+    links: {},
+    transaction: null,
+    signatories: null,
+    status: 'draft', // complete once its file is stored
+    uploaded: { name: fileName, at: new Date().toISOString() },
+    title,
+    createdBy: user.uid,
+    createdByName: user.displayName || user.email,
+    office: user.office || '',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    history: [historyEntry('uploaded', user, fileName)],
+  });
+  return { id: ref.id, controlNo };
+}
+
 function historyEntry(action, user, note = '') {
   return { action, note, by: user.displayName || user.email, uid: user.uid, at: new Date().toISOString() };
 }
@@ -736,7 +766,7 @@ export function snapshotType(type) {
 
 // Prefer the frozen format stored on the document; fall back to the live type.
 export async function getTypeForDocument(document) {
-  if (document.typeSnapshot?.template !== undefined) return { id: document.typeId, ...document.typeSnapshot };
+  if (document.typeSnapshot?.template !== undefined || !document.typeId) return { id: document.typeId, ...document.typeSnapshot };
   return getDocumentType(document.typeId);
 }
 

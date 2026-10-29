@@ -300,7 +300,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <ol>
               {files.map((f, i) => (
                 <li key={f.path}>
-                  {f.kind === 'generated' ? 'Converted' : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
+                  {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
                   {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : ''}
                 </li>
               ))}
