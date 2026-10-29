@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, uploadAttachment, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
 import { canAct, editableByPreparer, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -14,17 +14,67 @@ import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
+import { readSignatures } from '../lib/signing.js';
+
+function downloadBytes(bytes, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], { type }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
-function ItemLinks({ item, links, canEdit, docId, onChange }) {
+// Under a checklist item: its linked and uploaded documents, and (for the preparer) link or upload.
+function ItemLinks({ item, links, canEdit, docId, actor, onChange, onOpen }) {
   const [open, setOpen] = useState(false);
+  const [upload, setUpload] = useState('');
+  const [error, setError] = useState('');
+  const add = async (file) => {
+    if (!file) return;
+    setError(''); setUpload('Uploading… 0%');
+    try {
+      const l = await uploadAttachment(docId, item.id, file, actor, (x) => setUpload(`Uploading… ${Math.round(x * 100)}%`));
+      await onChange([...links, l], linkText(l));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUpload('');
+    }
+  };
   return (
     <>
-      <LinkList links={links} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
+      <LinkList links={links} onOpen={onOpen} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
+      {error && <div className="alert small">{error}</div>}
       {canEdit && (open
         ? <LinkEditor item={item} excludeId={docId} onCancel={() => setOpen(false)} onAdd={(l) => { setOpen(false); onChange([...links, l], linkText(l)); }} />
-        : <button type="button" className="link small no-print" onClick={() => setOpen(true)}>+ Link document</button>)}
+        : (
+          <div className="item-actions no-print">
+            <button type="button" className="link small" onClick={() => setOpen(true)}>+ Link document</button>
+            {upload ? <span className="small muted">{upload}</span> : (
+              <label className="link small">
+                + Upload file
+                <input type="file" hidden accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => { add(e.target.files[0]); e.target.value = ''; }} />
+              </label>
+            )}
+          </div>
+        ))}
     </>
+  );
+}
+
+// An uploaded file shown in the page: a PDF page by page, a picture as it is.
+function FileView({ file, bytes }) {
+  const url = useMemo(() => (bytes && !/pdf/.test(file.type) ? URL.createObjectURL(new Blob([bytes], { type: file.type })) : ''), [bytes, file.type]);
+  if (!bytes) return <div className="spinner" />;
+  if (/pdf/.test(file.type)) return <PdfViewer bytes={bytes} signatures={readSignatures(bytes)} title={file.name} />;
+  return (
+    <div className="pdf-viewer">
+      <div className="pdf-viewer-head"><b>{file.name}</b></div>
+      <img className="file-image" src={url} alt={file.name} />
+    </div>
   );
 }
 
@@ -37,6 +87,14 @@ export default function DocumentView() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState('document');
+  // An uploaded supporting document shown in the main area.
+  const [fileView, setFileView] = useState(null);
+  const openFile = (file) => {
+    setFileView({ file });
+    setView('file');
+    viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    getFileBytes(file.path).then((bytes) => setFileView({ file, bytes })).catch((e) => setFileView({ file, error: e.message }));
+  };
   // The current PDF, once PdfCard has loaded it, for the viewer in the main area.
   const [pdfView, setPdfView] = useState(null);
   const viewer = useRef(null);
@@ -192,9 +250,9 @@ export default function DocumentView() {
                   const v = docData.checklist?.[c.id];
                   return (
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId}
+                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} actor={actor} onOpen={openFile}
                         canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
-                        onChange={(list, note) => run(() => saveDocumentLinks(docId, {
+                        onChange={(list, note) => run(async () => saveDocumentLinks(docId, {
                           links: { ...(docData.links || {}), [c.id]: list },
                           checklist: list.length > (docData.links?.[c.id] || []).length && !isChecked(v)
                             ? { ...(docData.checklist || {}), [c.id]: 'Y' } : (docData.checklist || {}),
@@ -231,7 +289,15 @@ export default function DocumentView() {
                 )}
               </div>
             )}
-            {view === 'pdf' && pdfView ? (
+            {view === 'file' && fileView ? (
+              <>
+                <div className="row gap file-head no-print">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setView(pdfView ? 'pdf' : 'document')}>← Back to the {pdfView ? 'PDF' : 'document'}</button>
+                  {fileView.bytes && <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadBytes(fileView.bytes, fileView.file.name, fileView.file.type)}>Download</button>}
+                </div>
+                {fileView.error ? <div className="alert">{fileView.error}</div> : <FileView file={fileView.file} bytes={fileView.bytes} />}
+              </>
+            ) : view === 'pdf' && pdfView ? (
               <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`}
                 placing={placing} onPlace={setPlacement}
                 mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} />

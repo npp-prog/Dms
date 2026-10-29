@@ -132,6 +132,7 @@ documents/{id}        typeId, typeCode, typeName, typeVersion, typeSnapshot, con
 counters/FTS          value  (control number series for 2026, DMS-2026-######)
 counters/DMS-{year}   value  (from 2027: DMS-2027-######, ...)
 verifications/{sha256}  controlNo, typeCode, typeName, version, kind, signer, signatures, by, at  (public get, no list)
+Storage: documents/{docId}/attachments/{itemId}/{time}-{name}  (files uploaded to checklist items)
 Storage: documents/{docId}/{n}-generated.pdf, {n}-signed.pdf  (never replaced; storage.rules)
 meta/settings         lguName, lguAddress, province, sealUrl, signatories{}, offices[]
 ```

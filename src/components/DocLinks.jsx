@@ -16,17 +16,26 @@ export const safeUrl = (url) => (/^https?:\/\/\S+$/i.test(String(url || '').trim
 // One-line text of a link, as printed on the checklist.
 export function linkText(l) {
   if (l.kind === 'fts') return `${l.controlNo} (${l.typeCode})`;
+  if (l.kind === 'file') return `File: ${l.name}`;
   return [l.system, l.ref || safeUrl(l.url)].filter(Boolean).join(': ');
 }
 
-export function LinkList({ links = [], onRemove }) {
+const kb = (n) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+// onOpen(link): show an uploaded file (in the document page's viewer).
+export function LinkList({ links = [], onRemove, onOpen }) {
   if (!links.length) return null;
   return (
     <ul className="doc-links">
       {links.map((l, i) => (
         <li key={i}>
-          <span className="badge badge-blue">{l.kind === 'fts' ? 'DMS' : l.system}</span>{' '}
-          {l.kind === 'fts'
+          <span className="badge badge-blue">{l.kind === 'fts' ? 'DMS' : l.kind === 'file' ? 'File' : l.system}</span>{' '}
+          {l.kind === 'file' ? (
+            <>
+              {onOpen ? <button type="button" className="link" onClick={() => onOpen(l)}>{l.name}</button> : l.name}
+              <span className="muted"> · {kb(l.size)} · {l.by}</span>
+            </>
+          ) : l.kind === 'fts'
             ? <Link to={`/documents/${l.id}`} target="_blank" rel="noopener">{l.controlNo}</Link>
             : safeUrl(l.url)
               ? <a href={safeUrl(l.url)} target="_blank" rel="noopener noreferrer">{l.ref || safeUrl(l.url)}</a>

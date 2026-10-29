@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getDocument, getPdfBytes, getTypeForDocument } from '../lib/api.js';
+import { getDocument, getFileBytes, getPdfBytes, getTypeForDocument } from '../lib/api.js';
 import { effectiveChecklist, itemTypeCode } from '../lib/checklists.js';
 import { fileBase, fundCode, cleanPart, controlRef, uniqueNamer } from '../lib/naming.js';
 import { renderPdf } from '../lib/pdf.js';
@@ -57,6 +57,13 @@ export default function BulkDownload({ docData, type, settings }) {
               const linkedType = await getTypeForDocument(linked);
               return { file, blob: await renderPdf(documentElement(linkedType, linked, settings), linkedType.paperSize, linkedType.orientation) };
             } });
+          } else if (link.kind === 'file') {
+            // Uploaded to the item: named like the rest, keeping its own extension.
+            const ext = (link.name.match(/\.([a-z0-9]{1,5})$/i)?.[1] || (link.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
+            jobs.push({ label: link.name, run: async () => ({
+              file: name(fileBase({ ...base, number: i + 1, type: itemTypeCode(item), ref: controlRef(docData.controlNo) }), ext),
+              blob: new Blob([await getFileBytes(link.path)], { type: link.type }),
+            }) });
           } else if (safeUrl(link.url)) {
             jobs.push({ label: linkText(link), run: async () => ({
               file: name(fileBase({ ...base, number: i + 1, type: itemTypeCode(item), ref: `${link.system} ${link.ref || ''}` }), 'url'),

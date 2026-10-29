@@ -296,6 +296,29 @@ export async function saveDocumentLinks(id, { links, checklist }, user, history 
   });
 }
 
+// A supporting document uploaded to a checklist item (a scanned PDF or a photo), kept at
+// documents/{docId}/attachments/{itemId}/{time}-{name}. Returns the link stored on the item.
+export const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+export async function uploadAttachment(docId, itemId, file, user, onProgress) {
+  if (!ATTACHMENT_TYPES.includes(file.type)) throw new Error('Upload a PDF or a picture (JPG or PNG).');
+  if (file.size > 20 * 1024 * 1024) throw new Error('The file is larger than 20 MB. Scan it at a lower resolution.');
+  const name = file.name.replace(/[^\w.\- ()]+/g, '_').slice(-80) || 'file';
+  const path = `documents/${docId}/attachments/${itemId}/${Date.now()}-${name}`;
+  await new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(storageRef(storage, path), file, { contentType: file.type });
+    task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload', 'uploading the file')), resolve);
+  });
+  return { kind: 'file', path, name: file.name, type: file.type, size: file.size, by: user.displayName || user.email, at: new Date().toISOString() };
+}
+
+export async function getFileBytes(path) {
+  try {
+    return new Uint8Array(await getBytes(storageRef(storage, path)));
+  } catch (e) {
+    throw storageError(e, 'download', 'opening the file');
+  }
+}
+
 // The Accounting Office's entries on a saved document (DV No., date, deductions).
 export async function saveAccountingEntries(id, data, user, history = []) {
   await updateDoc(doc(db, 'documents', id), {

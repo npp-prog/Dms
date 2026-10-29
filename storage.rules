@@ -53,6 +53,15 @@ service firebase.storage {
             || (file == 'mark.png' && request.resource.size < 2 * 1024 * 1024));
     }
 
+    // Supporting documents uploaded to the checklist items (scanned PDFs, photos).
+    match /documents/{docId}/attachments/{itemId}/{file} {
+      allow read: if isActive() && canRead(docOf(docId));
+      allow create: if resource == null && isActive() && canAdd(docOf(docId))
+        && request.resource.contentType.matches('application/pdf|image/(jpeg|png|webp)')
+        && request.resource.size < 20 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
     match /documents/{docId}/{file} {
       allow read: if isActive() && canRead(docOf(docId));
       // resource == null: a new file only, never over an existing version.
