@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
 import { canAct, editableByPreparer, officeOf } from '../lib/workflow.js';
-import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
+import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
 import ChecklistSheet from '../components/ChecklistSheet.jsx';
@@ -48,7 +48,7 @@ function ItemLinks({ item, links, canEdit, docId, actor, onChange, onOpen }) {
   };
   return (
     <>
-      <LinkList links={links} onOpen={onOpen} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
+      <LinkList links={links} onOpen={onOpen && ((l, i) => onOpen(l, `${item.id}:${i}`))} onRemove={canEdit ? (i) => onChange(links.filter((_, j) => j !== i), `removed ${linkText(links[i])}`) : undefined} />
       {error && <div className="alert small">{error}</div>}
       {canEdit && (open
         ? <LinkEditor item={item} excludeId={docId} onCancel={() => setOpen(false)} onAdd={(l) => { setOpen(false); onChange([...links, l], linkText(l)); }} />
@@ -91,7 +91,29 @@ export default function DocumentView() {
   const [view, setView] = useState('document');
   // An uploaded supporting document shown in the main area.
   const [fileView, setFileView] = useState(null);
-  const openFile = (file) => {
+  // A linked document from DMS shown in the page, from its own (signed) PDF, so its signatures
+  // stay intact, or its form if it was not converted.
+  const [linkedView, setLinkedView] = useState(null);
+  const [linkKey, setLinkKey] = useState('');
+  const openLinked = (link, key) => {
+    setLinkKey(key || '');
+    setLinkedView({ link });
+    setView('linked');
+    viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (async () => {
+      const d = await getDocument(link.id);
+      if (!d) throw new Error('The linked document no longer exists.');
+      const current = d.pdf?.files?.at(-1);
+      if (current) {
+        const bytes = await getPdfBytes(current.path);
+        setLinkedView({ link, doc: d, bytes, signatures: readSignatures(bytes) });
+      } else {
+        setLinkedView({ link, doc: d, type: await getTypeForDocument(d) });
+      }
+    })().catch((e) => setLinkedView({ link, error: e.code === 'permission-denied' ? 'You have no access to this linked document.' : e.message }));
+  };
+  const openFile = (file, key) => {
+    setLinkKey(key || '');
     setFileView({ file });
     setView('file');
     viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -148,6 +170,15 @@ export default function DocumentView() {
   };
 
   const activeChecklist = type ? effectiveChecklist(type, docData.transaction) : null;
+  // Tabs after the checklist: the documents linked or uploaded to its items, numbered as on it.
+  const linkTabs = (activeChecklist?.items || []).flatMap((item, i) => (docData.links?.[item.id] || [])
+    .map((l, j) => ({ link: l, key: `${item.id}:${j}`, n: i + 1 }))
+    .filter((t) => t.link.kind === 'fts' || t.link.kind === 'file')
+    .map((t) => ({
+      ...t,
+      label: `${String(t.n).padStart(2, '0')} ${t.link.kind === 'fts' ? t.link.typeCode : itemTypeCode(item)}`,
+      title: t.link.kind === 'fts' ? `${item.label}: ${t.link.controlNo}` : `${item.label}: ${t.link.name}`,
+    })));
   const unchecked = activeChecklist ? missingRequired(activeChecklist.items, docData.checklist) : [];
 
   return (
@@ -266,7 +297,8 @@ export default function DocumentView() {
                   const v = docData.checklist?.[c.id];
                   return (
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} actor={actor} onOpen={openFile}
+                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} actor={actor}
+                        onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))}
                         canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
                         onChange={(list, note) => run(async () => saveDocumentLinks(docId, {
                           links: { ...(docData.links || {}), [c.id]: list },
@@ -303,9 +335,27 @@ export default function DocumentView() {
                 {activeChecklist && activeChecklist.items.length > 0 && (
                   <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>
                 )}
+                {linkTabs.map((t) => (
+                  <button key={t.key} title={t.title} className={(view === 'linked' || view === 'file') && linkKey === t.key ? 'active' : ''}
+                    onClick={() => (t.link.kind === 'fts' ? openLinked(t.link, t.key) : openFile(t.link, t.key))}>{t.label}</button>
+                ))}
               </div>
             )}
-            {view === 'file' && fileView ? (
+            {view === 'linked' && linkedView ? (
+              <>
+                <div className="row gap file-head no-print">
+                  <Link className="btn btn-ghost btn-sm" to={`/documents/${linkedView.link.id}`}>Open {linkedView.link.controlNo}</Link>
+                  {linkedView.bytes && <button type="button" className="btn btn-ghost btn-sm"
+                    onClick={() => downloadBytes(linkedView.bytes, `${linkedView.link.typeCode}_${linkedView.link.controlNo}.pdf`, 'application/pdf')}>Download</button>}
+                </div>
+                {linkedView.error ? <div className="alert">{linkedView.error}</div>
+                  : linkedView.bytes ? <PdfViewer bytes={linkedView.bytes} signatures={linkedView.signatures} title={`${linkedView.link.controlNo} · ${linkedView.link.typeCode}${linkedView.signatures.length ? ' · signed PDF' : ' · PDF'}`} />
+                    : linkedView.type ? (
+                      <DocumentPreview type={linkedView.type} data={linkedView.doc.data || {}} checklist={linkedView.doc.checklist || {}} settings={settings}
+                        signatories={linkedView.doc.signatories} controlNo={linkedView.doc.controlNo} preparedBy={linkedView.doc.createdByName} />
+                    ) : <div className="spinner" />}
+              </>
+            ) : view === 'file' && fileView ? (
               <>
                 <div className="row gap file-head no-print">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setView(pdfView ? 'pdf' : 'document')}>← Back to the {pdfView ? 'PDF' : 'document'}</button>

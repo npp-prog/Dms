@@ -32,11 +32,12 @@ export function LinkList({ links = [], onRemove, onOpen }) {
           <span className="badge badge-blue">{l.kind === 'fts' ? 'DMS' : l.kind === 'file' ? 'File' : l.system}</span>{' '}
           {l.kind === 'file' ? (
             <>
-              {onOpen ? <button type="button" className="link" onClick={() => onOpen(l)}>{l.name}</button> : l.name}
+              {onOpen ? <button type="button" className="link" onClick={() => onOpen(l, i)}>{l.name}</button> : l.name}
               <span className="muted"> · {kb(l.size)} · {l.by}</span>
             </>
           ) : l.kind === 'fts'
-            ? <Link to={`/documents/${l.id}`} target="_blank" rel="noopener">{l.controlNo}</Link>
+            ? (onOpen ? <button type="button" className="link" onClick={() => onOpen(l, i)}>{l.controlNo}</button>
+              : <Link to={`/documents/${l.id}`} target="_blank" rel="noopener">{l.controlNo}</Link>)
             : safeUrl(l.url)
               ? <a href={safeUrl(l.url)} target="_blank" rel="noopener noreferrer">{l.ref || safeUrl(l.url)}</a>
               : l.ref}
