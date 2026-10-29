@@ -1014,3 +1014,6 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .note-archive summary { cursor: pointer; color: var(--muted); }
 @media (max-width: 600px) { .note-add { flex-wrap: wrap; } .note-add input:not([type=date]) { flex-basis: 100%; } }
 .pdf-versions li.superseded { color: var(--faint); text-decoration: line-through; }
+.review-list { list-style: none; margin: .4rem 0 0; padding: 0; }
+.review-list li { padding: .55rem 0; border-top: 1px solid var(--line); }
+.review-comment { margin-top: .35rem; padding: .5rem .65rem; background: var(--sunken); border-radius: 8px; white-space: pre-wrap; font-size: .9rem; }

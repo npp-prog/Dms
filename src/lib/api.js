@@ -749,16 +749,32 @@ export async function addStepFile(id, stage, link, user) {
 
 // Forwards a document to a DMS user (e.g. the payment details to the payee's office): they can
 // open it and its PDF, and find it in their Inbox under "Forwarded to you".
-export async function forwardDocument(id, to, note, user) {
+// kind 'review': a draft sent for initial review, before it is converted to PDF (optional).
+export async function forwardDocument(id, to, note, user, kind = '') {
   const ref = doc(db, 'documents', id);
   await runTransaction(db, async (tx) => {
     const d = (await tx.get(ref)).data();
     const at = new Date().toISOString();
     tx.update(ref, {
       sharedWith: [...new Set([...(d.sharedWith || []), to.uid])],
-      forwards: [...(d.forwards || []), { to: to.uid, toName: to.displayName, toOffice: to.office || '', note: String(note || '').trim(), by: user.displayName || user.email, uid: user.uid, at }],
+      forwards: [...(d.forwards || []), { to: to.uid, toName: to.displayName, toOffice: to.office || '', note: String(note || '').trim(), by: user.displayName || user.email, uid: user.uid, at, ...(kind ? { kind } : {}) }],
       updatedAt: serverTimestamp(),
-      history: [...(d.history || []), historyEntry('forwarded', user, `to ${to.displayName}${note ? ` — ${String(note).trim()}` : ''}`)],
+      history: [...(d.history || []), historyEntry(kind === 'review' ? 'sent for review' : 'forwarded', user, `to ${to.displayName}${note ? ` — ${String(note).trim()}` : ''}`)],
+    });
+  });
+}
+
+// A reviewer's comments on a draft sent to them for review.
+export async function reviewDocument(id, comment, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const text = String(comment || '').trim();
+    if (!text) throw new Error('Write your review.');
+    tx.update(ref, {
+      reviews: [...(d.reviews || []), { uid: user.uid, name: user.displayName || user.email, comment: text.slice(0, 2000), at: new Date().toISOString() }],
+      updatedAt: serverTimestamp(),
+      history: [...(d.history || []), historyEntry('reviewed', user, text.slice(0, 200))],
     });
   });
 }

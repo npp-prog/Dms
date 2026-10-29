@@ -159,6 +159,9 @@ service cloud.firestore {
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
         && referralAllowed()
         && (isAdmin()
+            // Someone it was sent to for review writes their review (nothing else).
+            || (request.auth.uid in resource.data.get('sharedWith', [])
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviews', 'updatedAt', 'history']))
             // The person it is referred to receives it, signs its PDF and sends it back.
             || (referredToMe()
                 && request.resource.data.diff(resource.data).affectedKeys()

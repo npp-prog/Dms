@@ -91,7 +91,7 @@ export default function Inbox() {
                       <td>{d.typeCode}</td>
                       <td>{d.title}</td>
                       <td className="small">{f.by}</td>
-                      <td className="small">{f.note || '—'}</td>
+                      <td className="small">{f.kind === 'review' && <span className="badge badge-blue">For review</span>} {f.note || (f.kind === 'review' ? '' : '—')}</td>
                       <td className="small">{f.at ? new Date(f.at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : ''}</td>
                     </tr>
                   );

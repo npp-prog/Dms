@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
 import { canAct, editableByPreparer, isReceived, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -12,6 +12,7 @@ import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
+import ReviewCard from '../components/ReviewCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
 import SendPanel from '../components/SendPanel.jsx';
 import { pdfFileName } from '../components/printables.jsx';
@@ -217,14 +218,14 @@ export default function DocumentView() {
               Cancel document
             </button>
           )}
-          {(isAdmin || docData.status === 'draft') && <button className="btn btn-danger" disabled={busy} onClick={remove}>Delete</button>}
+          {(isAdmin || (isOwner && docData.status === 'draft')) && <button className="btn btn-danger" disabled={busy} onClick={remove}>Delete</button>}
         </div>
       </div>
 
-      {docData.status === 'draft' && (
+      {docData.status === 'draft' && (isOwner || isAdmin) && (
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}
-      {docData.status === 'complete' && !wf && !uploaded && (
+      {docData.status === 'complete' && !wf && !uploaded && (isOwner || isAdmin) && (
         <div className="alert alert-ok no-print"><b>Encoding complete.</b> Check the document, then click <b>Convert to PDF</b> under
           <b>PDF and digital signatures</b>: the PDF then follows its workflow from office to office.</div>
       )}
@@ -255,6 +256,10 @@ export default function DocumentView() {
               }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
+          {/* Optional initial review of the draft by anyone, before it is converted to PDF. */}
+          <ReviewCard doc={docData} me={user.uid} busy={busy} canSend={editable && !uploaded && (isOwner || isAdmin)}
+            onSend={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor, 'review'); done(); })}
+            onReview={(comment, done) => run(async () => { await reviewDocument(docId, comment, actor); done(); })} />
           {isAdmin && editable && type && draft && !uploaded && accountingOpen && (
             <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
