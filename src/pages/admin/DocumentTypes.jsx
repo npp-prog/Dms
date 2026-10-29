@@ -66,7 +66,8 @@ export default function DocumentTypes() {
       <div className="page-head">
         <div>
           <h1>Document Types</h1>
-          <p className="muted">Define each document&rsquo;s fields, guided steps, checklist of requirements and printable format.</p>
+          <p className="muted">Define each document&rsquo;s fields, guided steps, checklist of requirements and printable format, or make it
+            upload only (no format) for documents that are uploaded as files.</p>
         </div>
         <div className="row gap wrap">
           {missingStarters.length > 0 && (
@@ -92,10 +93,10 @@ export default function DocumentTypes() {
               {types.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.code}</b></td>
-                  <td><Link to={`/admin/types/${t.id}`}>{t.name}</Link></td>
+                  <td><Link to={`/admin/types/${t.id}`}>{t.name}</Link>{t.uploadOnly && <> <span className="badge badge-blue">Upload only</span></>}</td>
                   <td>{t.category}</td>
-                  <td>{(t.fields || []).length}</td>
-                  <td>{(t.steps || []).length}</td>
+                  <td>{t.uploadOnly ? '—' : (t.fields || []).length}</td>
+                  <td>{t.uploadOnly ? '—' : (t.steps || []).length}</td>
                   <td>{(t.checklist || []).length}</td>
                   <td>v{t.version || 1}</td>
                   <td>
@@ -110,7 +111,7 @@ export default function DocumentTypes() {
                       <button className="btn btn-gold btn-sm" disabled={busy} title="DMS has a newer version of this starter format"
                         onClick={() => updateToStarter(t, newerStarter(t))}>Update format</button>
                     )}
-                    <Link className="btn btn-ghost btn-sm" to={`/formats/${t.id}`}>Preview</Link>
+                    {!t.uploadOnly && <Link className="btn btn-ghost btn-sm" to={`/formats/${t.id}`}>Preview</Link>}
                     <Link className="btn btn-ghost btn-sm" to={`/admin/types/${t.id}`}>Edit</Link>
                     <button className="btn btn-danger btn-sm" disabled={busy}
                       onClick={() => window.confirm(`Delete ${t.code}? Existing documents keep their own copy of the format.`)

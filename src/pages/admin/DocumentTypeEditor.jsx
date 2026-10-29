@@ -15,6 +15,8 @@ const EMPTY = {
 };
 
 const TABS = ['General', 'Guided Steps', 'Fields', 'Checklist', 'Processing Guide', 'Format / Template'];
+// An upload-only type has no format: its documents are uploaded as files (Documents > Upload).
+const UPLOAD_TABS = ['General', 'Processing Guide'];
 
 const uid = (p) => `${p}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -79,6 +81,7 @@ export default function DocumentTypeEditor() {
     const list = [];
     if (!type.code.trim()) list.push('Code is required.');
     if (!type.name.trim()) list.push('Name is required.');
+    if (type.uploadOnly) return list;
     const keys = type.fields.map((f) => f.key);
     if (keys.some((k) => !k)) list.push('Every field needs a key.');
     if (new Set(keys).size !== keys.length) list.push('Field keys must be unique.');
@@ -107,7 +110,7 @@ export default function DocumentTypeEditor() {
           ...f,
           ...(f.columns ? { columns: f.columns.map(({ keyTouched: _k, ...c }) => c) } : {}),
         })),
-        template: type.template || generateDefaultTemplate(type),
+        template: type.uploadOnly ? '' : type.template || generateDefaultTemplate(type),
       };
       const id = await saveDocumentType(typeId, clean, actor);
       setSaved(true);
@@ -135,7 +138,7 @@ export default function DocumentTypeEditor() {
       {error && <div className="alert">{error}</div>}
 
       <div className="tabs">
-        {TABS.map((t) => <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>)}
+        {(type.uploadOnly ? UPLOAD_TABS : TABS).map((t) => <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>)}
       </div>
 
       {tab === 'General' && (
@@ -147,10 +150,18 @@ export default function DocumentTypeEditor() {
               <input value={type.name} placeholder="e.g. Disbursement Voucher" onChange={(e) => patch({ name: e.target.value })} /></div>
             <div className="field"><label className="field-label">Category</label>
               <input value={type.category} placeholder="e.g. Disbursement, Procurement, Budget" onChange={(e) => patch({ category: e.target.value })} /></div>
+            <div className="field field-wide"><label className="field-label">Documents of this type are</label>
+              <select value={type.uploadOnly ? 'upload' : 'prepare'} onChange={(e) => { patch({ uploadOnly: e.target.value === 'upload' }); setTab('General'); }}>
+                <option value="prepare">Prepared in DMS from its format (fields, steps and template)</option>
+                <option value="upload">Uploaded only: no format (a scanned or signed file, a PDF from another system)</option>
+              </select>
+              {type.uploadOnly && <span className="small muted">It is not listed in Prepare Document. Users choose it in Documents → Upload, and it follows its workflow (Administration → Workflow).</span>}
+            </div>
             <div className="field"><label className="field-label">Status</label>
               <select value={type.active === false ? 'no' : 'yes'} onChange={(e) => patch({ active: e.target.value === 'yes' })}>
                 <option value="yes">Active (available to users)</option><option value="no">Inactive</option>
               </select></div>
+            {!type.uploadOnly && <>
             <div className="field"><label className="field-label">Paper size</label>
               <select value={type.paperSize === 'Long' ? 'Folio' : type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
                 {Object.entries(PAPER_SIZES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -159,6 +170,7 @@ export default function DocumentTypeEditor() {
               <select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
                 <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
               </select></div>
+            </>}
             <div className="field"><label className="field-label">Bulk download</label>
               <label className="check"><input type="checkbox" checked={Boolean(type.bulkDownload)} onChange={(e) => patch({ bulkDownload: e.target.checked })} />
                 Download all (ZIP): the document, its checklist and every linked document</label></div>

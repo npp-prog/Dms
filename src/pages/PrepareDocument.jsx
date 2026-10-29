@@ -16,7 +16,7 @@ import ProcessingGuide from '../components/ProcessingGuide.jsx';
 function TypePicker() {
   const [types, setTypes] = useState(null);
   const [error, setError] = useState('');
-  useEffect(() => { listDocumentTypes({ activeOnly: true }).then(setTypes).catch((e) => setError(e.message)); }, []);
+  useEffect(() => { listDocumentTypes({ activeOnly: true }).then((t) => setTypes(t.filter((x) => !x.uploadOnly))).catch((e) => setError(e.message)); }, []);
   return (
     <div className="page">
       <h1>Prepare Document</h1>
@@ -82,6 +82,7 @@ function Wizard({ typeId, docId }) {
         } else {
           const t = await getDocumentType(typeId);
           if (!t || t.active === false) throw new Error('Document type not found or inactive.');
+          if (t.uploadOnly) throw new Error(`${t.code} is upload only: it has no format to prepare. Upload it in Documents → Upload.`);
           setType(t);
           setData(initialData(t));
         }

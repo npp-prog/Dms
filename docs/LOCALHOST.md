@@ -112,6 +112,8 @@ The printout follows the Accounting Office's Word checklist: A4, Times New Roman
 
 **All Documents → ↑ Upload document** is for a document that already exists as a file: a scanned or signed form, a letter, a PDF from another system. Choose its type (or *Other document*), type the payee or subject (and fund and notes if you like), and choose the file: a PDF, or a photo or scan (JPG or PNG), which DMS turns into a PDF. It gets a control number like a prepared document, its file is its PDF (a PDF signed elsewhere keeps its signatures, which DMS checks), and it follows the workflow of its type at once: signed, forwarded and linked like any other. *Other document* is kept with a control number and not routed.
 
+**Upload-only document types.** A document that is never prepared in DMS can still have its own type and workflow. In **Administration → Document Types → + New document type**, set **Documents of this type are** to **Uploaded only: no format**, and give it a code and name. It needs no fields, steps or template, it is not listed in Prepare Document, and users choose it in **Upload document**. Set its route in **Administration → Workflow** like any other type.
+
 ### Encode the details
 
 Click **Prepare this document**, or go to **Prepare Document** and pick a format. Fill in each step. Everything you type is in capital letters, as on the official forms, and prints that way. The instructions for the step are shown in the blue box, and the preview on the right updates as you type. You can't go to the next step until the required fields (marked \*) are filled in.

@@ -37,7 +37,7 @@ export default function Dashboard() {
       listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead }),
       isAdmin ? listUsers() : Promise.resolve([]),
     ])
-      .then(([t, d, u]) => { setTypes(t); setDocs(d); setPendingUsers(u.filter((x) => !x.active).length); })
+      .then(([t, d, u]) => { setTypes(t.filter((x) => !x.uploadOnly)); setDocs(d); setPendingUsers(u.filter((x) => !x.active).length); })
       .catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, isHead]);
 
