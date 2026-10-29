@@ -5,6 +5,7 @@ import {
 import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
+import { counterFor, formatControlNo } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
 import { applyAction, buildWorkflow, cancelWorkflow, placement } from './workflow.js';
 
@@ -220,17 +221,20 @@ export async function setupSite(user) {
 
 // ---------- Documents ----------
 
-// Control number: one series for every document type, e.g. DMS-000001. The counter keeps
-// its old name (counters/FTS) so the series continues from the FTS-###### numbers.
+// Control number: one series for every document type, per year, e.g. DMS-2026-000001.
+// 2026 continues the counter used before (counters/FTS: the FTS-/DMS-###### numbers), so no
+// number repeats; each later year starts at 1 (counters/DMS-2027, ...).
+
 async function nextControlNo() {
-  const ref = doc(db, 'counters', 'FTS');
+  const year = new Date().getFullYear();
+  const ref = doc(db, 'counters', counterFor(year));
   const value = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const next = snap.exists() ? snap.data().value + 1 : 1;
     tx.set(ref, { value: next });
     return next;
   });
-  return `DMS-${String(value).padStart(6, '0')}`;
+  return formatControlNo(year, value);
 }
 
 function historyEntry(action, user, note = '') {
@@ -352,6 +356,14 @@ export async function documentBasis(d) {
   const text = stable([d.data || {}, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
   return (await sha256(new TextEncoder().encode(text))).slice(0, 16);
 }
+
+// What DMS recorded about a PDF, by the SHA-256 of the file (anyone may look one up).
+export async function lookupVerification(hash) {
+  const snap = await getDoc(doc(db, 'verifications', hash));
+  return snap.exists() ? snap.data() : null;
+}
+
+export const sha256Hex = sha256;
 
 // Storage errors in words an admin can act on.
 const SETUP = 'See the README, Setup steps 5 to 7.';
@@ -475,10 +487,18 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     stage: wf?.state === 'in-progress' ? wf.stage : null, // the workflow step it was signed at
     at: new Date().toISOString(), by: user.displayName || user.email, uid: user.uid, signer,
   };
+  const verifyRef = doc(db, 'verifications', file.sha256);
   await runTransaction(db, async (tx) => {
     const d = (await tx.get(docRef)).data();
+    const known = (await tx.get(verifyRef)).exists();
     const files = d.pdf?.files || [];
     if (files.length !== n) throw new Error('Someone else added a version of this PDF first. Reload the page and try again.');
+    // Public record of this exact file, for anyone verifying a copy (the Verify page).
+    if (!known) tx.set(verifyRef, {
+      controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: n + 1, kind,
+      signer: signer?.name || '', signatures: files.filter((f) => f.kind === 'signed').length + (kind === 'signed' ? 1 : 0),
+      by: file.by, at: file.at,
+    });
     const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
     tx.update(docRef, {
       // basisV 2: the basis is computed with sorted keys (older ones were not, and are not compared).

@@ -822,3 +822,20 @@ label.link { cursor: pointer; }
 a.me { text-decoration: none; }
 a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 .profile-grid .field { margin-bottom: .9rem; }
+
+/* Verify a document (also without signing in) */
+.verify-shell { min-height: 100vh; background: var(--bg); }
+.verify-top { display: flex; align-items: center; gap: .8rem; padding: .7rem 1.2rem; background: var(--card); border-bottom: 1px solid var(--line); }
+.verify-top .seal { width: 40px; height: 40px; }
+.verify-top b { display: block; color: var(--ink); font-family: var(--display); }
+.verify-top span { font-size: .8rem; color: var(--muted); }
+.verify-top .spacer { flex: 1; }
+.verify-page { max-width: 960px; margin: 0 auto; padding: 1.4rem 1rem 3rem; }
+.verify-drop { display: grid; place-items: center; gap: .25rem; padding: 2rem 1rem; border: 2px dashed var(--line-2); cursor: pointer; text-align: center; }
+.verify-drop:hover, .verify-drop.over { border-color: var(--gold); background: var(--gold-soft); }
+.verify-verdict { padding: .9rem 1.1rem; border-radius: var(--radius); font-weight: 700; margin-bottom: 1.1rem; }
+.verify-verdict.ok { background: var(--ok-bg); color: var(--ok); }
+.verify-verdict.warn { background: var(--warn-bg); color: var(--warn); }
+.verify-verdict.bad { background: var(--bad-bg); color: var(--bad); }
+.verify-hash { overflow-wrap: anywhere; margin-bottom: 0; }
+.verify-link { margin-top: 1.4rem; }

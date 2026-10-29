@@ -68,7 +68,8 @@ export async function renderPages(element, paperSize, orientation) {
 // One PDF from rendered parts (each part: { page, images } from renderPages), e.g. the DV
 // followed by its checklist. Written with a classic cross-reference table, so signatures can
 // later be added as incremental updates (lib/signing.js).
-export async function makePdf(parts, { title = '', author = '' } = {}) {
+// footer: a line printed in the bottom margin of every page (e.g. where to verify it).
+export async function makePdf(parts, { title = '', author = '', footer = '' } = {}) {
   const { jsPDF } = await import('jspdf');
   let pdf = null;
   for (const { page, images } of parts) {
@@ -77,6 +78,11 @@ export async function makePdf(parts, { title = '', author = '' } = {}) {
       if (!pdf) pdf = new jsPDF({ unit: 'mm', format: [page.w, page.h], orientation: orient });
       else pdf.addPage([page.w, page.h], orient);
       pdf.addImage(img.data, 'JPEG', img.x, img.y, img.w, img.h);
+      if (footer) {
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(110, 120, 135);
+        pdf.text(footer, page.w / 2, page.h - 3.2, { align: 'center' });
+      }
     }
   }
   pdf.setProperties({ title, author, creator: 'DMS — Document Management System' });

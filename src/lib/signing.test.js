@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import forge from 'node-forge';
 import { jsPDF } from 'jspdf';
 import { Buffer as BrowserBuffer } from 'buffer/index.js';
-import { addSignatureMark, checkSignedVersion, fixBufferLastIndexOf, readCertificate, readSignatures, signPdf, stampDate } from './signing.js';
+import { addSignatureMark, checkSignedVersion, fixBufferLastIndexOf, readCertificate, readSignatures, signPdf, stampDate, verifyPdf } from './signing.js';
 
 // Test certificates only: a CA named like the PNPKI and one signer, plus a non-PNPKI signer.
 function makeP12(cn, issuerDn, password = 'secret') {
@@ -111,4 +111,33 @@ test('signature mark: placed on the page, covered by the signature, earlier sign
   assert.equal(check.ok, true, check.error);
   assert.deepEqual(check.signatures.map((s) => s.valid), [true, true]);
   wellFormed(v2);
+});
+
+test('verify a copy: valid, tampered, changed after signing, and the certificate chain', async () => {
+  // A CA and a signer issued by it, both in the .p12 (as DICT issues them).
+  const ca = forge.pki.rsa.generateKeyPair(1024);
+  const caCert = forge.pki.createCertificate();
+  caCert.publicKey = ca.publicKey; caCert.serialNumber = '01';
+  caCert.validity.notBefore = new Date(Date.now() - 864e5); caCert.validity.notAfter = new Date(Date.now() + 864e5);
+  caCert.setSubject(PNPKI); caCert.setIssuer(PNPKI); caCert.sign(ca.privateKey, forge.md.sha256.create());
+  const keys = forge.pki.rsa.generateKeyPair(1024);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey; cert.serialNumber = '02';
+  cert.validity.notBefore = caCert.validity.notBefore; cert.validity.notAfter = caCert.validity.notAfter;
+  cert.setSubject([{ name: 'commonName', value: 'ANA REYES' }]); cert.setIssuer(PNPKI); cert.sign(ca.privateKey, forge.md.sha256.create());
+  const p12 = new Uint8Array(Buffer.from(forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert, caCert], 'secret', { algorithm: '3des' })).getBytes(), 'binary'));
+
+  const signed = await signPdf(unsignedPdf(), p12, 'secret');
+  const ok = verifyPdf(signed);
+  assert.equal(ok.allValid, true);
+  assert.equal(ok.changedAfterLast, false);
+  assert.equal(ok.signatures[0].chain.status, 'verified');
+  assert.deepEqual(ok.signatures[0].chain.names, ['ANA REYES', 'PNPKI Test CA']);
+  assert.equal(ok.signatures[0].certValidWhenSigned, true);
+
+  const tampered = new Uint8Array(signed); tampered[400] ^= 1;
+  assert.equal(verifyPdf(tampered).allValid, false);
+  const added = new Uint8Array([...signed, ...new TextEncoder().encode('\n9 0 obj\n<<>>\nendobj\n')]);
+  assert.equal(verifyPdf(added).changedAfterLast, true);
+  assert.equal(verifyPdf(unsignedPdf()).signatures.length, 0);
 });

@@ -8,7 +8,7 @@ import { linkText, safeUrl } from './DocLinks.jsx';
 
 // "Download all": one ZIP with the document (e.g. the DV), its checklist and every document
 // linked to the checklist, each as a PDF named Fund_Payee_Checklist No._Type_Control No.
-// (GF_NEIL P. PRIOLO_02_OBR_DMS000003.pdf). Links to other systems (PIM, CBO, ...) cannot be
+// (GF_NEIL P. PRIOLO_02_OBR_DMS2026000003.pdf). Links to other systems (PIM, CBO, ...) cannot be
 // downloaded from here; they are included as internet shortcuts with the same naming.
 
 // A document converted to PDF (and possibly signed) is downloaded as stored: the signed file.

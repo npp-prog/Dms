@@ -117,6 +117,26 @@ function digestOf(algo, bytes, ranges) {
 }
 
 // Checks one CMS (PKCS#7) signature over the given byte ranges.
+// 'verified': each certificate up to a self-signed root was issued by the next one;
+// 'partial': verified as far as the certificates included go; 'broken': a link does not verify.
+function chainOf(cert, certs) {
+  if (!cert) return { status: 'broken', names: [] };
+  const names = [];
+  let cur = cert;
+  for (let i = 0; i < 6; i++) {
+    names.push(attr(cur.subject, 'CN') || attr(cur.subject, 'O'));
+    if (cur.isIssuer(cur)) {
+      try { return cur.verify(cur) ? { status: 'verified', names } : { status: 'broken', names }; } catch { return { status: 'broken', names }; }
+    }
+    // (forge: child.isIssuer(parent) is true when parent issued child)
+    const issuer = certs.find((c) => c !== cur && cur.isIssuer(c));
+    if (!issuer) return { status: 'partial', names: [...names, attr(cur.issuer, 'CN') || attr(cur.issuer, 'O')] };
+    try { if (!issuer.verify(cur)) return { status: 'broken', names }; } catch { return { status: 'broken', names }; }
+    cur = issuer;
+  }
+  return { status: 'partial', names };
+}
+
 function checkCms(bytes, der, ranges) {
   const asn1 = forge.asn1.fromDer(der, { parseAllBytes: false, strict: false });
   const p7 = forge.pkcs7.messageFromAsn1(asn1);
@@ -153,6 +173,10 @@ function checkCms(bytes, der, ranges) {
     out.valid = false;
   }
   if (!out.valid) out.problem = 'The signature does not match the certificate.';
+  // The certificate chain inside the signature: is the signer's certificate really issued by the
+  // CA certificate that came with it? (Trust in the root itself is up to the PDF reader.)
+  out.chain = chainOf(signerCert, p7.certificates);
+  out.certValidWhenSigned = Boolean(out.signer) && isValidAt(out.signer, out.signedAt ? new Date(out.signedAt) : new Date());
   return out;
 }
 
@@ -304,4 +328,19 @@ export async function addSignatureMark(pdfBytes, { page = 0, rect, image, lines 
   const rows = offsets.sort((a, b) => a[0] - b[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
   chunks.push(B.from(`xref\n0 1\n0000000000 65535 f \n${rows}trailer\n<<\n/Size ${next}\n/Root ${info.rootRef}\n${info.infoRef ? `/Info ${info.infoRef}\n` : ''}/Prev ${info.xRefPosition}\n>>\nstartxref\n${xrefAt}\n%%EOF\n`, 'latin1'));
   return new Uint8Array(B.concat([pdf, ...chunks]));
+}
+
+// Everything a reader needs to trust a signed PDF: every signature checked, and whether anything
+// was added after the last one. Runs in the browser; the file is not sent anywhere.
+export function verifyPdf(pdfBytes) {
+  const bytes = pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes);
+  const signatures = readSignatures(bytes);
+  const last = signatures.at(-1);
+  // A few bytes after the last signature (line ends) are not a change.
+  const tail = last ? latin1(bytes.subarray(last.signedUpTo)).trim() : '';
+  return {
+    signatures,
+    allValid: signatures.length > 0 && signatures.every((x) => x.valid),
+    changedAfterLast: Boolean(last) && tail.length > 0,
+  };
 }

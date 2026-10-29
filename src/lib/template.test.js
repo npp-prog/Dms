@@ -10,7 +10,7 @@ import {
 import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
-import { cleanPart, fileBase, fundCode, controlRef, uniqueNamer } from './naming.js';
+import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, uniqueNamer } from './naming.js';
 import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
@@ -247,7 +247,10 @@ test('admin route and signature-required steps', () => {
 });
 
 test('bulk download file names', () => {
-  assert.equal(fileBase({ fund: 'General Fund', subject: 'Neil Priolo', number: 2, type: 'OBR', ref: controlRef('DMS-000001') }), 'GF_NEIL PRIOLO_02_OBR_DMS000001');
+  assert.equal(fileBase({ fund: 'General Fund', subject: 'Neil Priolo', number: 2, type: 'OBR', ref: controlRef('DMS-2026-000001') }), 'GF_NEIL PRIOLO_02_OBR_DMS2026000001');
+  assert.equal(formatControlNo(2026, 7), 'DMS-2026-000007');
+  assert.equal(counterFor(2026), 'FTS'); // continues the earlier series
+  assert.equal(counterFor(2027), 'DMS-2027');
   assert.equal(fundCode('Special Education Fund'), 'SEF');
   assert.equal(fundCode('20% Development Fund'), '20DF');
   assert.equal(fundCode(''), 'NOFUND');

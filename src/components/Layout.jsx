@@ -31,7 +31,7 @@ export default function Layout() {
         ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
       ],
     },
-    { label: 'Account', items: [['/profile', 'user', 'My Profile']] },
+    { label: 'Account', items: [['/profile', 'user', 'My Profile'], ['/verify', 'check', 'Verify a Document']] },
     isAdmin && {
       label: 'Administration',
       items: [

@@ -1,6 +1,6 @@
 // File names for bulk downloads (e.g. a DV with all its linked documents):
 //   Fund_Subject or Payee_Checklist No._Document Type_Control No.
-//   GF_NEIL P. PRIOLO_02_OBR_DMS000003
+//   GF_NEIL P. PRIOLO_02_OBR_DMS2026000003
 // The checklist number is the item's number on the checklist (00 for the checklist itself).
 
 const FUND_CODES = {
@@ -32,6 +32,11 @@ export function cleanPart(text, max = 40) {
     .trim()
     .replace(/[. ]+$/, '');
 }
+
+// Control numbers: DMS-2026-000001 (DMS, year, series). The series runs per year; 2026 continues
+// the counter of the earlier FTS-/DMS-###### numbers (counters/FTS).
+export const counterFor = (year) => (year <= 2026 ? 'FTS' : `DMS-${year}`);
+export const formatControlNo = (year, value) => `DMS-${year}-${String(value).padStart(6, '0')}`;
 
 export const controlRef = (controlNo) => cleanPart(String(controlNo || '').replace(/-/g, ''), 24);
 

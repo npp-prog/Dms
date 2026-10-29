@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
@@ -10,6 +10,7 @@ import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Profile from './pages/Profile.jsx';
+import Verify from './pages/Verify.jsx';
 import Workflow from './pages/admin/Workflow.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
@@ -28,8 +29,11 @@ function AdminOnly({ children, superOnly = false }) {
 
 export default function App() {
   const { user, profile, loading, error } = useAuth();
+  const location = useLocation();
 
   if (loading) return <div className="center-screen"><div className="spinner" /></div>;
+  // Anyone can verify a document, signed in or not.
+  if (location.pathname === '/verify' && (!user || !profile?.active)) return <Verify standalone />;
   if (!user) return <Login />;
   if (error || !profile?.active) return <Pending error={error} />;
 
@@ -47,6 +51,7 @@ export default function App() {
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="verify" element={<Verify />} />
         <Route path="workflow" element={<Navigate to="/admin/workflow?tab=tracking" replace />} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />

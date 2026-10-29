@@ -140,6 +140,17 @@ service cloud.firestore {
             && resource.data.status == 'draft');
     }
 
+    // ---- Verification records ----
+    // One per PDF version DMS stored, keyed by the file's SHA-256: anyone holding a copy can
+    // check it (Verify page, no sign-in). They can be read one at a time, never listed.
+    match /verifications/{hash} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isActive() && hash.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'version', 'kind', 'signer', 'signatures', 'by', 'at']);
+      allow update, delete: if false;
+    }
+
     // ---- Control number sequences ----
     match /counters/{counterId} {
       allow read: if isActive();
