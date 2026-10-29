@@ -42,7 +42,9 @@ service firebase.storage {
             || (isHead() && d.get('currentOffice', '') == myOffice())));
     }
 
-    // And their signature mark (mark.png), placed on the face of the PDFs they sign.
+    // The signatory's own PNPKI certificate file (signing.p12), kept so they sign with their password
+    // only, and their signature mark (mark.png). Nobody else can read them, not even admins.
+    // The certificate password is never stored.
     match /certificates/{uid}/{file} {
       allow read, delete: if request.auth != null && request.auth.uid == uid
         && file.matches('signing\\.p12|mark\\.png');
