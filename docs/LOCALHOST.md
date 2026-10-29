@@ -173,7 +173,7 @@ When you mark a document complete, DMS starts its **workflow**: the route from *
 - **Release or return.** After acting on it, the office releases it to the next office, or clicks **Return to …** and says why (e.g. *OBR not signed*). The document goes back one office.
 - **Mark processed.** The last office closes the route.
 
-**Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
+**Workflow** (left menu) tracks every routed document you can see: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it: *On the move*, *In your office*, *Returned*, *Processed*, *All routed*; **Now at** filters by office. **Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
 
 To try it locally, sign in one after the other (password `user123`) as `user@fts.local` (Engineering), `acctg@fts.local`, `treasury@fts.local` and `mayor@fts.local`. `budget@fts.local` is the Municipal Budget Office, on the OBR route.
 
