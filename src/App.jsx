@@ -9,7 +9,7 @@ import FormatView from './pages/FormatView.jsx';
 import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
-import Workflow from './pages/Workflow.jsx';
+import Workflow from './pages/admin/Workflow.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
 import DocumentTypeEditor from './pages/admin/DocumentTypeEditor.jsx';
@@ -45,13 +45,14 @@ export default function App() {
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="inbox" element={<Inbox />} />
-        <Route path="workflow" element={<Workflow />} />
+        <Route path="workflow" element={<Navigate to="/admin/workflow?tab=tracking" replace />} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />
         <Route path="documents/:docId/edit" element={<PrepareDocument />} />
         <Route path="admin/types" element={<AdminOnly><DocumentTypes /></AdminOnly>} />
         <Route path="admin/types/new" element={<AdminOnly><DocumentTypeEditor /></AdminOnly>} />
         <Route path="admin/types/:typeId" element={<AdminOnly><DocumentTypeEditor /></AdminOnly>} />
+        <Route path="admin/workflow" element={<AdminOnly><Workflow /></AdminOnly>} />
         <Route path="admin/users" element={<AdminOnly><Users /></AdminOnly>} />
         <Route path="admin/settings" element={<AdminOnly superOnly><Settings /></AdminOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,11 +1,13 @@
-// Document workflow: the route a document follows after it is encoded, built from its
-// document type's processing guide ("How to process this document"). Pure functions, no Firebase.
+// Document workflow: the route a document follows after it is encoded. Admins set the route of
+// each document type (Administration > Workflow: documentType.route); a type without one follows
+// its processing guide ("How to process this document"). Pure functions, no Firebase.
 //
 // document.workflow = {
 //   state: 'in-progress' | 'done' | 'cancelled',
 //   stage: index of the current step,
 //   received: whether the office holding it has received the paper,
-//   steps: [{ office (as in the guide), action, routedTo (office in Settings, or '' = preparer) }],
+//   steps: [{ office (as in the guide), action, routedTo (office in Settings, or '' = preparer),
+//            sign (the office must sign the PDF before releasing it) }],
 //   events: [{ type: 'started' | 'received' | 'released' | 'returned' | 'completed' | 'cancelled',
 //              stage, office, by, uid, at, remarks }],
 // }
@@ -47,8 +49,19 @@ export function resolveOffice(stepOffice, offices = []) {
 // Who holds a step: the office it is routed to, or the preparer's office.
 export const officeOf = (step, doc) => step?.routedTo || doc?.office || '';
 
+// The route suggested by a type's processing guide, as the admin route editor starts it.
+export function routeFromGuide(type, offices = []) {
+  return (type?.processing || []).map((p) => ({ office: resolveOffice(p.office, offices), action: p.action || '', sign: false }));
+}
+
+// The steps a new document of this type follows: the admin's route, else the processing guide.
+export function routeSteps(type, offices = []) {
+  const route = type?.route?.length ? type.route : routeFromGuide(type, offices);
+  return route.map((s) => ({ office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign) }));
+}
+
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
-  const steps = (type?.processing || []).map((p) => ({ office: p.office, action: p.action, routedTo: resolveOffice(p.office, offices) }));
+  const steps = routeSteps(type, offices);
   if (!steps.length) return null;
   const workflow = {
     state: 'in-progress', stage: 0, received: true, steps,
@@ -86,10 +99,22 @@ export function availableActions(doc) {
   ];
 }
 
+// A step that requires a signature: has the office holding the document signed its PDF since the
+// document arrived? (PDF versions record the stage they were added at; lib/api.js addPdfVersion.)
+export function signatureMissing(doc) {
+  const wf = doc?.workflow;
+  if (!wf || wf.state !== 'in-progress' || !wf.steps[wf.stage]?.sign) return false;
+  const arrived = [...wf.events].reverse().find((e) => ['started', 'released', 'returned'].includes(e.type))?.at || '';
+  return !(doc.pdf?.files || []).some((f) => f.kind === 'signed' && f.stage === wf.stage && f.at >= arrived);
+}
+
 // Applies an action; returns the fields to write ({ workflow, currentOffice, routeOffices }).
 export function applyAction(doc, action, user, remarks = '', at = new Date().toISOString()) {
   const wf = doc.workflow;
   if (!availableActions(doc).includes(action)) throw new Error(`"${action}" is not possible at this step.`);
+  if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
+    throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');
+  }
   if (action === 'return' && !String(remarks).trim()) throw new Error('Say why the document is returned.');
   const event = (type, stage) => ({ type, stage, office: officeOf(wf.steps[stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: String(remarks || '').trim() });
   let next;

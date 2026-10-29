@@ -87,6 +87,15 @@ export async function saveDocumentType(id, data, user) {
   return ref.id;
 }
 
+// The route of a document type (Administration > Workflow). Not part of the format: saving it
+// does not change the format's version, and starter-format updates keep it.
+export async function saveRoute(typeId, route, user) {
+  await updateDoc(doc(db, 'documentTypes', typeId), {
+    route: route.map((s) => ({ office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign) })),
+    routeUpdatedAt: serverTimestamp(), routeUpdatedBy: user.displayName || user.email,
+  });
+}
+
 export function deleteDocumentType(id) {
   return deleteDoc(doc(db, 'documentTypes', id));
 }
@@ -290,13 +299,16 @@ export async function saveAccountingEntries(id, data, user, history = []) {
 
 // Starts the route of a document (when it is marked complete): it sits with the preparer's office,
 // which releases it to the next office.
+// Starts the route set for the document's type now (Administration > Workflow), not the one
+// frozen in the document's copy of its format.
 export async function startWorkflow(id, type, user, offices) {
   const ref = doc(db, 'documents', id);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const d = snap.data();
     if (!d || d.workflow) return;
-    const start = buildWorkflow(type, d, offices, user);
+    const live = d.typeId ? (await tx.get(doc(db, 'documentTypes', d.typeId))).data() : null;
+    const start = buildWorkflow(live?.route?.length ? live : type, d, offices, user);
     if (!start) return;
     tx.update(ref, { ...start, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('routing started', user)] });
   });
@@ -342,8 +354,10 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
   const n = current?.pdf?.files?.length || 0;
   const path = `documents/${id}/${n}-${kind}.pdf`;
   await uploadBytes(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
+  const wf = current?.workflow;
   const file = {
     path, size: bytes.length, sha256: await sha256(bytes), kind, method, reason,
+    stage: wf?.state === 'in-progress' ? wf.stage : null, // the workflow step it was signed at
     at: new Date().toISOString(), by: user.displayName || user.email, uid: user.uid, signer,
   };
   await runTransaction(db, async (tx) => {

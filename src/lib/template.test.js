@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, fileBase, fundCode, controlRef, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, whereIs } from './workflow.js';
+import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -210,6 +210,36 @@ test('document workflow', () => {
   assert.equal(doc.workflow.state, 'done');
   assert.equal(doc.currentOffice, '');
   assert.equal(whereIs(doc), 'Processed');
+});
+
+test('admin route and signature-required steps', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const dv = STARTER_TYPES.find((t) => t.code === 'DV');
+  // Without a route: the processing guide, resolved to Settings offices.
+  assert.equal(routeFromGuide(dv, offices)[1].office, 'Municipal Accounting Office');
+  assert.equal(routeSteps(dv, offices).length, dv.processing.length);
+  // With an admin route: exactly that route.
+  const type = { ...dv, route: [
+    { office: '', action: 'Box A', sign: true },
+    { office: 'Municipal Budget Office', action: 'Check', sign: false },
+    { office: 'Municipal Accounting Office', action: 'Box B', sign: true },
+  ] };
+  assert.deepEqual(routeSteps(type, offices).map((s) => [s.routedTo, s.sign]),
+    [['', true], ['Municipal Budget Office', false], ['Municipal Accounting Office', true]]);
+  const user = { uid: 'u1', displayName: 'Juan' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office' };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, user, '2026-10-01T00:00:00Z') };
+  assert.equal(doc.currentOffice, 'Municipal Engineering Office');
+  assert.equal(signatureMissing(doc), true);
+  assert.throws(() => applyAction(doc, 'release', user), /requires a signature/);
+  // A signature from an earlier stay does not count; one made at this step does.
+  doc.pdf = { files: [{ kind: 'signed', stage: 0, at: '2026-09-30T00:00:00Z' }] };
+  assert.equal(signatureMissing(doc), true);
+  doc.pdf.files.push({ kind: 'signed', stage: 0, at: '2026-10-01T01:00:00Z' });
+  assert.equal(signatureMissing(doc), false);
+  doc = { ...doc, ...applyAction(doc, 'release', user, '', '2026-10-01T02:00:00Z') };
+  assert.equal(doc.currentOffice, 'Municipal Budget Office');
+  assert.equal(signatureMissing(doc), false); // this step needs no signature
 });
 
 test('bulk download file names', () => {

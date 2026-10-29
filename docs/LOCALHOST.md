@@ -173,7 +173,7 @@ When you mark a document complete, DMS starts its **workflow**: the route from *
 - **Release or return.** After acting on it, the office releases it to the next office, or clicks **Return to …** and says why (e.g. *OBR not signed*). The document goes back one office.
 - **Mark processed.** The last office closes the route.
 
-**Workflow** (left menu) tracks every routed document you can see: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it: *On the move*, *In your office*, *Returned*, *Processed*, *All routed*; **Now at** filters by office. **Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
+**Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
 
 To try it locally, sign in one after the other (password `user123`) as `user@fts.local` (Engineering), `acctg@fts.local`, `treasury@fts.local` and `mayor@fts.local`. `budget@fts.local` is the Municipal Budget Office, on the OBR route.
 
@@ -252,6 +252,14 @@ Fields can be **computed**: in a table column or a field, the formula combines o
 - the **signatories**: Mayor, Accountant, Budget Officer, Treasurer and Secretary to the Sanggunian. These are printed where the official forms pre-print a name. Each document keeps the signatories that were set when it was prepared.
 
 ![Settings](images/22-admin-settings.png)
+
+### Workflow: set the flow of every document
+
+**Administration → Workflow → Routes** sets the route of each document type. Pick a type on the left; the right side lists its steps in order. For each step choose the **office** (or *Preparer's office*, whichever office prepared the document), type the **action** (what that office does, e.g. *Pre-audit, Box B and the JEV*), and tick **Must sign the PDF before releasing** where that office signs with its PNPKI digital signature. The office can't release the document until it has signed. Add, remove and reorder steps with **+ Add step**, ×, ↑ and ↓. The preview at the top shows the route. Click **Save route**.
+
+A type with no route yet follows its processing guide; the editor starts from it. New documents follow the saved route; documents already on their way keep the route they started with. Saving a route doesn't change the document format or its version.
+
+**Workflow → Tracking** shows every routed document: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it (*On the move*, *In your office*, *Returned*, *Processed*, *All routed*), and **Now at** filters by office.
 
 **Users** is where you approve new accounts and **assign each person to an office**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
 

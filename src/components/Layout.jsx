@@ -25,7 +25,6 @@ export default function Layout() {
       label: 'Documents',
       items: [
         ['/inbox', 'inbox', 'Inbox', false, waiting],
-        ['/workflow', 'workflow', 'Workflow'],
         ['/formats', 'formats', 'Document Formats'],
         ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],
@@ -36,6 +35,7 @@ export default function Layout() {
       label: 'Administration',
       items: [
         ['/admin/types', 'types', 'Document Types'],
+        ['/admin/workflow', 'workflow', 'Workflow'],
         ['/admin/users', 'users', 'Users'],
         isSuper && ['/admin/settings', 'settings', 'Settings'],
       ].filter(Boolean),

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ACTION_LABELS, availableActions, officeOf } from '../lib/workflow.js';
+import { ACTION_LABELS, availableActions, officeOf, signatureMissing } from '../lib/workflow.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const EVENT_TEXT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled' };
@@ -30,6 +30,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
   const actions = canAct ? availableActions(doc) : [];
   const next = wf.steps[wf.stage + 1];
   const prev = wf.steps[wf.stage - 1];
+  const unsigned = signatureMissing(doc);
   const act = (action) => onAction(action, remarks, () => { setRemarks(''); setReturning(false); });
 
   return (
@@ -49,7 +50,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               <span className="wf-dot">{state === 'done' ? '✓' : i + 1}</span>
               <div>
                 <div className="wf-office">{nameOf(step)}{step.routedTo === '' && doc.office ? '' : ''}</div>
-                <div className="small"><b>{step.action}</b></div>
+                <div className="small"><b>{step.action}</b>{step.sign && <span className="muted"> · signs the PDF</span>}</div>
                 {state === 'current' && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
                 {events.map((e, j) => (
                   <div key={j} className={`small ${e.type === 'returned' ? 'wf-returned' : 'muted'}`}>
@@ -84,10 +85,13 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
                   <input id="wf-note" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Signed Box B; DV No. 101-2026-10-0045" />
                 </div>
               )}
+              {unsigned && wf.received && (
+                <div className="alert-info small">This step requires a signature. Sign the PDF under <b>PDF and digital signatures</b>, then release it.</div>
+              )}
               <div className="row gap wrap">
                 {actions.includes('receive') && <button className="btn btn-primary" disabled={busy} onClick={() => act('receive')}>{ACTION_LABELS.receive}</button>}
-                {actions.includes('release') && <button className="btn btn-primary" disabled={busy} onClick={() => act('release')}>Release to {nameOf(next)}</button>}
-                {actions.includes('complete') && <button className="btn btn-primary" disabled={busy} onClick={() => act('complete')}>{ACTION_LABELS.complete}</button>}
+                {actions.includes('release') && <button className="btn btn-primary" disabled={busy || unsigned} onClick={() => act('release')}>Release to {nameOf(next)}</button>}
+                {actions.includes('complete') && <button className="btn btn-primary" disabled={busy || unsigned} onClick={() => act('complete')}>{ACTION_LABELS.complete}</button>}
                 {actions.includes('return') && <button className="btn btn-ghost" disabled={busy} onClick={() => setReturning(true)}>Return to {nameOf(prev)}</button>}
               </div>
             </>

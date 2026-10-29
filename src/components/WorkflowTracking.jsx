@@ -17,8 +17,9 @@ function stateOf(d, office) {
   return 'moving';
 }
 
-// Every routed document you can see, where it is on its route, and what happened last.
-export default function Workflow() {
+// Every routed document, where it is on its route, and what happened last
+// (Administration > Workflow > Tracking).
+export default function WorkflowTracking() {
   const { user, profile, isAdmin, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
@@ -50,16 +51,7 @@ export default function Workflow() {
     .filter(({ d }) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.title} ${d.createdByName} ${d.office}`.toLowerCase().includes(w)));
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Workflow</h1>
-          <p className="muted">Where each routed document is, step by step. {profile.office
-            ? <>Documents waiting in the <b>{profile.office}</b> are in your <Link to="/inbox">Inbox</Link>.</>
-            : ''}</p>
-        </div>
-      </div>
-
+    <>
       <div className="stats wf-views">
         {views.map(([key, label, fn]) => (
           <button key={key} type="button" className={`stat${view === key ? ' active' : ''}`} aria-pressed={view === key} onClick={() => setView(key)}>
@@ -123,6 +115,6 @@ export default function Workflow() {
           </table>
         </div>
       )}
-    </div>
+    </>
   );
 }
