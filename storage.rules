@@ -1,8 +1,7 @@
 rules_version = '2';
 
 // PDFs of documents and their signed versions: documents/{docId}/{n}-{kind}.pdf
-// Who may read or add a file follows the document in Firestore (firestore.rules):
-// the preparer, admins, the preparer's office and the offices on the document's route.
+// Who may read or add a file follows the document in Firestore (firestore.rules).
 // Files are never replaced or deleted: each signature adds a new file, so every
 // version stays on record.
 service firebase.storage {
@@ -22,20 +21,27 @@ service firebase.storage {
     function myOffice() {
       return profile().get('office', '');
     }
+    function isHead() {
+      return myOffice() != '' && profile().get('head', false) == true;
+    }
+    // Waiting in the user's office at a routed step (not at the preparer's own step).
+    function heldByMyOffice(d) {
+      return myOffice() != '' && d.get('currentOffice', '') == myOffice() && d.get('atPreparer', true) == false;
+    }
+    // Same as firestore.rules: the preparer, the office the document is waiting in, the office
+    // head (every document of the office and every one routed through it), admins.
     function canRead(d) {
-      return isAdmin() || d.createdBy == request.auth.uid
-        || (myOffice() != '' && (d.get('office', '') == myOffice()
-            || d.get('currentOffice', '') == myOffice()
+      return isAdmin() || d.createdBy == request.auth.uid || heldByMyOffice(d)
+        || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
             || myOffice() in d.get('routeOffices', [])));
     }
-    // The preparer, or the office now holding the document.
+    // The preparer, or the office now holding the document (its head too).
     function canAdd(d) {
       return isAdmin() || (d.status != 'cancelled'
-        && (d.createdBy == request.auth.uid || (myOffice() != '' && d.get('currentOffice', '') == myOffice())));
+        && (d.createdBy == request.auth.uid || heldByMyOffice(d)
+            || (isHead() && d.get('currentOffice', '') == myOffice())));
     }
 
-    // The signatory's own PNPKI certificate file (.p12/.pfx), kept so they sign with their
-    // password only. Nobody else can read it, not even admins. The password is never stored.
     match /certificates/{uid}/signing.p12 {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid

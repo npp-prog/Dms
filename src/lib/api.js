@@ -6,7 +6,7 @@ import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, up
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
-import { applyAction, buildWorkflow, cancelWorkflow } from './workflow.js';
+import { applyAction, buildWorkflow, cancelWorkflow, placement } from './workflow.js';
 
 // ---------- Users ----------
 
@@ -185,6 +185,12 @@ export async function setupSite(user) {
     }
     if (updated.length) done.push(`updated the ${updated.join(', ')} format`);
   }
+
+  // Documents routed before atPreparer existed: set it, so the office they wait in can see them.
+  const moving = await getDocs(query(collection(db, 'documents'), where('workflow.state', '==', 'in-progress')));
+  const older = moving.docs.filter((d) => d.data().atPreparer === undefined);
+  for (const d of older) await updateDoc(d.ref, { atPreparer: placement(d.data().workflow, d.data()).atPreparer });
+  if (older.length) done.push(`updated ${older.length} routed document(s) for the new office access`);
 
   const settings = await getSettings();
   if (settings.lguName && !settings.offices) {
@@ -457,12 +463,23 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
 }
 
 // Documents waiting in an office (all routed documents for admins: office '').
-export async function listInbox({ office, all = false, max = 300 }) {
-  const q = all
-    ? query(collection(db, 'documents'), where('workflow.state', '==', 'in-progress'), limit(max))
-    : query(collection(db, 'documents'), where('currentOffice', '==', office), limit(max));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+// Documents waiting for the user: in their office at a routed step, and their own documents at
+// the preparer's step. The office head gets everything waiting in the office.
+export async function listInbox({ office, uid, all = false, head = false, max = 300 }) {
+  const docs = collection(db, 'documents');
+  const queries = all
+    ? [query(docs, where('workflow.state', '==', 'in-progress'), limit(max))]
+    : [
+      ...(office ? [head
+        ? query(docs, where('currentOffice', '==', office), limit(max))
+        : query(docs, where('currentOffice', '==', office), where('atPreparer', '==', false), limit(max))] : []),
+      ...(uid ? [query(docs, where('createdBy', '==', uid), where('atPreparer', '==', true), limit(max))] : []),
+    ];
+  const byId = new Map();
+  for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {
+    for (const d of snap.docs) byId.set(d.id, { id: d.id, ...d.data() });
+  }
+  return [...byId.values()].filter((d) => d.workflow?.state === 'in-progress')
     .sort((a, b) => (a.updatedAt?.seconds || 0) - (b.updatedAt?.seconds || 0));
 }
 
@@ -488,24 +505,28 @@ export async function getDocument(id) {
 
 // Admins: every document. Others: their own, their office's and those routed through their
 // office (the Firestore rules allow no more), merged.
-export async function listDocuments({ uid, office = '', all = false, max = 300 } = {}) {
+// The documents a user may see (firestore.rules): their own and those waiting in their office;
+// for an office head, every document of the office and every one routed through it.
+export async function listDocuments({ uid, office = '', all = false, head = false, max = 300 } = {}) {
+  const docs = collection(db, 'documents');
   const queries = all
-    ? [query(collection(db, 'documents'), orderBy('updatedAt', 'desc'), limit(max))]
+    ? [query(docs, orderBy('updatedAt', 'desc'), limit(max))]
     : [
-      query(collection(db, 'documents'), where('createdBy', '==', uid), limit(max)),
-      ...(office ? [
-        query(collection(db, 'documents'), where('office', '==', office), limit(max)),
-        // Documents of other offices routed through this one (the workflow).
-        query(collection(db, 'documents'), where('routeOffices', 'array-contains', office), limit(max)),
+      query(docs, where('createdBy', '==', uid), limit(max)),
+      ...(office && head ? [
+        query(docs, where('office', '==', office), limit(max)),
+        query(docs, where('routeOffices', 'array-contains', office), limit(max)),
+        query(docs, where('currentOffice', '==', office), limit(max)),
+      ] : []),
+      ...(office && !head ? [
+        query(docs, where('currentOffice', '==', office), where('atPreparer', '==', false), limit(max)),
       ] : []),
     ];
   const byId = new Map();
   for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {
     for (const d of snap.docs) byId.set(d.id, { id: d.id, ...d.data() });
   }
-  const docs = [...byId.values()];
-  docs.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-  return docs;
+  return [...byId.values()].sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
 }
 
 export function deleteDocument(id) {

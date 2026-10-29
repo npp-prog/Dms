@@ -67,6 +67,8 @@ export function AuthProvider({ children }) {
     error,
     isAdmin: profile?.active && ['admin', 'superadmin'].includes(profile.role),
     isSuper: profile?.active && profile.role === 'superadmin',
+    // The office head sees every document of the office (Users > Office head).
+    isHead: Boolean(profile?.active && profile.office && profile.head),
     // Combined identity used when stamping documents.
     actor: user && profile ? { uid: user.uid, email: user.email, displayName: profile.displayName, office: profile.office } : null,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),

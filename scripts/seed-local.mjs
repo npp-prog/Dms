@@ -18,7 +18,8 @@ export const DEMO = {
   admin: { email: SUPERADMIN_EMAILS[0], password: 'admin123', displayName: 'Maria Santos', office: 'Municipal Accounting Office' },
   user: { email: 'user@fts.local', password: 'user123', displayName: 'Juan Dela Cruz', office: 'Municipal Engineering Office' },
   // Same office as Juan (sees his documents) and another office (does not).
-  colleague: { email: 'ana@fts.local', password: 'user123', displayName: 'Ana Reyes', office: 'Municipal Engineering Office' },
+  // The office head: sees every document of the Engineering Office (Juan sees only his own).
+  colleague: { email: 'ana@fts.local', password: 'user123', displayName: 'Ana Reyes', office: 'Municipal Engineering Office', head: true },
   other: { email: 'leo@fts.local', password: 'user123', displayName: 'Leo Santos', office: 'Municipal Health Office' },
   // Offices on the route of a DV (workflow).
   acctg: { email: 'acctg@fts.local', password: 'user123', displayName: 'Rosa Accounting', office: 'Municipal Accounting Office' },
@@ -83,16 +84,16 @@ async function main() {
       role: 'user', active: false, createdAt: serverTimestamp(),
     });
     await signOut(auth);
-    approved.push([u.user.uid, person.office]);
+    approved.push([u.user.uid, person.office, Boolean(person.head)]);
   }
   await signInWithEmailAndPassword(auth, DEMO.admin.email, DEMO.admin.password);
-  for (const [uid, office] of approved) await updateDoc(doc(db, 'users', uid), { active: true, office });
+  for (const [uid, office, head] of approved) await updateDoc(doc(db, 'users', uid), { active: true, office, head });
 
   console.log(`
 [DMS] Demo data loaded:
       Superadmin  ${DEMO.admin.email} / ${DEMO.admin.password}
       End user    ${DEMO.user.email} / ${DEMO.user.password}  (${DEMO.user.office})
-      Same office ${DEMO.colleague.email} / ${DEMO.colleague.password}
+      Office head ${DEMO.colleague.email} / ${DEMO.colleague.password}  (head of ${DEMO.colleague.office})
       Other office ${DEMO.other.email} / ${DEMO.other.password}  (${DEMO.other.office})
       Workflow    acctg@, budget@, treasury@, mayor@fts.local / user123  (Accounting, Budget, Treasury, Mayor's Office)
       Formats     ${STARTER_TYPES.map((t) => t.code).join(', ')}

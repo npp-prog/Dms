@@ -34,7 +34,7 @@ Each document stores a frozen copy of its format. A document therefore always pr
 |---|---|
 | `superadmin` | Everything, including assigning roles and changing settings. **`npp@mgocandoniaccounting.org` is the superadmin**, once Firebase has verified the address (Google sign-in, or the verification link sent on registration). Set in `src/lib/owner.js` and `firestore.rules`. |
 | `admin` | Manage document types, approve/deactivate regular users, view all documents |
-| `user` | View formats, prepare documents, see the documents of their **office** (assigned by an admin under Users), their own, and those routed through their office; receive, release and return documents waiting in their office |
+| `user` | View formats and prepare documents. Sees **the documents they prepared** and **the documents waiting in their office** (to receive, view, sign, release or return), not a colleague's documents. The **office head** (ticked under Users) sees every document of the office and every document routed through it. |
 
 Firestore security rules (`firestore.rules`) enforce all of this on the server.
 

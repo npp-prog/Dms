@@ -31,7 +31,7 @@ function ItemLinks({ item, links, canEdit, docId, onChange }) {
 export default function DocumentView() {
   const { docId } = useParams();
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, user, profile } = useAuth();
+  const { actor, settings, isAdmin, isHead, user, profile } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -71,7 +71,7 @@ export default function DocumentView() {
   const hasSignature = (docData.pdf?.files || []).some((f) => f.kind === 'signed');
   const canChange = editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? wf.received && canAct(docData, { uid: user.uid, office: profile.office, isAdmin }) : isOwner));
+  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? wf.received && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
   // (An office signs once it has received the document.)
   const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
   const run = async (fn) => {
@@ -126,7 +126,7 @@ export default function DocumentView() {
           )}
           {type && (type.processing || []).length > 0 && docData.status !== 'draft' && (
             <WorkflowCard doc={docData} busy={busy}
-              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin })}
+              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead })}
               canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
               onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
               onAction={(action, remarks, done) => run(async () => {

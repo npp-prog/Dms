@@ -8,16 +8,16 @@ import { listInbox } from '../lib/api.js';
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
 export default function Layout() {
-  const { profile, settings, isAdmin, isSuper, logout } = useAuth();
+  const { user, profile, settings, isAdmin, isSuper, isHead, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setOpen(false), [location.pathname]);
   // Documents waiting in the user's office (refreshed as the user moves around).
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
-    if (!profile?.active || (!profile.office && !isAdmin)) return;
-    listInbox({ office: profile.office, all: !profile.office }).then((d) => setWaiting(d.length)).catch(() => {});
-  }, [location.pathname, profile?.office, profile?.active, isAdmin]);
+    if (!profile?.active) return;
+    listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => setWaiting(d.length)).catch(() => {});
+  }, [location.pathname, profile?.office, profile?.active, isAdmin, isHead, user.uid]);
 
   const groups = [
     { items: [['/', 'home', 'Dashboard', true]] },
@@ -28,7 +28,7 @@ export default function Layout() {
         ['/formats', 'formats', 'Document Formats'],
         ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],
-        ['/documents', 'documents', isAdmin ? 'All Documents' : 'My Documents'],
+        ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
       ],
     },
     isAdmin && {

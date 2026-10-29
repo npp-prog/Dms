@@ -11,14 +11,14 @@ function fmt(ts) {
 }
 
 export default function Documents() {
-  const { user, profile, isAdmin, settings } = useAuth();
+  const { user, profile, isAdmin, isHead, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ q: '', status: '', type: '', office: '' });
 
   useEffect(() => {
-    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin }).then(setDocs).catch((e) => setError(e.message));
-  }, [user.uid, profile.office, isAdmin]);
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead }).then(setDocs).catch((e) => setError(e.message));
+  }, [user.uid, profile.office, isAdmin, isHead]);
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(docs || []).map((d) => d.office).filter(Boolean)])].sort(), [settings.offices, docs]);
 
   const types = useMemo(() => [...new Set((docs || []).map((d) => d.typeCode))].sort(), [docs]);
@@ -34,11 +34,13 @@ export default function Documents() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>{isAdmin ? 'All Documents' : profile.office ? 'Office Documents' : 'My Documents'}</h1>
+          <h1>{isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'}</h1>
           {!isAdmin && (
-            <p className="muted">{profile.office
-              ? <>Documents of the <b>{profile.office}</b>.</>
-              : 'Your documents. An administrator has not assigned you to an office yet.'}</p>
+            <p className="muted">{isHead
+              ? <>Every document of the <b>{profile.office}</b> (you are its office head), and those routed through it.</>
+              : profile.office
+                ? <>The documents you prepared, and those waiting in the <b>{profile.office}</b> for you to act on.</>
+                : 'Your documents. An administrator has not assigned you to an office yet.'}</p>
           )}
         </div>
         <Link to="/new" className="btn btn-primary">+ Prepare document</Link>

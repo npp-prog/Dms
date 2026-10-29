@@ -20,7 +20,7 @@ function stateOf(d, office) {
 // Every routed document, where it is on its route, and what happened last
 // (Administration > Workflow > Tracking).
 export default function WorkflowTracking() {
-  const { user, profile, isAdmin, settings } = useAuth();
+  const { user, profile, isAdmin, isHead, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [view, setView] = useState('active');
@@ -28,10 +28,10 @@ export default function WorkflowTracking() {
   const [at, setAt] = useState('');
 
   useEffect(() => {
-    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin })
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead })
       .then((d) => setDocs(d.filter((x) => x.workflow)))
       .catch((e) => setError(e.message));
-  }, [user.uid, profile.office, isAdmin]);
+  }, [user.uid, profile.office, isAdmin, isHead]);
 
   const rows = useMemo(() => (docs || []).map((d) => ({ d, state: stateOf(d, profile.office) })), [docs, profile.office]);
   const count = (fn) => rows.filter(fn).length;

@@ -55,7 +55,8 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.email == request.auth.token.email
         // The office is assigned by an admin, never chosen by the user.
-        && request.resource.data.get('office', '') == '' && (
+        && request.resource.data.get('office', '') == ''
+        && request.resource.data.get('head', false) == false && (
         // Regular self-registration: inactive user awaiting approval.
         (request.resource.data.role == 'user' && request.resource.data.active == false)
         // The owner's verified email: superadmin.
@@ -68,8 +69,8 @@ service cloud.firestore {
         // Admin may approve/deactivate and edit regular users only.
         || (isAdmin() && request.auth.uid != uid
             && resource.data.role == 'user' && request.resource.data.role == 'user')
-        // Anyone may edit their own name (not their office: that decides what they can see).
-        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office']))
+        // Anyone may edit their own name (not their office or office head: they decide what they can see).
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head']))
         // The owner becomes superadmin once their email is verified.
         || (request.auth.uid == uid && isOwnerEmail()
             && request.resource.data.role == 'superadmin' && request.resource.data.active == true
@@ -91,24 +92,32 @@ service cloud.firestore {
     }
 
     // ---- Prepared documents ----
-    // Users see their own documents, those of their office, and those routed through their
-    // office (the workflow); admins see all.
+    // A user sees the documents they prepared, and the documents waiting in their office to be
+    // received, signed and released (not a colleague's document still at the preparer's step).
+    // The office head sees every document of the office and every document routed through it.
+    // Admins see all.
     match /documents/{docId} {
       function holder() {
         return resource.data.get('currentOffice', '');
       }
-      function onRoute() {
-        return myOffice() != ''
-          && (holder() == myOffice() || myOffice() in resource.data.get('routeOffices', []));
+      function isHead() {
+        return myOffice() != '' && profile().get('head', false) == true;
+      }
+      // Waiting in the user's office at a routed step (atPreparer: the preparer's own step).
+      function heldByMyOffice() {
+        return myOffice() != '' && holder() == myOffice()
+          && resource.data.get('atPreparer', true) == false;
+      }
+      function headSees() {
+        return isHead() && (resource.data.get('office', '') == myOffice() || holder() == myOffice()
+          || myOffice() in resource.data.get('routeOffices', []));
       }
       // The workflow fields change only through the office holding the document.
       function workflowUntouched() {
-        return unchanged(['workflow', 'currentOffice', 'routeOffices']);
+        return unchanged(['workflow', 'currentOffice', 'routeOffices', 'atPreparer']);
       }
       allow read: if isActive()
-        && (resource.data.createdBy == request.auth.uid || isAdmin()
-            || (resource.data.get('office', '') != '' && resource.data.get('office', '') == myOffice())
-            || onRoute());
+        && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees());
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.get('office', '') == myOffice();
@@ -122,9 +131,10 @@ service cloud.firestore {
                     || (resource.data.workflow.state == 'in-progress'
                         && (holder() == '' || holder() == myOffice()))))
             // The office holding a routed document receives, releases or returns it, and signs its PDF.
-            || (myOffice() != '' && holder() == myOffice()
+            // (Its office head too, also at the preparer's step.)
+            || ((heldByMyOffice() || (isHead() && holder() == myOffice()))
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'pdf', 'updatedAt', 'history'])));
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history'])));
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
             && resource.data.status == 'draft');

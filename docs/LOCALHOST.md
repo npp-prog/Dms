@@ -263,7 +263,9 @@ A type with no route yet follows its processing guide; the editor starts from it
 
 **Users** is where you approve new accounts and **assign each person to an office**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
 
-To try it locally: `user@fts.local` and `ana@fts.local` (password `user123`) are both in the Municipal Engineering Office and see each other's documents; `leo@fts.local` is in the Municipal Health Office and sees neither.
+**Who sees what.** A user sees the documents they prepared and the documents waiting in their office to be received, signed and released, so a signatory sees what they sign. They don't see a colleague's documents. Tick **Office head** next to a user's office to let them see every document of the office and every document routed through it. Administrators see all documents.
+
+To try it locally: `user@fts.local` (Juan) and `ana@fts.local` (Ana, the office head) are in the Municipal Engineering Office: Ana sees Juan's documents, Juan doesn't see Ana's. `acctg@fts.local` sees a DV only while it waits in the Accounting Office; `leo@fts.local` (Health) sees none of them.
 
 ---
 

@@ -12,7 +12,9 @@
 //              stage, office, by, uid, at, remarks }],
 // }
 // document.currentOffice: the office holding it (what the Inbox and the security rules use);
-// document.routeOffices: every office on the route (they can open the document).
+// document.atPreparer: it is at a step of the preparer's office (only the preparer and the office
+// head see it then, not the preparer's colleagues);
+// document.routeOffices: every office on the route (their office heads can open the document).
 
 // Steps done by the preparer's own office (or by people it deals with directly).
 const PREPARER = /requesting|claimant|supervisor|payee|custodian|traveler|supplier|end[- ]?user/i;
@@ -70,21 +72,24 @@ export function buildWorkflow(type, doc, offices, user, at = new Date().toISOStr
   return { workflow, ...placement(workflow, doc) };
 }
 
-// currentOffice and routeOffices for the security rules and the Inbox.
+// currentOffice, atPreparer and routeOffices for the security rules and the Inbox.
 export function placement(workflow, doc) {
   const offices = [...new Set(workflow.steps.map((s) => officeOf(s, doc)).filter(Boolean))];
-  const current = workflow.state === 'in-progress' ? officeOf(workflow.steps[workflow.stage], doc) : '';
-  return { currentOffice: current, routeOffices: offices };
+  const moving = workflow.state === 'in-progress';
+  const current = moving ? officeOf(workflow.steps[workflow.stage], doc) : '';
+  return { currentOffice: current, atPreparer: moving && !workflow.steps[workflow.stage].routedTo, routeOffices: offices };
 }
 
 // May this user act on the document's current step?
-export function canAct(doc, { uid, office, isAdmin }) {
+// At the preparer's step: the preparer (or their office head). At a routed step: the office.
+export function canAct(doc, { uid, office, isAdmin, isHead = false }) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return false;
   if (isAdmin) return true;
-  const holder = officeOf(wf.steps[wf.stage], doc);
-  if (holder) return Boolean(office) && office === holder;
-  return doc.createdBy === uid; // preparer without an office
+  const step = wf.steps[wf.stage];
+  const holder = officeOf(step, doc);
+  if (!step.routedTo) return doc.createdBy === uid || (isHead && Boolean(office) && office === holder);
+  return Boolean(office) && office === holder;
 }
 
 // The actions available on the current step.

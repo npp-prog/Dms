@@ -41,7 +41,7 @@ export function LinkList({ links = [], onRemove }) {
 
 // Choose a document in DMS, or enter a link to another system.
 export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, isHead } = useAuth();
   // Documents from PIM (AIR, PAR, ICS, RIS, ...) open on the other-system tab with PIM chosen.
   const fromSystem = systemFor(item);
   const [tab, setTab] = useState(fromSystem ? 'url' : 'fts');
@@ -52,10 +52,10 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
   const id = useId();
 
   useEffect(() => {
-    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin })
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead })
       .then((d) => setDocs(d.filter((x) => x.id !== excludeId && x.status !== 'cancelled')))
       .catch((e) => setError(e.message));
-  }, [user.uid, profile.office, isAdmin, excludeId]);
+  }, [user.uid, profile.office, isAdmin, isHead, excludeId]);
 
   // Only documents of the kind the checklist item asks for (e.g. OBRs for "Obligation Request").
   const fitting = useMemo(() => (docs || []).filter((d) => acceptsDocument(item, d)), [docs, item]);

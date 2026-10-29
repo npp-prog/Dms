@@ -8,7 +8,7 @@ const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateSt
 
 // Documents waiting in the user's office along their workflow. Admins can see every office.
 export default function Inbox() {
-  const { profile, isAdmin, settings } = useAuth();
+  const { user, profile, isAdmin, isHead, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [office, setOffice] = useState(profile.office || '');
@@ -16,9 +16,10 @@ export default function Inbox() {
   useEffect(() => {
     setDocs(null);
     const all = isAdmin && !office;
-    if (!office && !all) { setDocs([]); return; }
-    listInbox({ office, all }).then(setDocs).catch((e) => setError(e.message));
-  }, [office, isAdmin]);
+    // An office head (or an admin) sees everything waiting in the office; staff, what is routed to
+    // the office and their own documents at the preparer's step.
+    listInbox({ office, all, uid: user.uid, head: isHead || isAdmin }).then(setDocs).catch((e) => setError(e.message));
+  }, [office, isAdmin, isHead, user.uid]);
 
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(profile.office ? [profile.office] : [])])].sort(), [settings.offices, profile.office]);
 

@@ -25,8 +25,9 @@ export default function Users() {
       <div className="page-head">
         <div>
           <h1>Users</h1>
-          <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees only the documents of their office.
-            Only the superadmin can grant admin rights. The list of offices is in Settings.</p>
+          <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees the documents they prepared and
+            those waiting in their office; the <b>office head</b> sees every document of the office. Only the superadmin can grant admin
+            rights. The list of offices is in Settings.</p>
         </div>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All users</option>
@@ -53,6 +54,12 @@ export default function Users() {
                       </select>
                     ) : (u.office || '—')}
                     {u.requestedOffice && u.requestedOffice !== u.office && <div className="small muted">Asked for: {u.requestedOffice}</div>}
+                    {u.office && (canManage(u) || (isSuper && u.id === me.uid) ? (
+                      <label className="check small head-check">
+                        <input type="checkbox" checked={Boolean(u.head)} onChange={(e) => change(u, { head: e.target.checked })} />
+                        Office head (sees all documents of the office)
+                      </label>
+                    ) : u.head && <div className="small"><span className="badge badge-blue">Office head</span></div>)}
                   </td>
                   <td>
                     {isSuper && u.id !== me.uid ? (
