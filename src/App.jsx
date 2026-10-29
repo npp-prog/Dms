@@ -4,7 +4,6 @@ import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
 import Pending from './pages/Pending.jsx';
 import Dashboard from './pages/Dashboard.jsx';
-import Formats from './pages/Formats.jsx';
 import FormatView from './pages/FormatView.jsx';
 import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
@@ -43,7 +42,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
-        <Route path="formats" element={<Formats />} />
+        <Route path="formats" element={<Navigate to="/new" replace />} />
         <Route path="formats/:typeId" element={<FormatView />} />
         <Route path="new" element={<PrepareDocument />} />
         <Route path="upload" element={<UploadDocument />} />

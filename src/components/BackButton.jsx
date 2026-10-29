@@ -5,7 +5,7 @@ function parentOf(path) {
   if (/^\/documents\/[^/]+\/edit/.test(path)) return path.replace(/\/edit.*$/, '');
   if (/^\/documents\/[^/]+/.test(path)) return '/documents';
   if (/^\/new\/[^/]+/.test(path)) return '/new';
-  if (/^\/formats\/[^/]+/.test(path)) return '/formats';
+  if (/^\/formats\/[^/]+/.test(path)) return '/admin/types';
   if (/^\/checklists\/[^/]+/.test(path)) return '/checklists';
   if (/^\/admin\/types\/[^/]+/.test(path)) return '/admin/types';
   if (/^\/admin\/checklists\/[^/]+/.test(path)) return '/checklists';

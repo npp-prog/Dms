@@ -91,17 +91,7 @@ The dashboard shows:
 
 ### Document formats
 
-**Document Formats** lists every form: DV, OBR, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO.
-
-![Document formats](images/03-formats.png)
-
-**View format** shows three things:
-
-- the guided encoding steps;
-- **How to process this document**: which office receives the document, in what order, and what each does;
-- the blank printable form.
-
-![Format view with the processing guide](images/06-format-dv.png)
+There is no separate *Document Formats* menu: **Prepare Document** lists every form (DV, OBR, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO). Administrators can preview a format, with its guided steps, processing guide and blank printable form, under **Document Types → Preview**.
 
 ### Checklists
 

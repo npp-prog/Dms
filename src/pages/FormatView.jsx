@@ -25,7 +25,7 @@ export default function FormatView() {
     <div className="page">
       <div className="page-head no-print">
         <div>
-          <div className="crumbs"><Link to="/formats">Formats</Link> / {type.code}</div>
+          <div className="crumbs"><Link to="/new">Prepare</Link> / {type.code}</div>
           <h1>{type.code} — {type.name}</h1>
           <p className="muted">{type.description}</p>
         </div>

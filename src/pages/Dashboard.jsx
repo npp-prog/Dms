@@ -57,7 +57,7 @@ export default function Dashboard() {
   ].filter(Boolean);
 
   const glance = [
-    ['Document formats available', types.length, '/formats'],
+    ['Document formats available', types.length, '/new'],
     [`Documents prepared, ${year}`, thisYear.length, '/documents'],
     ['Drafts', count(docs, 'draft'), '/documents'],
     ['Complete', count(docs, 'complete'), '/documents'],
@@ -102,7 +102,7 @@ export default function Dashboard() {
             </ul>
           </div>
           <div className="card">
-            <div className="card-head"><h3>Prepare a document</h3><Link className="btn btn-sm" to="/formats">All formats</Link></div>
+            <div className="card-head"><h3>Prepare a document</h3><Link className="btn btn-sm" to="/new">All formats</Link></div>
             {types.length === 0 && <div className="empty">No document formats yet.</div>}
             <div className="type-chips">
               {types.map((t) => (
