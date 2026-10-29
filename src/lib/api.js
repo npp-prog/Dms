@@ -1,5 +1,5 @@
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query,
+  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
@@ -7,7 +7,7 @@ import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
-import { applyAction, buildWorkflow, cancelWorkflow, chooseRoute, placement, referDocument as referPatch, routesOf } from './workflow.js';
+import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch } from './workflow.js';
 
 // ---------- Users ----------
 
@@ -112,14 +112,14 @@ const cleanSteps = (route) => route.map((s) => ({
   ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
   ...(s.fills?.length ? { fills: [...s.fills] } : {}),
   ...(String(s.upload || '').trim() ? { upload: String(s.upload).trim() } : {}),
+  // other offices that may handle the step instead (the preparer chooses)
+  ...(s.alternates?.filter((o) => o !== (s.office || '')).length ? { alternates: [...new Set(s.alternates.filter((o) => o !== (s.office || '')))] } : {}),
 }));
-// The main route and any alternate routes ([{ id, name, steps }]); the preparer of a document
-// chooses among them.
-export async function saveRoute(typeId, route, user, { routeName = '', altRoutes = [] } = {}) {
+// The route of a type; a step may have alternate offices.
+export async function saveRoute(typeId, route, user) {
   await updateDoc(doc(db, 'documentTypes', typeId), {
     route: cleanSteps(route),
-    routeName: String(routeName || '').trim(),
-    altRoutes: altRoutes.map((r, i) => ({ id: r.id || `alt${Date.now().toString(36)}${i}`, name: String(r.name || '').trim() || `Alternate route ${i + 1}`, steps: cleanSteps(r.steps) })),
+    routeName: deleteField(), altRoutes: deleteField(),
     routeUpdatedAt: serverTimestamp(), routeUpdatedBy: user.displayName || user.email,
   });
 }
@@ -404,17 +404,14 @@ export async function startWorkflow(id, type, user, offices) {
   });
 }
 
-// The preparer chooses the route (main or alternate) before the document is first released.
-// The routes are the type's as set now (Administration > Workflow).
-export async function chooseDocumentRoute(id, routeId, user, offices) {
+// The preparer chooses the office of each step with alternates ({ stage: office }) before the
+// document is first released (e.g. the Vice Mayor instead of the Mayor).
+export async function chooseStepOffices(id, picks, user) {
   const ref = doc(db, 'documents', id);
   await runTransaction(db, async (tx) => {
     const d = (await tx.get(ref)).data();
-    const type = d.typeId ? (await tx.get(doc(db, 'documentTypes', d.typeId))).data() : null;
-    const route = routesOf(type, offices).find((r) => r.id === routeId);
-    if (!route) throw new Error('That route no longer exists. Reload the page.');
-    const patch = chooseRoute(d, route, offices, user);
-    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('route chosen', user, route.name)] });
+    const { changed, ...patch } = chooseOffices(d, picks, user);
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('offices chosen', user, patch.workflow.events.at(-1).remarks)] });
   });
 }
 

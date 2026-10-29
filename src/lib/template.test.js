@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, chooseRoute, fillsMissing, referDocument, resolveOffice, routeFromGuide, routeSteps, routesOf, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -327,27 +327,35 @@ test('reference numbers from a pattern', () => {
   assert.equal(refNumber('TO-{YYYY}', { date: oct }).format(3), 'TO-2026-0003'); // no series token: one is added
 });
 
-test('alternate routes: the preparer chooses one before releasing', () => {
+test('alternate offices on a step: the preparer chooses before releasing', () => {
   const offices = DEFAULT_SETTINGS.offices;
-  const type = {
-    code: 'PR', routeName: 'Regular',
-    route: [{ office: '', action: 'Prepare' }, { office: 'Municipal Budget Office', action: 'Certify' }],
-    altRoutes: [{ id: 'bac', name: 'With BAC', steps: [{ office: '', action: 'Prepare' }, { office: 'General Services Office', action: 'BAC' }, { office: 'Municipal Budget Office', action: 'Certify' }] }],
-  };
-  assert.deepEqual(routesOf(type, offices).map((r) => r.name), ['Regular', 'With BAC']);
+  const type = { route: [
+    { office: '', action: 'Box A', sign: true },
+    { office: 'Municipal Accounting Office', action: 'Box B' },
+    { office: 'Office of the Municipal Mayor', action: 'Box D', sign: true, alternates: ['Office of the Municipal Vice Mayor'] },
+  ] };
+  assert.deepEqual(routeSteps(type, offices)[2].alternates, ['Office of the Municipal Vice Mayor']);
   const user = { uid: 'u1', displayName: 'Juan' };
-  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }, { kind: 'signed', stage: 0 }] } };
   doc = { ...doc, ...buildWorkflow(type, doc, offices, user, 't0') };
-  assert.equal(doc.workflow.route.choose, true);
-  assert.throws(() => applyAction(doc, 'release', user), /Choose the route/);
-  doc = { ...doc, ...chooseRoute(doc, routesOf(type, offices)[1], offices, user, 't1') };
-  assert.equal(doc.workflow.steps.length, 3);
-  assert.equal(doc.workflow.route.name, 'With BAC');
+  assert.equal(doc.workflow.choose, true);
+  assert.ok(doc.routeOffices.includes('Office of the Municipal Mayor'));
+  assert.throws(() => applyAction(doc, 'release', user), /Choose the office/);
+  assert.throws(() => chooseOffices(doc, { 2: 'Municipal Budget Office' }, user), /choose one of its offices/);
+  const { changed, ...patch } = chooseOffices(doc, { 2: 'Office of the Municipal Vice Mayor' }, user, 't1');
+  doc = { ...doc, ...patch };
+  assert.equal(doc.workflow.choose, false);
+  assert.equal(doc.workflow.steps[2].routedTo, 'Office of the Municipal Vice Mayor');
+  assert.ok(doc.routeOffices.includes('Office of the Municipal Vice Mayor') && !doc.routeOffices.includes('Office of the Municipal Mayor'));
+  assert.equal(doc.workflow.events.at(-1).remarks, 'Step 3: Office of the Municipal Vice Mayor');
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't2') };
-  assert.equal(doc.currentOffice, 'General Services Office');
-  assert.throws(() => chooseRoute(doc, routesOf(type, offices)[0], offices, user), /before the document is first released/);
-  // A type without alternates: nothing to choose.
-  assert.equal(buildWorkflow({ route: type.route }, doc, offices, user).workflow.route, undefined);
+  assert.throws(() => chooseOffices(doc, { 2: 'Office of the Municipal Mayor' }, user), /before the document is first released/);
+  const acct = { uid: 'a1', displayName: 'Rosa', office: 'Municipal Accounting Office' };
+  doc = { ...doc, ...applyAction(doc, 'receive', acct, '', 't3') };
+  doc = { ...doc, ...applyAction(doc, 'release', acct, '', 't4') };
+  assert.equal(doc.currentOffice, 'Office of the Municipal Vice Mayor');
+  // Without alternates: nothing to choose.
+  assert.equal(buildWorkflow({ route: type.route.slice(0, 2) }, doc, offices, user).workflow.choose, undefined);
 });
 
 test('referring a document to a person outside the route', () => {

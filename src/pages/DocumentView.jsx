@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseDocumentRoute } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
 import { canAct, editableByPreparer, isReceived, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -269,9 +269,9 @@ export default function DocumentView() {
                 await addStepFile(docId, wf.stage, link, actor);
               })}
               onOpenFile={openFile}
-              me={user.uid} offices={settings.offices || []} canRefer={canRefer}
+              me={user.uid} canRefer={canRefer}
               onRefer={(to, note, done) => run(async () => { await referDocument(docId, to, note, actor); done(); })}
-              onChooseRoute={(routeId) => run(() => chooseDocumentRoute(docId, routeId, actor, settings.offices || []))}
+              onChooseOffices={(picks) => run(() => chooseStepOffices(docId, picks, actor))}
               sendPanel={wf?.steps?.[wf.stage]?.fills && (
                 <SendPanel doc={docData} me={user.uid} busy={busy}
                   onDownload={pdfView ? () => downloadBytes(pdfView.bytes, pdfFileName(type, docData), 'application/pdf') : null}

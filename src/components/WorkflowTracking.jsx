@@ -5,7 +5,7 @@ import { listDocuments } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Route chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
+const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Offices chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
 
 // Where a routed document is: its state for the filters.
 export function stateOf(d, office, uid = '') {

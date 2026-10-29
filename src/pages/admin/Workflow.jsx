@@ -6,12 +6,14 @@ import Icon from '../../components/Icon.jsx';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
 
 const PREPARER = ''; // the office that prepared the document
+const PREPARER_PICK = '@preparer'; // the preparer's office in a select (whose value cannot be '')
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clean = (route) => route.map((s) => ({
   office: s.office || '', action: s.action || '', sign: Boolean(s.sign),
   ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
   ...(s.fills?.length ? { fills: [...s.fills] } : {}),
   ...(s.upload !== undefined ? { upload: s.upload } : {}),
+  ...(s.alternates?.length ? { alternates: [...s.alternates] } : {}),
 }));
 
 // Administration > Workflow: the route of every document type (which offices receive it, in
@@ -62,8 +64,8 @@ function Routes() {
           <button key={t.id} type="button" className={t.id === selected ? 'active' : ''} onClick={() => setSelected(t.id)}>
             <span className="code">{t.code}</span>
             <span className="t">{t.name}
-              {(t.route?.length > 0 || t.altRoutes?.length > 0 || t.active === false) && (
-                <span className="small muted">{[t.route?.length && `${t.route.length} steps`, t.altRoutes?.length && `${t.altRoutes.length + 1} routes`, t.active === false && 'inactive'].filter(Boolean).join(' · ')}</span>
+              {(t.route?.length > 0 || t.active === false) && (
+                <span className="small muted">{[t.route?.length && `${t.route.length} steps`, t.active === false && 'inactive'].filter(Boolean).join(' · ')}</span>
               )}
             </span>
           </button>
@@ -76,29 +78,15 @@ function Routes() {
 
 function RouteEditor({ type, offices, actor, onSaved }) {
   const guide = useMemo(() => routeFromGuide(type, offices), [type, offices]);
-  // The main route and any alternate routes (the preparer chooses one); one is edited at a time.
-  const savedAll = useMemo(() => [
-    { id: 'main', name: type.routeName || '', steps: clean(type.route?.length ? type.route : guide) },
-    ...(type.altRoutes || []).map((r) => ({ id: r.id, name: r.name || '', steps: clean(r.steps || []) })),
-  ], [type, guide]);
-  const [routes, setRoutes] = useState(savedAll);
-  const [cur, setCur] = useState(0);
-  const route = routes[cur].steps;
-  const setRoute = (steps) => setRoutes(routes.map((r, i) => (i === cur ? { ...r, steps } : r)));
-  const saved = savedAll[cur]?.steps || [];
+  const saved = useMemo(() => clean(type.route?.length ? type.route : guide), [type, guide]);
+  const [route, setRoute] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const custom = Boolean(type.route?.length);
-  const dirty = !same(routes.map((r) => ({ ...r, steps: clean(r.steps) })), savedAll) || !custom;
-  const routeLabel = (r, i) => r.name || (i === 0 ? 'Main route' : `Alternate route ${i}`);
-  const addAlternate = () => {
-    setRoutes([...routes, { id: '', name: '', steps: clean(routes[0].steps) }]);
-    setCur(routes.length); setOpen(null);
-  };
-  const removeAlternate = () => {
-    if (!window.confirm(`Remove ${routeLabel(routes[cur], cur)}?`)) return;
-    setRoutes(routes.filter((_, i) => i !== cur)); setCur(0); setOpen(null);
-  };
+  const dirty = !same(clean(route), saved) || !custom;
+  const officeName = (o) => o || "Preparer's office";
+  // A step's office, with its alternates: "Office of the Municipal Mayor or …Vice Mayor".
+  const officesOf = (s) => [s.office, ...(s.alternates || [])].map(officeName).join(' or ');
 
   // Offices in Settings, plus any office a step names that is not (or no longer) in the list.
   // The type's fields that can take a reference no. and its date; a sensible first choice.
@@ -121,21 +109,18 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     setOpen((o) => (o === i ? i + d : o === i + d ? i : o));
   };
   const problems = [
-    routes.some((r) => !r.steps.length) && 'Every route needs at least one step.',
-    routes.length > 1 && routes.some((r, i) => i > 0 && !r.name.trim()) && 'Name each alternate route (e.g. "With BAC", "Below ₱50,000"), so the preparer knows which to choose.',
+    !route.length && 'Add at least one step.',
     route.some((s) => !s.action.trim()) && 'Every step needs an action (what the office does).',
     route.some((s, i) => i > 0 && s.office === route[i - 1].office) && 'Two steps in a row are in the same office: merge them into one step.',
     route.some((s) => s.office && !offices.includes(s.office)) && 'A step names an office that is not in Settings: users of that office will not receive it.',
   ].filter(Boolean);
-  const blocking = routes.some((r) => !r.steps.length || r.steps.some((s) => !s.action.trim()));
+  const blocking = !route.length || route.some((s) => !s.action.trim());
 
   const save = async () => {
     setBusy(true); setMsg(null);
     try {
-      await saveRoute(type.id, routes[0].steps, actor, { routeName: routes[0].name, altRoutes: routes.slice(1) });
-      setMsg({ ok: true, text: routes.length > 1
-        ? `Saved. The preparer of a new ${type.code} chooses one of its ${routes.length} routes; documents already on their way keep theirs.`
-        : `Saved. New ${type.code} documents follow this route; documents already on their way keep theirs.` });
+      await saveRoute(type.id, route, actor);
+      setMsg({ ok: true, text: `Saved. New ${type.code} documents follow this route${route.some((s) => s.alternates?.length) ? ' (the preparer chooses the office of each step with alternates)' : ''}; documents already on their way keep theirs.` });
       onSaved();
     } catch (e) {
       setMsg({ ok: false, text: e.message });
@@ -155,29 +140,10 @@ function RouteEditor({ type, offices, actor, onSaved }) {
         </div>
       </div>
 
-      <div className="route-tabs" role="tablist" aria-label="Routes">
-        {routes.map((r, i) => (
-          <button key={i} type="button" role="tab" aria-selected={i === cur} className={i === cur ? 'active' : ''}
-            onClick={() => { setCur(i); setOpen(null); }}>{routeLabel(r, i)}</button>
-        ))}
-        <button type="button" className="add" onClick={addAlternate} title="Another route the preparer can choose instead">+ Alternate route</button>
-      </div>
-      {routes.length > 1 && (
-        <div className="route-name row gap wrap">
-          <label className="field">
-            <span className="field-label">Route name (shown to the preparer)</span>
-            <input value={routes[cur].name} placeholder={cur === 0 ? 'Main route' : 'e.g. With BAC, Below ₱50,000'}
-              onChange={(e) => setRoutes(routes.map((r, i) => (i === cur ? { ...r, name: e.target.value } : r)))} />
-          </label>
-          {cur > 0 && <button type="button" className="btn btn-danger btn-sm" onClick={removeAlternate}>Remove this route</button>}
-        </div>
-      )}
-      {routes.length > 1 && <p className="small muted">The preparer chooses which route the document follows before releasing it.</p>}
-
       <div className="route-chain" aria-label="Route preview">
         {route.map((s, i) => (
           <span key={i} className="route-chip">
-            <b>{i + 1}</b> {s.office || "Preparer's office"}{s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
+            <b>{i + 1}</b> {officesOf(s)}{s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
           </span>
         ))}
       </div>
@@ -188,7 +154,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
             <span className="wf-dot">{i + 1}</span>
             {open !== i ? (
               <button type="button" className="route-summary" onClick={() => setOpen(i)} title="Edit this step">
-                <b>{s.office || "Preparer's office"}</b>
+                <b>{officesOf(s)}</b>
                 <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
                 <span className="route-badges">
                   {s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
@@ -207,6 +173,21 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                   {choices.map((o) => <option key={o} value={o}>{o}{offices.includes(o) ? '' : ' (not in Settings)'}</option>)}
                 </select>
               </label>
+              <div className="field alt-offices">
+                <span className="field-label">Alternate offices <span className="muted">(optional: the preparer chooses which office handles this step)</span></span>
+                <div className="row gap wrap">
+                  {(s.alternates || []).map((o) => (
+                    <span key={o} className="alt-chip">or {officeName(o)}
+                      <button type="button" title="Remove" onClick={() => set(i, { alternates: s.alternates.filter((x) => x !== o) })}>×</button></span>
+                  ))}
+                  <select value="" aria-label="Add an alternate office"
+                    onChange={(e) => e.target.value !== '-' && set(i, { alternates: [...(s.alternates || []), e.target.value === PREPARER_PICK ? PREPARER : e.target.value] })}>
+                    <option value="-">+ Add an alternate office…</option>
+                    {[PREPARER_PICK, ...choices].filter((o) => (o === PREPARER_PICK ? PREPARER : o) !== s.office && !(s.alternates || []).includes(o === PREPARER_PICK ? PREPARER : o))
+                      .map((o) => <option key={o} value={o}>{o === PREPARER_PICK ? "Preparer's office" : o}</option>)}
+                  </select>
+                </div>
+              </div>
               <label className="field">
                 <span className="field-label">Action</span>
                 <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} placeholder="e.g. Pre-audit, Box B and the JEV" />
@@ -260,8 +241,8 @@ function RouteEditor({ type, offices, actor, onSaved }) {
       {problems.length > 0 && <ul className="route-problems small">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       {msg && <div className={msg.ok ? 'alert alert-ok' : 'alert'}>{msg.text}</div>}
       <div className="row gap wrap route-actions">
-        <button className="btn btn-primary" disabled={busy || blocking || !dirty} onClick={save}>{busy ? 'Saving…' : routes.length > 1 ? 'Save routes' : custom ? 'Save route' : 'Save as the route'}</button>
-        {custom && dirty && <button className="btn btn-ghost" onClick={() => { setRoutes(savedAll); setCur(0); setOpen(null); }}>Undo changes</button>}
+        <button className="btn btn-primary" disabled={busy || blocking || !dirty} onClick={save}>{busy ? 'Saving…' : custom ? 'Save route' : 'Save as the route'}</button>
+        {!same(clean(route), saved) && <button className="btn btn-ghost" onClick={() => { setRoute(saved); setOpen(null); }}>Undo changes</button>}
         {!same(clean(route), guide) && <button className="btn btn-ghost" onClick={() => setRoute(guide)}>Start from the processing guide</button>}
       </div>
     </section>
