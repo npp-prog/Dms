@@ -401,6 +401,7 @@ test('returned for revision: a new PDF supersedes the signed one and every step 
   doc = { ...doc, ...applyAction(doc, 'return', rosa, 'Wrong amount', 't3') };
   assert.equal(doc.workflow.stage, 0);
   assert.equal(signatureMissing(doc), false); // still signed: could go again unchanged
+  doc = { ...doc, ...applyAction(doc, 'receive', juan, '', 't3b') };
   doc.pdf.files.push({ kind: 'generated' }); // the preparer edits it and makes a new PDF
   assert.equal(signatureMissing(doc), true);
   assert.throws(() => applyAction(doc, 'release', juan), /requires a signature/);
