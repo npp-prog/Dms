@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import forge from 'node-forge';
 import { jsPDF } from 'jspdf';
 import { Buffer as BrowserBuffer } from 'buffer/index.js';
-import { addSignatureField, checkSignedVersion, fixBufferLastIndexOf, noteBox, readCertificate, readSignatures, signPdf, stampDate, verifyPdf, wrapNote } from './signing.js';
+import jsQR from 'jsqr';
+import { qrAppearance, qrRuns, verifyUrl } from './qr.js';
+import { checkRecord, CHECK_KEYS } from './publicRecord.js';
+import { addQrStamps, addSignatureField, checkSignedVersion, fixBufferLastIndexOf, noteBox, readCertificate, readSignatures, signPdf, stampDate, verifyPdf, wrapNote } from './signing.js';
 
 // Test certificates only: a CA named like the PNPKI and one signer, plus a non-PNPKI signer.
 function makeP12(cn, issuerDn, password = 'secret') {
@@ -167,4 +170,48 @@ test('text added with a signature: on any page, covered by the signature, beside
   assert.equal(check2.ok, true, check2.error);
   assert.deepEqual(check2.signatures.map((s) => s.valid), [true, true]);
   wellFormed(v2);
+});
+
+test('QR code: decodes to the check page; stamped on an upload as an update, which can then be signed', async () => {
+  const url = verifyUrl('AbCdEfGhIjKlMnOpQrSt', 'https://fts.mgocandoni.com');
+  assert.equal(url, 'https://fts.mgocandoni.com/v/AbCdEfGhIjKlMnOpQrSt');
+  // Draw the runs as an image (4 px a module, quiet zone of 4 modules) and read it back.
+  const { n, runs } = qrRuns(url);
+  const px = 4; const q = 4; const size = (n + q * 2) * px;
+  const img = new Uint8ClampedArray(size * size * 4).fill(255);
+  for (const [r, c, len] of runs) {
+    for (let y = (r + q) * px; y < (r + q + 1) * px; y++) {
+      for (let x = (c + q) * px; x < (c + q + len) * px; x++) img.fill(0, (y * size + x) * 4, (y * size + x) * 4 + 3);
+    }
+  }
+  assert.equal(jsQR(img, size, size)?.data, url);
+
+  const v0 = unsignedPdf();
+  const stamped = await addQrStamps(v0, qrAppearance(url, ['Scan to verify', 'DMS-2026-000001']));
+  const text = Buffer.from(stamped).toString('latin1');
+  assert.ok(Buffer.from(stamped.subarray(0, v0.length)).equals(Buffer.from(v0)), 'the original bytes stay as they are');
+  assert.equal((text.match(/\/Subtype \/Stamp \/Name \/DMSVerify/g) || []).length, 2, 'one on each page');
+  assert.match(text, /\(Scan to verify\) Tj ET\nBT \/F1 5.5 Tf [\d.]+ [\d.]+ Td \(DMS-2026-000001\) Tj/);
+  const v1 = await signPdf(stamped, makeP12('JUAN DELA CRUZ', PNPKI), 'secret');
+  const check = checkSignedVersion(stamped, v1);
+  assert.equal(check.ok, true, check.error);
+  assert.equal(check.signatures[0].valid, true);
+});
+
+test('public record: only what confirms the document, no amounts or data fields', () => {
+  const d = {
+    controlNo: 'DMS-2026-000007', typeCode: 'DV', typeName: 'Disbursement Voucher', title: 'NEIL P. PRIOLO', office: 'Municipal Engineering Office',
+    status: 'complete', createdBy: 'u1', data: { amount: 10000, payee: 'NEIL P. PRIOLO' },
+    refNos: { dvNo: { label: 'Disbursement No.', value: 'GF-2026-10-0001' }, dvDate: { label: 'Date', value: '2026-10-29', of: 'dvNo' } },
+    pdf: { files: [{ kind: 'generated', sha256: 'aa', at: 't0' }, { kind: 'signed', sha256: 'bb', at: 't1', reason: 'Box A', signer: { name: 'JUAN', pnpki: true, signedAt: 't1' } }] },
+    workflow: { state: 'in-progress', stage: 1, steps: [{ routedTo: '', action: 'Box A', sign: true }, { routedTo: 'Municipal Accounting Office', action: 'Box B' }], events: [] },
+  };
+  const r = checkRecord(d, 'now');
+  assert.deepEqual(Object.keys(r).sort(), [...CHECK_KEYS].sort());
+  assert.equal(r.now, 'Municipal Accounting Office');
+  assert.deepEqual(r.steps.map((s) => [s.office, s.done, s.current]), [['Municipal Engineering Office', true, false], ['Municipal Accounting Office', false, true]]);
+  assert.deepEqual(r.signatures, [{ name: 'JUAN', at: 't1', reason: 'Box A', pnpki: true }]);
+  assert.deepEqual(r.versions.map((v) => v.sha256), ['aa', 'bb']);
+  assert.deepEqual(r.refNos, ['Disbursement No. GF-2026-10-0001']);
+  assert.ok(!JSON.stringify(r).includes('10000'));
 });

@@ -1,6 +1,7 @@
 import { acceptsDocument, effectiveChecklist } from '../lib/checklists.js';
 import { fileBase, controlRef } from '../lib/naming.js';
 import { makePdf, renderPages } from '../lib/pdf.js';
+import { verifyUrl } from '../lib/qr.js';
 import DocumentPreview from './DocumentPreview.jsx';
 import ChecklistSheet from './ChecklistSheet.jsx';
 
@@ -33,7 +34,8 @@ export async function documentPdf(type, d, settings, onStep = () => {}) {
     parts.push(await renderPages(checklistElement(checklist, d, settings), 'A4', 'portrait'));
   }
   onStep('Making the PDF…');
-  return makePdf(parts, { title: `${d.typeName} ${d.controlNo}`, author: d.createdByName });
+  // Every page carries the QR code of the document's public check page (once it has an id).
+  return makePdf(parts, { title: `${d.typeName} ${d.controlNo}`, author: d.createdByName, qr: d.id ? { text: verifyUrl(d.id), lines: ['Scan to verify', d.controlNo] } : null });
 }
 
 // File name of the document's PDF: Fund_Payee_Checklist No._Type_Control No.

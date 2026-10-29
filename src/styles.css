@@ -990,3 +990,11 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .ss-list li.on::after { content: " ✓"; color: var(--primary); }
 .ss-list li.off { color: var(--faint); cursor: default; }
 .ss-list .ss-none { color: var(--muted); cursor: default; }
+
+/* The page a document's QR code opens (pages/DocCheck.jsx). */
+.check-head h2 { margin: .1rem 0 .7rem; font-size: 1.5rem; letter-spacing: -.01em; }
+.check-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.check-steps li { display: flex; gap: .7rem; align-items: flex-start; }
+.check-steps li:not(.done):not(.now) { opacity: .6; }
+.check-steps li.now b { color: var(--primary); }
+.check-head .badge { white-space: normal; text-align: left; }

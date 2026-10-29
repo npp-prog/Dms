@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, listDocumentTypes, setDocumentStatus, startWorkflow } from '../lib/api.js';
 import Select from '../components/Select.jsx';
+import { addQrStamps, readSignatures } from '../lib/signing.js';
+import { qrAppearance, verifyUrl } from '../lib/qr.js';
 
 // A document that is not prepared in DMS but already exists as a file: a scanned OBR, a letter,
 // a PDF made in another system. It gets a DMS control number, its file becomes its PDF (a photo
@@ -62,8 +64,14 @@ export default function UploadDocument() {
       setBusy('Saving…');
       // A draft until its file is stored: if the upload fails, the draft is removed again.
       const created = await createUploadedDocument(type, { ...form, title: form.title.trim(), fileName: file.name }, actor);
+      // The QR code of its public check page on every page, unless the PDF is already signed
+      // (anything added after a signature shows as a change to it).
+      let stamped = pdf;
       try {
-        await addPdfVersion(created.id, pdf, actor, { kind: 'uploaded', onProgress: (x) => setBusy(`Uploading… ${Math.round(x * 100)}%`) });
+        if (!readSignatures(pdf).length) stamped = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
+      } catch { stamped = pdf; }
+      try {
+        await addPdfVersion(created.id, stamped, actor, { kind: 'uploaded', onProgress: (x) => setBusy(`Uploading… ${Math.round(x * 100)}%`) });
       } catch (err) {
         await deleteDocument(created.id).catch(() => {});
         throw err;

@@ -406,3 +406,70 @@ export function verifyPdf(pdfBytes) {
     changedAfterLast: Boolean(last) && tail.length > 0,
   };
 }
+
+// Uploaded PDFs: the document's QR code (lib/qr.js qrAppearance) as a locked stamp in the bottom
+// right corner of every page, added in an update after the original bytes, which stay as they
+// are. Pages it cannot place one on (nested page trees, annotations in a separate object) are
+// skipped; returns the bytes unchanged if no page can take one.
+export async function addQrStamps(pdfBytes, appearance) {
+  if (!globalThis.Buffer) globalThis.Buffer = Buffer;
+  fixBufferLastIndexOf(globalThis.Buffer);
+  const B = globalThis.Buffer;
+  const def = (m) => (typeof m.default === 'function' ? m.default : m.default?.default);
+  const [readPdf, findObject, getPagesDictionaryRef] = (await Promise.all([
+    import('@signpdf/placeholder-plain/dist/readPdf.js'), import('@signpdf/placeholder-plain/dist/findObject.js'),
+    import('@signpdf/placeholder-plain/dist/getPagesDictionaryRef.js'),
+  ])).map(def);
+  const pdf = B.from(pdfBytes);
+  let info;
+  try { info = readPdf(pdf); } catch { return pdfBytes; }
+  const obj = (ref) => findObject(pdf, info.xref, ref).toString();
+  const idOf = (ref) => Number(String(ref).trim().split(/\s+/)[0]);
+  let pagesDict;
+  try { pagesDict = obj(getPagesDictionaryRef(info)); } catch { return pdfBytes; }
+  const inherited = pagesDict.match(/\/MediaBox\s*\[([^\]]*)\]/)?.[1];
+  const kids = pagesDict.match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
+  const pages = [];
+  for (const ref of kids) {
+    let dict;
+    try { dict = obj(ref); } catch { continue; }
+    if (!/\/Type\s*\/Page\b/.test(dict) || /\/Annots\s+\d+\s+\d+\s+R/.test(dict)) continue;
+    const box = (dict.match(/\/MediaBox\s*\[([^\]]*)\]/)?.[1] || inherited || '').trim().split(/\s+/).map(Number);
+    if (box.length !== 4 || box.some((v) => !Number.isFinite(v))) continue;
+    if (/\/Rotate\s+(90|180|270)/.test(dict)) continue; // the corner would be elsewhere
+    pages.push({ ref, dict, box });
+  }
+  if (!pages.length) return pdfBytes;
+
+  let next = info.xref.maxIndex + 1;
+  const formId = next++;
+  const chunks = [B.from('\n')];
+  let pos = pdf.length + 1;
+  const offsets = [];
+  const put = (id, head, stream) => {
+    offsets.push([id, pos]);
+    const parts = stream
+      ? [B.from(`${id} 0 obj\n${head}\nstream\n`, 'latin1'), B.from(stream, 'latin1'), B.from('\nendstream\nendobj\n')]
+      : [B.from(`${id} 0 obj\n${head}\nendobj\n`, 'latin1')];
+    for (const part of parts) { chunks.push(part); pos += part.length; }
+  };
+  const { w, h, ops, margin } = appearance;
+  put(formId, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${B.from(ops, 'latin1').length} >>`, ops);
+  for (const p of pages) {
+    const [x0, y0, x1] = p.box;
+    const rect = [x1 - margin - w, y0 + margin, x1 - margin, y0 + margin + h];
+    if (rect[0] < x0) continue;
+    const id = next++;
+    // Printed, read-only and locked (4 + 64 + 128).
+    put(id, `<< /Type /Annot /Subtype /Stamp /Name /DMSVerify /Rect [${rect.map(num).join(' ')}] /Contents (Scan to verify this document in DMS) /F 196 /P ${p.ref} /AP << /N ${formId} 0 R >> >>`);
+    const annots = /\/Annots\s*\[/.test(p.dict)
+      ? p.dict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${id} 0 R]`)
+      : `${p.dict}\n/Annots [${id} 0 R]`;
+    put(idOf(p.ref), `<<\n${annots.trim()}\n>>`);
+  }
+  if (offsets.length < 2) return pdfBytes;
+  const xrefAt = pos;
+  const rows = offsets.sort((x, y) => x[0] - y[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
+  chunks.push(B.from(`xref\n0 1\n0000000000 65535 f \n${rows}trailer\n<<\n/Size ${next}\n/Root ${info.rootRef}\n${info.infoRef ? `/Info ${info.infoRef}\n` : ''}/Prev ${info.xRefPosition}\n>>\nstartxref\n${xrefAt}\n%%EOF\n`, 'latin1'));
+  return new Uint8Array(B.concat([pdf, ...chunks]));
+}

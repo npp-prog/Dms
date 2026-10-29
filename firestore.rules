@@ -194,6 +194,32 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---- Public record of a document (what the QR code on its PDF opens) ----
+    // Anyone, signed in or not, can read one by its id (the document's id, in the QR code); they
+    // can never be listed. Written with each PDF version and workflow step by whoever may act on
+    // the document then (before or after the change), and only for that document.
+    match /checks/{docId} {
+      function docBefore() {
+        return get(/databases/$(database)/documents/documents/$(docId)).data;
+      }
+      function docAfter() {
+        return getAfter(/databases/$(database)/documents/documents/$(docId)).data;
+      }
+      function handles(d) {
+        return d.createdBy == request.auth.uid
+          || (myOffice() != '' && d.get('currentOffice', '') == myOffice())
+          || d.get('currentOffice', '') == 'person:' + request.auth.uid
+          || (myOffice() != '' && profile().get('head', false) == true && d.get('office', '') == myOffice());
+      }
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isActive()
+        && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'updatedAt'])
+        && request.resource.data.controlNo == docAfter().controlNo
+        && (isAdmin() || handles(docBefore()) || handles(docAfter()));
+      allow delete: if isAdmin();
+    }
+
     // ---- Control number sequences ----
     match /counters/{counterId} {
       allow read: if isActive();

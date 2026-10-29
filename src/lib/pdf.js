@@ -69,20 +69,27 @@ export async function renderPages(element, paperSize, orientation) {
 // followed by its checklist. Written with a classic cross-reference table, so signatures can
 // later be added as incremental updates (lib/signing.js).
 // footer: a line printed in the bottom margin of every page (e.g. where to verify it).
-export async function makePdf(parts, { title = '', author = '', footer = '' } = {}) {
+// qr: { text, caption } puts the document's QR code (lib/qr.js) in the bottom right corner of every page.
+export async function makePdf(parts, { title = '', author = '', footer = '', qr = null } = {}) {
   const { jsPDF } = await import('jspdf');
+  const { drawQr, QR_RESERVE_MM } = qr ? await import('./qr.js') : {};
   let pdf = null;
   for (const { page, images } of parts) {
     const orient = page.w > page.h ? 'landscape' : 'portrait';
     for (const img of images) {
       if (!pdf) pdf = new jsPDF({ unit: 'mm', format: [page.w, page.h], orientation: orient });
       else pdf.addPage([page.w, page.h], orient);
-      pdf.addImage(img.data, 'JPEG', img.x, img.y, img.w, img.h);
+      if (qr) {
+        // A little smaller, centred, from the top: the bottom strip stays free for the QR code.
+        const k = (page.h - QR_RESERVE_MM) / page.h;
+        pdf.addImage(img.data, 'JPEG', page.w / 2 + (img.x - page.w / 2) * k, img.y * k, img.w * k, img.h * k);
+      } else pdf.addImage(img.data, 'JPEG', img.x, img.y, img.w, img.h);
       if (footer) {
         pdf.setFontSize(6.5);
         pdf.setTextColor(110, 120, 135);
         pdf.text(footer, page.w / 2, page.h - 3.2, { align: 'center' });
       }
+      if (qr) drawQr(pdf, qr.text, qr.lines, page.w, page.h);
     }
   }
   pdf.setProperties({ title, author, creator: 'DMS — Document Management System' });

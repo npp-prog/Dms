@@ -1,0 +1,37 @@
+// The public record of a document (checks/{docId}): what the QR code on its PDF opens, for anyone,
+// signed in or not. Only what confirms the paper in hand: no amounts, data fields or remarks.
+import { officeOf } from './workflow.js';
+
+export const CHECK_KEYS = ['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'updatedAt'];
+
+export function checkRecord(d, at = new Date().toISOString()) {
+  const wf = d.workflow;
+  const files = d.pdf?.files || [];
+  const moving = wf?.state === 'in-progress';
+  return {
+    controlNo: d.controlNo || '',
+    typeCode: d.typeCode || '',
+    typeName: d.typeName || '',
+    title: d.title || '',
+    office: d.office || '',
+    status: d.status || '',
+    state: wf?.state || 'not routed',
+    // where it is now: an office, or "with a person" while referred
+    now: moving ? (wf.referral ? `Referred to ${wf.referral.name}` : officeOf(wf.steps[wf.stage], d) || d.office || '') : '',
+    steps: (wf?.steps || []).map((s, i) => ({
+      office: officeOf(s, d) || d.office || 'Requesting office',
+      action: s.action || '',
+      sign: Boolean(s.sign),
+      done: wf.state === 'done' || i < wf.stage,
+      current: moving && i === wf.stage,
+    })),
+    signatures: files.filter((f) => f.kind === 'signed').map((f) => ({
+      name: f.signer?.name || f.by || '', at: f.signer?.signedAt || f.at || '', reason: f.reason || '', pnpki: Boolean(f.signer?.pnpki),
+    })),
+    // every PDF DMS issued for it, by fingerprint: a copy can be checked against them
+    versions: files.map((f, i) => ({ n: i + 1, sha256: f.sha256 || '', kind: f.kind, at: f.at || '' })),
+    // reference numbers assigned along the route (e.g. the DV No.), to match the paper
+    refNos: Object.values(d.refNos || {}).filter((r) => !r.of).map((r) => `${r.label} ${r.value}`),
+    updatedAt: at,
+  };
+}

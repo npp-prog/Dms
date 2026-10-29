@@ -7,6 +7,7 @@ import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
+import { checkRecord } from './publicRecord.js';
 import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch } from './workflow.js';
 
 // ---------- Users ----------
@@ -387,6 +388,24 @@ export async function saveAccountingEntries(id, data, user, history = []) {
 
 // ---------- Workflow ----------
 
+// The public record of a document (checks/{id}: what the QR code on its PDF opens), kept up to
+// date with every PDF version and workflow step, in the same transaction. Only once it is in PDF.
+function publishCheck(tx, id, d) {
+  if ((d.pdf?.files || []).length) tx.set(doc(db, 'checks', id), checkRecord(d));
+}
+
+// A document converted before public records existed gets one when someone handling it opens it.
+export async function ensureCheck(id, d) {
+  if (!(d.pdf?.files || []).length || (await getCheck(id))) return;
+  await setDoc(doc(db, 'checks', id), checkRecord(d));
+}
+
+// The public record, for the QR page (anyone, signed in or not).
+export async function getCheck(id) {
+  const snap = await getDoc(doc(db, 'checks', id));
+  return snap.exists() ? snap.data() : null;
+}
+
 // Starts the route of a document (when it is marked complete): it sits with the preparer's office,
 // which releases it to the next office.
 // Starts the route set for the document's type now (Administration > Workflow), not the one
@@ -401,6 +420,7 @@ export async function startWorkflow(id, type, user, offices) {
     const start = buildWorkflow(live || type, d, offices, user);
     if (!start) return;
     tx.update(ref, { ...start, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('routing started', user)] });
+    publishCheck(tx, id, { ...d, ...start });
   });
 }
 
@@ -412,6 +432,7 @@ export async function chooseStepOffices(id, picks, user) {
     const d = (await tx.get(ref)).data();
     const { changed, ...patch } = chooseOffices(d, picks, user);
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('offices chosen', user, patch.workflow.events.at(-1).remarks)] });
+    publishCheck(tx, id, { ...d, ...patch });
   });
 }
 
@@ -423,6 +444,7 @@ export async function referDocument(id, to, note, user) {
     const d = (await tx.get(ref)).data();
     const patch = referPatch(d, to, note, user);
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('referred', user, patch.workflow.events.at(-1).remarks)] });
+    publishCheck(tx, id, { ...d, ...patch });
   });
 }
 
@@ -467,6 +489,7 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
       history.push(historyEntry('assigned', user, `${field?.label || assign.field} ${number}`));
     }
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
+    publishCheck(tx, id, { ...d, ...patch });
   });
 }
 
@@ -651,9 +674,11 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
       by: file.by, at: file.at,
     });
     const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
+    const pdf = { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? BASIS_VERSION : d.pdf?.basisV ?? null, files: [...files, file] };
+    publishCheck(tx, id, { ...d, pdf });
     tx.update(docRef, {
       // basisV: how the basis was computed (bases computed another way are not compared).
-      pdf: { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? BASIS_VERSION : d.pdf?.basisV ?? null, files: [...files, file] },
+      pdf,
       updatedAt: serverTimestamp(),
       history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : 'converted to PDF', user, note)],
     });
@@ -745,8 +770,9 @@ export async function listInbox({ office, uid, all = false, head = false, max = 
 
 export async function setDocumentStatus(id, status, user, history = [], extra = {}, note = '') {
   // Cancelling a routed document ends its route.
+  let d = null;
   if (status === 'cancelled') {
-    const d = (await getDoc(doc(db, 'documents', id))).data();
+    d = (await getDoc(doc(db, 'documents', id))).data();
     const end = d ? cancelWorkflow(d, user) : null;
     if (end) extra = { ...extra, ...end };
   }
@@ -756,6 +782,8 @@ export async function setDocumentStatus(id, status, user, history = [], extra = 
     updatedAt: serverTimestamp(),
     history: [...history, historyEntry(status, user, note)],
   });
+  // A cancelled document shows as cancelled to anyone scanning its QR code.
+  if (d?.pdf?.files?.length) await setDoc(doc(db, 'checks', id), checkRecord({ ...d, ...extra, status })).catch(() => {});
 }
 
 export async function getDocument(id) {
