@@ -66,10 +66,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   }, [current?.path, docData]);
   useEffect(() => setWhy(reason || ''), [reason]);
   useEffect(() => {
-    if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch(() => setSaved(null));
+    if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch((e) => { setSaved(null); setError(e.message); });
   }, [mode, saved, actor.uid]);
   useEffect(() => {
-    if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch(() => setMark(null));
+    if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch((e) => { setMark(null); setError(e.message); });
   }, [mode, mark, actor.uid]);
   const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
   const placingMark = mode === 'sign' && Boolean(mark) && useMark;

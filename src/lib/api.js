@@ -367,15 +367,15 @@ export const sha256Hex = sha256;
 
 // Storage errors in words an admin can act on.
 const SETUP = 'See the README, Setup steps 5 to 7.';
-function storageError(e, doing) {
+function storageError(e, doing, what = doing === 'download' ? 'opening the file' : 'saving the file') {
   const code = e?.code || '';
   if (code === 'storage/unauthorized') {
-    return new Error(`Firebase Storage refused the file. An admin must publish the latest storage.rules (Firebase console → Storage → Rules). ${SETUP}`);
+    return new Error(`Firebase Storage refused ${what}. An admin must publish the latest storage.rules (Firebase console → Storage → Rules). ${SETUP}`);
   }
   if (['storage/retry-limit-exceeded', 'storage/unknown', 'storage/bucket-not-found', 'storage/project-not-found'].includes(code)) {
     return new Error(doing === 'download'
-      ? `Could not download the PDF from Firebase Storage. If this keeps happening, an admin must allow downloads (CORS) for the storage bucket. ${SETUP}`
-      : `Firebase Storage is not set up for this site yet, so the PDF cannot be saved. An admin must open the Firebase console → Storage → Get started (it needs the Blaze plan), then publish storage.rules. ${SETUP}`);
+      ? `Could not download from Firebase Storage (${what}). If this keeps happening, an admin must allow downloads (CORS) for the storage bucket. ${SETUP}`
+      : `Firebase Storage is not set up for this site yet, so DMS cannot save files. An admin must open the Firebase console → Storage → Get started (it needs the Blaze plan), then publish storage.rules. ${SETUP}`);
   }
   return e;
 }
@@ -393,7 +393,7 @@ export async function getSavedCertificate(uid) {
     return { name: m.name || '', email: m.email || '', issuer: m.issuer || '', pnpki: m.pnpki === 'true', notAfter: m.notAfter || '', savedAt: meta.timeCreated };
   } catch (e) {
     if (e?.code === 'storage/object-not-found') return null;
-    throw storageError(e, 'download');
+    throw storageError(e, 'download', 'checking your registered certificate');
   }
 }
 
@@ -401,7 +401,7 @@ export async function getSavedCertificateBytes(uid) {
   try {
     return new Uint8Array(await getBytes(certRef(uid)));
   } catch (e) {
-    throw storageError(e, 'download');
+    throw storageError(e, 'download', 'reading your registered certificate');
   }
 }
 
@@ -412,7 +412,7 @@ export async function saveCertificate(uid, bytes, info) {
       customMetadata: { name: info.name || '', email: info.email || '', issuer: info.issuer || '', pnpki: String(Boolean(info.pnpki)), notAfter: info.notAfter || '' },
     });
   } catch (e) {
-    throw storageError(e, 'upload');
+    throw storageError(e, 'upload', 'saving your certificate');
   }
 }
 
@@ -420,7 +420,7 @@ export async function removeSavedCertificate(uid) {
   try {
     await deleteObject(certRef(uid));
   } catch (e) {
-    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload');
+    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload', 'removing your certificate');
   }
 }
 
@@ -432,7 +432,7 @@ export async function getSavedMark(uid) {
     return new Uint8Array(await getBytes(markRef(uid)));
   } catch (e) {
     if (e?.code === 'storage/object-not-found') return null;
-    throw storageError(e, 'download');
+    throw storageError(e, 'download', 'reading your signature mark');
   }
 }
 
@@ -440,7 +440,7 @@ export async function saveMark(uid, pngBytes) {
   try {
     await uploadBytes(markRef(uid), pngBytes, { contentType: 'image/png' });
   } catch (e) {
-    throw storageError(e, 'upload');
+    throw storageError(e, 'upload', 'saving your signature mark');
   }
 }
 
@@ -448,7 +448,7 @@ export async function removeSavedMark(uid) {
   try {
     await deleteObject(markRef(uid));
   } catch (e) {
-    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload');
+    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload', 'removing your signature mark');
   }
 }
 
@@ -459,7 +459,7 @@ export async function checkStorage(docId) {
     await getMetadata(storageRef(storage, `documents/${docId}/0-generated.pdf`));
   } catch (e) {
     if (e?.code === 'storage/object-not-found') return;
-    throw storageError(e, 'upload');
+    throw storageError(e, 'upload', 'checking that PDFs can be saved');
   }
 }
 
@@ -467,7 +467,7 @@ export async function getPdfBytes(path) {
   try {
     return new Uint8Array(await getBytes(storageRef(storage, path)));
   } catch (e) {
-    throw storageError(e, 'download');
+    throw storageError(e, 'download', 'opening the PDF');
   }
 }
 
@@ -479,7 +479,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
   const path = `documents/${id}/${n}-${kind}.pdf`;
   await new Promise((resolve, reject) => {
     const task = uploadBytesResumable(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
-    task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload')), resolve);
+    task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload', 'saving the PDF')), resolve);
   });
   const wf = current?.workflow;
   const file = {
