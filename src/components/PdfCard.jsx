@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
 } from '../lib/api.js';
-import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
+import { checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
 import { markPixels } from '../lib/markImage.js';
 import { certId, forgetPassword, rememberedPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
@@ -11,6 +11,8 @@ import { documentPdf, pdfFileName } from './printables.jsx';
 // Mark sizes in points (width, height): small fits a DV signature line.
 const MARK_SIZES = { S: [110, 30], M: [150, 42], L: [200, 56] };
 const MARK_LABELS = { S: 'Small', M: 'Medium', L: 'Large' };
+// Font sizes (points) of text added with a signature.
+const NOTE_SIZES = { S: 8, M: 10, L: 12 };
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const readFile = (file) => file.arrayBuffer().then((b) => new Uint8Array(b));
@@ -29,7 +31,7 @@ function saveAs(bytes, name) {
 // finished document to PDF; then each signatory, while the document is in their office, signs
 // it in DMS with their certificate file, or signs it in Adobe Acrobat and uploads it back.
 // Every version is kept; the newest is the current PDF.
-export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView, placement, onPlacing }) {
+export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView, placements = {}, onPlacing }) {
   const id = useId();
   const files = docData.pdf?.files || [];
   const current = files.at(-1);
@@ -50,6 +52,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [mark, setMark] = useState(undefined); // PNG bytes (null: none yet)
   const [useMark, setUseMark] = useState(true);
   const [size, setSize] = useState('M');
+  // Text the signatory adds anywhere on the PDF with their signature (e.g. "Approved for payment").
+  const [addText, setAddText] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [noteSize, setNoteSize] = useState('M');
+  const [target, setTarget] = useState('mark'); // what a tap on the PDF places
+  const placement = placements.mark;
 
   // Load the current PDF and check every signature in it.
   useEffect(() => {
@@ -86,13 +94,23 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (mode === 'sign' && saved) rememberedStatus(actor.uid, certId(saved)).then(setRemembered);
   }, [mode, saved, actor.uid]);
   const useRemembered = Boolean(remembered) && !typeIt;
-  // Ask the viewer to take a tap for the mark while signing with it.
+  const noteLines = useMemo(() => wrapNote(noteText), [noteText]);
+  const placingText = mode === 'sign' && addText && noteLines.length > 0;
+  const tapFor = placingMark && placingText ? target : placingMark ? 'mark' : 'text';
+  // Ask the viewer to take taps for the mark and the text while signing with them.
   useEffect(() => {
-    if (!placingMark) { onPlacing?.(null); return; }
+    if (!placingMark && !placingText) { onPlacing?.(null); return; }
     const [w, h] = MARK_SIZES[size];
     const name = saved ? saved.name : 'Your name';
-    onPlacing?.({ w, h, preview: markUrl, label: ['Digitally signed by', name, ...myRefs, stampDate()].join('\n') });
-  }, [placingMark, size, markUrl, saved, myRefs.join()]);
+    const box = noteBox(noteLines, NOTE_SIZES[noteSize]);
+    onPlacing?.({
+      target: tapFor,
+      items: {
+        mark: placingMark ? { w, h, preview: markUrl, label: ['Digitally signed by', name, ...myRefs, stampDate()].join('\n'), hint: 'Tap the page where your signature mark goes (e.g. the Signature line of your box).' } : null,
+        text: placingText ? { ...box, label: noteLines.join('\n'), size: NOTE_SIZES[noteSize], hint: 'Tap the page where your text goes.' } : null,
+      },
+    });
+  }, [placingMark, placingText, tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize]);
 
   const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
   const run = async (label, fn) => {
@@ -130,15 +148,17 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
+    if (placingText && !placements.text) throw new Error('Tap the PDF where your text goes, or untick "Add text on the PDF".');
     // The signature appears where the mark was placed; clicking it shows its certificate.
     const visible = placingMark
       ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, ...myRefs, stampDate()] }
       : null;
-    const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible });
+    const note = placingText ? { page: placements.text.page, rect: placements.text.rect, lines: noteLines, size: NOTE_SIZES[noteSize] } : null;
+    const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible, note });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
-    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
-    setPassword(''); setMode('');
+    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), note: note ? noteLines.join(' ') : '', signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
+    setPassword(''); setMode(''); setAddText(false); setNoteText('');
     onView?.();
     setNotice(`Signed by ${cert.name}.`);
     onChanged();
@@ -201,6 +221,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                         <div className="small muted">
                           {[s.signedAt && when(s.signedAt), signedFiles[i]?.reason].filter(Boolean).join(' · ')}
                         </div>
+                        {signedFiles[i]?.note && <div className="small">Added text: <i>{signedFiles[i].note}</i></div>}
                         <div className="small muted">Issued by {s.signer?.issuer || '—'}{s.signer?.email ? ` · ${s.signer.email}` : ''}</div>
                         {!s.valid && <div className="small sig-problem">{s.problem}</div>}
                       </div>
@@ -223,6 +244,36 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                 <label className="field-label" htmlFor={`${id}-why`}>Reason (shown in the signature)</label>
                 <input id={`${id}-why`} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. Box A: Certified" />
               </div>
+              {mode === 'sign' && saved && (
+                <div className="mark-box note-box">
+                  <label className="check"><input type="checkbox" checked={addText} onChange={(e) => { setAddText(e.target.checked); if (e.target.checked) setTarget('text'); }} /> Add text on the PDF</label>
+                  {addText && (
+                    <>
+                      <textarea rows={2} value={noteText} onChange={(e) => setNoteText(e.target.value)} maxLength={300}
+                        placeholder="e.g. Approved for payment; Funds available; Noted" aria-label="Text to add on the PDF" />
+                      <div className="row gap wrap small">
+                        Size:
+                        {Object.keys(NOTE_SIZES).map((k) => (
+                          <button key={k} type="button" className={`chip${noteSize === k ? ' active' : ''}`} onClick={() => setNoteSize(k)}>{MARK_LABELS[k]}</button>
+                        ))}
+                      </div>
+                      {placingText && (
+                        <p className={`small ${placements.text ? 'muted' : 'mark-todo'}`}>{placements.text
+                          ? `Placed on page ${placements.text.page + 1}.${tapFor === 'text' ? ' Tap the PDF again to move it.' : ''}`
+                          : 'Tap the PDF where the text goes: any part of the page, apart from your signature mark.'}</p>
+                      )}
+                      <p className="xs muted">Added with your digital signature: it is part of what you sign, and cannot be changed afterwards.</p>
+                    </>
+                  )}
+                </div>
+              )}
+              {mode === 'sign' && placingMark && placingText && (
+                <div className="row gap wrap small place-target">
+                  Tapping the PDF places:
+                  <button type="button" className={`chip${tapFor === 'mark' ? ' active' : ''}`} onClick={() => setTarget('mark')}>Signature mark</button>
+                  <button type="button" className={`chip${tapFor === 'text' ? ' active' : ''}`} onClick={() => setTarget('text')}>Text</button>
+                </div>
+              )}
               {mode === 'sign' ? (
                 saved === undefined || mark === undefined ? <div className="spinner" /> : !saved ? (
                   <div className="alert-info small">To sign in DMS, register your PNPKI certificate once in <Link to="/profile">My Profile</Link>.
@@ -251,7 +302,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                               ))}
                             </div>
                             <p className={`small ${placement ? 'muted' : 'mark-todo'}`}>{placement
-                              ? `Placed on page ${placement.page + 1}. Tap the PDF again to move it.`
+                              ? `Placed on page ${placement.page + 1}.${tapFor === 'mark' ? ' Tap the PDF again to move it.' : ''}`
                               : 'Tap the PDF where your mark goes, e.g. the Signature line of your box.'}</p>
                           </>
                         )}
@@ -272,7 +323,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                     </div>
                   )}
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || (!useRemembered && !password) || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || (!useRemembered && !password) || (placingMark && !placement) || (placingText && !placements.text) || (addText && !noteLines.length)} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>

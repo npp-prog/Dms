@@ -86,10 +86,12 @@ export function readCertificate(p12Bytes, password) {
 
 // Adds a signature to the PDF. Returns the signed PDF (the original bytes plus an update).
 // mark: { page, rect, image, lines } puts the signature, with the signatory's mark, where they placed it.
-export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '', mark = null } = {}) {
+// note: { page, rect, lines, size } text the signatory adds elsewhere on the page (e.g. "Approved for
+// payment"), written in the same update as the signature, so the signature covers it.
+export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null } = {}) {
   const { P12Signer, signpdf } = await signpdfLibs();
   const B = globalThis.Buffer; // the Buffer @signpdf checks against
-  const withPlaceholder = await addSignatureField(pdfBytes, { reason, location, name, contactInfo, mark });
+  const withPlaceholder = await addSignatureField(pdfBytes, { reason, location, name, contactInfo, mark, note });
   let signer;
   try {
     signer = new P12Signer(B.from(p12Bytes), { passphrase: password });
@@ -270,9 +272,31 @@ function appearance({ w, h, image, lines }) {
     text.map((l, i) => `BT /F1 ${num(fs)} Tf ${num(tx)} ${num(top - i * fs * 1.25)} Td (${pdfText(l)}) Tj ET`).join('\n')}\n`;
 }
 
+// Text added with a signature: lines of at most `width` characters (words kept whole).
+export function wrapNote(text, width = 48) {
+  return String(text || '').split(/\r?\n/).flatMap((para) => {
+    const out = [];
+    let line = '';
+    for (const word of para.trim().split(/\s+/).filter(Boolean)) {
+      if (line && (line + ' ' + word).length > width) { out.push(line); line = ''; }
+      line = line ? `${line} ${word}` : word;
+      while (line.length > width) { out.push(line.slice(0, width)); line = line.slice(width); }
+    }
+    out.push(line);
+    return out;
+  }).filter((l, i, all) => l || (i > 0 && i < all.length - 1));
+}
+
+// The box a note takes in points, for its lines at a font size (Helvetica ~0.52 em per character).
+export function noteBox(lines, size = 10) {
+  const longest = Math.max(1, ...lines.map((l) => l.length));
+  return { w: Math.ceil(longest * size * 0.52 + 6), h: Math.ceil(lines.length * size * 1.25 + 4) };
+}
+
 // Adds an empty signature field (the placeholder @signpdf fills in). mark: { page, rect, image,
 // lines } for a visible signature; without it the signature is invisible (on the first page).
-export async function addSignatureField(pdfBytes, { reason = '', location = '', name = '', contactInfo = '', mark = null, signatureLength = 16384, at = new Date() } = {}) {
+// note: { page, rect, lines, size } added text, as a locked FreeText annotation in the same update.
+export async function addSignatureField(pdfBytes, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null, signatureLength = 16384, at = new Date() } = {}) {
   if (!globalThis.Buffer) globalThis.Buffer = Buffer;
   fixBufferLastIndexOf(globalThis.Buffer);
   const B = globalThis.Buffer;
@@ -291,9 +315,10 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
 
   const kids = obj(getPagesDictionaryRef(info)).match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
   const pageRef = kids[mark ? mark.page : 0];
-  if (!pageRef) throw cannot('page not found');
-  const pageDict = obj(pageRef);
-  if (/\/Annots\s+\d+\s+\d+\s+R/.test(pageDict)) throw cannot('page annotations in a separate object');
+  const notePageRef = note ? kids[note.page] : null;
+  if (!pageRef || (note && !notePageRef)) throw cannot('page not found');
+  const pagesHit = [...new Set([pageRef, notePageRef].filter(Boolean))];
+  if (pagesHit.some((r) => /\/Annots\s+\d+\s+\d+\s+R/.test(obj(r)))) throw cannot('page annotations in a separate object');
   const root = info.root;
   const acroRef = root.match(/\/AcroForm\s+(\d+\s+\d+\s+R)/)?.[1];
   if (!acroRef && /\/AcroForm\s*<</.test(root)) throw cannot('form inside the catalog');
@@ -304,6 +329,7 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
   const ids = {
     img: mark ? next++ : null, smask: mark?.image.alpha ? next++ : null, form: mark ? next++ : null,
     sig: next++, widget: next++, acro: acroRef ? idOf(acroRef) : next++,
+    noteForm: note ? next++ : null, note: note ? next++ : null,
   };
   const rect = mark ? mark.rect : [0, 0, 0, 0];
 
@@ -342,10 +368,23 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
     : `/Type /AcroForm\n${fieldsArr}`;
   put(ids.acro, `<<\n${(/\/SigFlags/.test(acro) ? acro.replace(/\/SigFlags\s+\d+/, '/SigFlags 3') : `${acro}\n/SigFlags 3`).trim()}\n>>`);
   if (!acroRef) put(idOf(info.rootRef), `<<\n${root.trim()}\n/AcroForm ${ids.acro} 0 R\n>>`);
-  const annots = /\/Annots\s*\[/.test(pageDict)
-    ? pageDict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${ids.widget} 0 R]`)
-    : `${pageDict}\n/Annots [${ids.widget} 0 R]`;
-  put(idOf(pageRef), `<<\n${annots.trim()}\n>>`);
+  if (note) {
+    const fs = note.size || 10;
+    const w = note.rect[2] - note.rect[0];
+    const h = note.rect[3] - note.rect[1];
+    const body = B.from(`0 0 0.35 rg\n${note.lines.map((l, i) => `BT /F1 ${num(fs)} Tf 3 ${num(h - 2 - fs - i * fs * 1.25 + fs * 0.2)} Td (${pdfText(l)}) Tj ET`).join('\n')}\n`, 'latin1');
+    put(ids.noteForm, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
+    // Printed, read-only and locked (4 + 64 + 128): part of what the signature covers.
+    put(ids.note, `<< /Type /Annot /Subtype /FreeText /Rect [${note.rect.map(num).join(' ')}] /Contents (${pdfText(note.lines.join(' '))}) /T (${pdfText(name)}) /M (${pdfDate(at)}) /DA (/Helv ${num(fs)} Tf 0 0 0.35 rg) /F 196 /Border [0 0 0] /P ${notePageRef} /AP << /N ${ids.noteForm} 0 R >> >>`);
+  }
+  for (const ref of pagesHit) {
+    const dict = obj(ref);
+    const add = [...(ref === pageRef ? [ids.widget] : []), ...(note && ref === notePageRef ? [ids.note] : [])].map((n) => `${n} 0 R`).join(' ');
+    const annots = /\/Annots\s*\[/.test(dict)
+      ? dict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${add}]`)
+      : `${dict}\n/Annots [${add}]`;
+    put(idOf(ref), `<<\n${annots.trim()}\n>>`);
+  }
 
   const xrefAt = pos;
   const rows = offsets.sort((x, y) => x[0] - y[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');

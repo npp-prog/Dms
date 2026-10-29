@@ -66,7 +66,7 @@ function SignatureDetails({ sig, onClose }) {
   );
 }
 
-export default function PdfViewer({ bytes, signatures = [], title = '', placing = null, mark = null, onPlace }) {
+export default function PdfViewer({ bytes, signatures = [], title = '', placing = null, marks = [], onPlace }) {
   const [details, setDetails] = useState(null);
   const host = useRef(null);
   const canvases = useRef([]);
@@ -158,7 +158,7 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
           </span>
         )}
       </div>
-      {placing && <div className="pdf-place-hint">Tap the page where your signature mark goes (e.g. the Signature line of your box).</div>}
+      {placing && <div className="pdf-place-hint">{placing.hint || 'Tap the page where your signature mark goes (e.g. the Signature line of your box).'}</div>}
       {error && <div className="alert">{error}</div>}
       {!sizes.length && !error && <div className="spinner" />}
       {details && <SignatureDetails sig={details} onClose={() => setDetails(null)} />}
@@ -180,17 +180,19 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
                   onClick={(e) => { e.stopPropagation(); setDetails(sig); }} />
               );
             })}
-            {mark && mark.page === i && (
-              <div className="pdf-mark" style={{
-                left: `${(mark.rect[0] / s.w) * 100}%`,
-                bottom: `${(mark.rect[1] / s.h) * 100}%`,
-                width: `${((mark.rect[2] - mark.rect[0]) / s.w) * 100}%`,
-                height: `${((mark.rect[3] - mark.rect[1]) / s.h) * 100}%`,
+            {marks.filter((m) => m.page === i).map((m) => (
+              <div key={m.kind || 'mark'} className={`pdf-mark${m.kind === 'text' ? ' pdf-note' : ''}${m.active === false ? ' idle' : ''}`} style={{
+                left: `${(m.rect[0] / s.w) * 100}%`,
+                bottom: `${(m.rect[1] / s.h) * 100}%`,
+                width: `${((m.rect[2] - m.rect[0]) / s.w) * 100}%`,
+                height: `${((m.rect[3] - m.rect[1]) / s.h) * 100}%`,
+                // the text at its size on the page (cqw: 1% of the page's width)
+                ...(m.kind === 'text' ? { fontSize: `${(m.size / s.w) * 100}cqw` } : {}),
               }}>
-                {mark.preview && <img src={mark.preview} alt="" />}
-                <span>{mark.label}</span>
+                {m.preview && <img src={m.preview} alt="" />}
+                <span>{m.label}</span>
               </div>
-            )}
+            ))}
           </div>
         ))}
       </div>

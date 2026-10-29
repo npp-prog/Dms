@@ -123,9 +123,14 @@ export default function DocumentView() {
   const [pdfView, setPdfView] = useState(null);
   const viewer = useRef(null);
   const shownPdf = useRef(null); // a newly loaded PDF opens in the viewer once
-  // Placing a signature mark: the size and preview while placing, and where it was tapped.
+  // Placing a signature mark and text added with a signature: { target, items: { mark, text } }
+  // (size and preview of each) while signing, and where each was tapped ({ mark, text }).
   const [placing, setPlacing] = useState(null);
-  const [placement, setPlacement] = useState(null);
+  const [placements, setPlacements] = useState({});
+  const tapItem = placing?.items?.[placing.target] || null;
+  const placedMarks = placing ? ['mark', 'text'].filter((k) => placing.items[k] && placements[k])
+    .map((k) => ({ ...placements[k], ...placing.items[k], kind: k, active: k === placing.target })) : [];
+  const onPlace = (p) => placing && setPlacements((cur) => ({ ...cur, [placing.target]: p }));
   // Working copy of the data while the Accounting Office fills in its part.
   const [draft, setDraft] = useState(null);
 
@@ -228,19 +233,18 @@ export default function DocumentView() {
                 if (shownPdf.current !== p.bytes) { shownPdf.current = p.bytes; setView('pdf'); }
               }}
               onView={() => { setView('pdf'); viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-              placement={placement}
+              placements={placements}
               onPlacing={(p) => {
                 setPlacing(p);
-                if (!p) setPlacement(null);
-                // A new size keeps the mark centred where it was.
-                else {
-                  setView('pdf');
-                  setPlacement((cur) => {
-                    if (!cur) return cur;
-                    const cx = (cur.rect[0] + cur.rect[2]) / 2; const cy = (cur.rect[1] + cur.rect[3]) / 2;
-                    return { ...cur, rect: [cx - p.w / 2, cy - p.h / 2, cx + p.w / 2, cy + p.h / 2] };
-                  });
-                }
+                if (!p) { setPlacements({}); return; }
+                setView('pdf');
+                // A new size keeps the mark centred where it was, and the text's top left corner.
+                setPlacements((cur) => Object.fromEntries(Object.entries(cur).filter(([k, v]) => v && p.items[k]).map(([k, v]) => {
+                  const { w, h } = p.items[k];
+                  if (k === 'text') return [k, { ...v, rect: [v.rect[0], v.rect[3] - h, v.rect[0] + w, v.rect[3]] }];
+                  const cx = (v.rect[0] + v.rect[2]) / 2; const cy = (v.rect[1] + v.rect[3]) / 2;
+                  return [k, { ...v, rect: [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2] }];
+                })));
               }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
@@ -379,12 +383,10 @@ export default function DocumentView() {
               </>
             ) : view === 'pdf' && pdfView ? (
               <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`}
-                placing={placing} onPlace={setPlacement}
-                mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} />
+                placing={tapItem} onPlace={onPlace} marks={placedMarks} />
             ) : uploaded ? (
               pdfView ? <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${docData.uploaded.name}`}
-                placing={placing} onPlace={setPlacement}
-                mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} /> : <div className="spinner" />
+                placing={tapItem} onPlace={onPlace} marks={placedMarks} /> : <div className="spinner" />
             ) : view === 'checklist' && activeChecklist ? (
               <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import forge from 'node-forge';
 import { jsPDF } from 'jspdf';
 import { Buffer as BrowserBuffer } from 'buffer/index.js';
-import { addSignatureField, checkSignedVersion, fixBufferLastIndexOf, readCertificate, readSignatures, signPdf, stampDate, verifyPdf } from './signing.js';
+import { addSignatureField, checkSignedVersion, fixBufferLastIndexOf, noteBox, readCertificate, readSignatures, signPdf, stampDate, verifyPdf, wrapNote } from './signing.js';
 
 // Test certificates only: a CA named like the PNPKI and one signer, plus a non-PNPKI signer.
 function makeP12(cn, issuerDn, password = 'secret') {
@@ -139,4 +139,32 @@ test('verify a copy: valid, tampered, changed after signing, and the certificate
   const added = new Uint8Array([...signed, ...new TextEncoder().encode('\n9 0 obj\n<<>>\nendobj\n')]);
   assert.equal(verifyPdf(added).changedAfterLast, true);
   assert.equal(verifyPdf(unsignedPdf()).signatures.length, 0);
+});
+
+test('text added with a signature: on any page, covered by the signature, beside the mark', async () => {
+  assert.deepEqual(wrapNote('Approved for payment subject to the submission of the official receipt', 30),
+    ['Approved for payment subject', 'to the submission of the', 'official receipt']);
+  const lines = wrapNote('Approved (with remarks)');
+  const box = noteBox(lines, 10);
+  const note = { page: 0, rect: [300, 500, 300 + box.w, 500 + box.h], lines, size: 10 };
+  const W = 4; const H = 2;
+  const image = { width: W, height: H, rgb: new Uint8Array(W * H * 3).fill(30), alpha: null };
+  const v0 = unsignedPdf();
+  // The mark on page 2, the text on page 1: both pages get their annotation.
+  const mark = { page: 1, rect: [50, 60, 200, 102], image, lines: ['Digitally signed by', 'ROSA'] };
+  const placeholder = Buffer.from(await addSignatureField(v0, { mark, note, name: 'ROSA' })).toString('latin1');
+  assert.match(placeholder, /\/Subtype \/FreeText \/Rect \[300 500 [\d.]+ [\d.]+\] \/Contents \(Approved \\\(with remarks\\\)\) \/T \(ROSA\)/);
+  assert.match(placeholder, /\/F 196/);
+  assert.equal((placeholder.match(/\/Annots \[/g) || []).length, 2);
+  const v1 = await signPdf(v0, makeP12('ROSA ACCOUNTING', PNPKI), 'secret', { mark, note, name: 'ROSA' });
+  const check = checkSignedVersion(v0, v1);
+  assert.equal(check.ok, true, check.error);
+  assert.equal(check.signatures[0].valid, true);
+  wellFormed(v1);
+  // Text only, with an invisible signature; then a second signature keeps the first valid.
+  const v2 = await signPdf(v1, makeP12('JUAN DELA CRUZ', PNPKI), 'secret', { note: { ...note, page: 1 } });
+  const check2 = checkSignedVersion(v1, v2);
+  assert.equal(check2.ok, true, check2.error);
+  assert.deepEqual(check2.signatures.map((s) => s.valid), [true, true]);
+  wellFormed(v2);
 });
