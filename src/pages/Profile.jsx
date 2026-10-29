@@ -76,9 +76,10 @@ export default function Profile() {
   // The password is checked against the registered certificate before it is remembered.
   const remember = () => run('Checking your password…', async () => {
     readCertificate(await getSavedCertificateBytes(user.uid), rememberPw);
-    const until = await rememberPassword(user.uid, certId(cert), rememberPw, days);
+    const until = await rememberPassword(user.uid, certId(cert), rememberPw, days, cert.notAfter);
     setRemembered({ until }); setRememberPw('');
-    setMsg({ ok: true, text: `Your password is remembered on this device until ${new Date(until).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}. You sign without typing it.` });
+    const capped = new Date(until).getTime() < Date.now() + days * 864e5 - 60000;
+    setMsg({ ok: true, text: `Your password is remembered on this device until ${new Date(until).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}${capped ? ', when your certificate expires' : ''}. You sign without typing it.` });
   });
   const forget = () => run('Forgetting…', async () => {
     await forgetPassword(user.uid);
@@ -163,6 +164,7 @@ export default function Profile() {
                     <select id={`${id}-days`} value={days} onChange={(e) => setDays(Number(e.target.value))}>
                       {REMEMBER_CHOICES.map((c) => <option key={c.label} value={c.days}>{c.label}</option>)}
                     </select>
+                    {cert.notAfter && <span className="small muted">At most until your certificate expires ({day(cert.notAfter)}).</span>}
                   </div>
                   <div className="field">
                     <label className="field-label" htmlFor={`${id}-rpw`}>Certificate password</label>

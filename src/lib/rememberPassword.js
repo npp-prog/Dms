@@ -36,14 +36,20 @@ export const REMEMBER_CHOICES = [
   { days: 1 / 3, label: '8 hours' },
   { days: 7, label: '7 days' },
   { days: 30, label: '30 days' },
+  { days: 182, label: '6 months' },
+  { days: 365, label: '1 year' },
+  { days: 730, label: '2 years' },
 ];
 
-// Remembers the password of this user's certificate (serial) until now + days.
-export async function rememberPassword(uid, serial, password, days) {
+// Remembers the password of this user's certificate (serial) until now + days, but never past
+// the certificate's own expiry (notAfter).
+export async function rememberPassword(uid, serial, password, days, notAfter = '') {
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(password));
-  const until = new Date(Date.now() + days * 864e5).toISOString();
+  const chosen = Date.now() + days * 864e5;
+  const expires = notAfter ? new Date(notAfter).getTime() : Infinity;
+  const until = new Date(Math.min(chosen, expires)).toISOString();
   await tx('readwrite', (s) => s.put({ key, iv, data, serial, until }, uid));
   return until;
 }
