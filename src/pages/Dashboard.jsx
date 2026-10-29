@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments, listDocumentTypes, listUsers } from '../lib/api.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Icon, { Avatar } from '../components/Icon.jsx';
+import { stateOf, trackingViews } from '../components/WorkflowTracking.jsx';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const [docs, setDocs] = useState([]);
   const [pendingUsers, setPendingUsers] = useState(0);
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -37,11 +39,12 @@ export default function Dashboard() {
       listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead }),
       isAdmin ? listUsers() : Promise.resolve([]),
     ])
-      .then(([t, d, u]) => { setTypes(t.filter((x) => !x.uploadOnly)); setDocs(d); setPendingUsers(u.filter((x) => !x.active).length); })
+      .then(([t, d, u]) => { setTypes(t.filter((x) => !x.uploadOnly)); setDocs(d); setLoaded(true); setPendingUsers(u.filter((x) => !x.active).length); })
       .catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, isHead]);
 
   const mine = docs.filter((d) => d.createdBy === user.uid);
+  const routed = docs.filter((d) => d.workflow).map((d) => ({ d, state: stateOf(d, profile.office) }));
   const count = (list, status) => list.filter((d) => d.status === status).length;
   const year = String(new Date().getFullYear());
   const thisYear = docs.filter((d) => String(d.createdAt?.toDate?.().getFullYear()) === year);
@@ -82,12 +85,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="flow">
-        <div className="now"><b>1. Choose the format</b>DV, OBR, PR, PO and more</div>
-        <div><b>2. Encode, step by step</b>Guided by the instructions</div>
-        <div><b>3. Checklist</b>Pick the transaction, tick Y / N/A</div>
-        <div><b>4. Print</b>Form and checklist, for signing</div>
-        <div><b>5. Process</b>Follow the processing guide</div>
+      {/* Tracking status: the routed documents this user can see, by where they are; each opens Tracking. */}
+      <div className="track-status">
+        {trackingViews(profile.office).map(([key, label, fn]) => (
+          <Link key={key} to={`/tracking?view=${key}`} className={`track-tile t-${key}`}>
+            <span className="l">{label}</span>
+            <span className="n">{loaded ? routed.filter(fn).length : '…'}</span>
+          </Link>
+        ))}
       </div>
 
       <div className="grid-2">

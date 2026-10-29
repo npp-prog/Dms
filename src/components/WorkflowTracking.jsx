@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
@@ -8,7 +8,7 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 
 const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled' };
 
 // Where a routed document is: its state for the filters.
-function stateOf(d, office) {
+export function stateOf(d, office) {
   const wf = d.workflow;
   if (wf.state === 'done') return 'done';
   if (wf.state === 'cancelled') return 'cancelled';
@@ -17,13 +17,25 @@ function stateOf(d, office) {
   return 'moving';
 }
 
+// The tracking views and which documents each holds (also the Dashboard's tracking status).
+export function trackingViews(office) {
+  return [
+    ['active', 'On the move', (r) => !['done', 'cancelled'].includes(r.state)],
+    ...(office ? [['mine', 'In your office', (r) => r.state === 'mine']] : []),
+    ['returned', 'Returned', (r) => r.state === 'returned' || (r.state === 'mine' && r.d.workflow.events.at(-1)?.type === 'returned')],
+    ['done', 'Processed', (r) => r.state === 'done'],
+    ['all', 'All routed', () => true],
+  ];
+}
+
 // Every routed document, where it is on its route, and what happened last
 // (Administration > Workflow > Tracking).
 export default function WorkflowTracking() {
   const { user, profile, isAdmin, isHead, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
-  const [view, setView] = useState('active');
+  const [params] = useSearchParams();
+  const [view, setView] = useState(params.get('view') || 'active');
   const [q, setQ] = useState('');
   const [at, setAt] = useState('');
 
@@ -35,13 +47,7 @@ export default function WorkflowTracking() {
 
   const rows = useMemo(() => (docs || []).map((d) => ({ d, state: stateOf(d, profile.office) })), [docs, profile.office]);
   const count = (fn) => rows.filter(fn).length;
-  const views = [
-    ['active', 'On the move', (r) => !['done', 'cancelled'].includes(r.state)],
-    ...(profile.office ? [['mine', 'In your office', (r) => r.state === 'mine']] : []),
-    ['returned', 'Returned', (r) => r.state === 'returned' || (r.state === 'mine' && r.d.workflow.events.at(-1)?.type === 'returned')],
-    ['done', 'Processed', (r) => r.state === 'done'],
-    ['all', 'All routed', () => true],
-  ];
+  const views = trackingViews(profile.office);
   const offices = useMemo(() => [...new Set([...(settings.offices || []),
     ...rows.map(({ d }) => officeOf(d.workflow.steps[d.workflow.stage], d)).filter(Boolean)])].sort(), [rows, settings.offices]);
   const pick = views.find((v) => v[0] === view)?.[2] || (() => true);

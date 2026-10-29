@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { routeFromGuide } from '../../lib/workflow.js';
+import Icon from '../../components/Icon.jsx';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
 
 const PREPARER = ''; // the office that prepared the document
@@ -142,7 +143,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
       <div className="route-chain" aria-label="Route preview">
         {route.map((s, i) => (
           <span key={i} className="route-chip">
-            <b>{i + 1}</b> {s.office || "Preparer's office"}{s.sign && <span title="Signs the PDF"> ✍</span>}
+            <b>{i + 1}</b> {s.office || "Preparer's office"}{s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
           </span>
         ))}
       </div>
@@ -156,7 +157,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 <b>{s.office || "Preparer's office"}</b>
                 <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
                 <span className="route-badges">
-                  {s.sign && <span className="badge badge-blue">Signs</span>}
+                  {s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
                   {s.assign && <span className="badge badge-blue">Assigns {fieldLabel(s.assign.field)}</span>}
                   {s.fills?.length > 0 && <span className="badge badge-blue">Fills in {s.fills.length} detail{s.fills.length > 1 ? 's' : ''}</span>}
                   {s.upload !== undefined && <span className="badge badge-blue">Upload</span>}
