@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
@@ -31,6 +31,7 @@ export default function Layout() {
         ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
       ],
     },
+    { label: 'Account', items: [['/profile', 'user', 'My Profile']] },
     isAdmin && {
       label: 'Administration',
       items: [
@@ -54,13 +55,13 @@ export default function Layout() {
           <span>Document Management System · {settings.lguName || 'Municipal Government of Candoni'}</span>
         </div>
         <div className="spacer" />
-        <div className="me">
+        <Link to="/profile" className="me" title="My Profile">
           <Avatar name={profile?.displayName || profile?.email} size="sm" />
           <div className="who">
             <div>{profile?.displayName}</div>
             <div className="role">{ROLE_NAMES[profile?.role] || profile?.role}</div>
           </div>
-        </div>
+        </Link>
         <button className="icon-btn" title="Log out" onClick={logout}>
           <Icon name="logout" /><span className="lo-txt">Log out</span>
         </button>

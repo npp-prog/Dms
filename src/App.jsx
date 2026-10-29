@@ -9,6 +9,7 @@ import FormatView from './pages/FormatView.jsx';
 import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
+import Profile from './pages/Profile.jsx';
 import Workflow from './pages/admin/Workflow.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="inbox" element={<Inbox />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="workflow" element={<Navigate to="/admin/workflow?tab=tracking" replace />} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />

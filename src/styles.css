@@ -763,9 +763,11 @@ button.stat.active::before { background: var(--primary); }
 .route-tools { display: flex; flex-direction: column; gap: 2px; margin-top: 1.2rem; }
 .route-problems { color: var(--warn); margin: .4rem 0; padding-left: 1.2rem; }
 .route-actions { margin-top: .8rem; }
-@media (max-width: 860px) {
+@media (max-width: 1180px) {
   .route-layout { grid-template-columns: 1fr; }
   .route-types { max-height: 240px; }
+}
+@media (max-width: 700px) {
   .route-fields { grid-template-columns: 1fr; }
 }
 
@@ -799,3 +801,24 @@ button.stat.active::before { background: var(--primary); }
 .chip { border: 1px solid var(--line-2); background: var(--card); border-radius: 999px; padding: .15rem .6rem; font: inherit; font-size: .8rem; color: var(--text); }
 .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 label.link { cursor: pointer; }
+
+/* The side cards are narrow: everything inside wraps instead of pushing past the card. */
+.doc-side .card { overflow-wrap: anywhere; }
+.sign-panel > *, .mark-box > *, .sign-panel .field { min-width: 0; }
+.sign-panel .check, .mark-box .check { white-space: normal; align-items: flex-start; line-height: 1.35; }
+.sign-panel .check input { margin-top: .15rem; flex: none; }
+.sign-panel input, .sign-panel select { max-width: 100%; min-width: 0; }
+.sign-panel input[type=file] { width: 100%; font-size: .85rem; }
+@media (max-width: 520px) {
+  .doc-side .card { padding: 1rem; }
+  .sign-panel { padding: .6rem; }
+}
+
+/* My Profile */
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 1.1rem; align-items: start; }
+.profile-grid .card { min-width: 0; }
+.profile-grid .row input { flex: 1; min-width: 0; }
+.mark-preview-lg { height: 90px; max-width: 100%; display: block; margin: .3rem 0 .7rem; }
+a.me { text-decoration: none; }
+a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
+.profile-grid .field { margin-bottom: .9rem; }

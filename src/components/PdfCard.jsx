@@ -1,10 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, removeSavedCertificate,
-  removeSavedMark, saveCertificate, saveMark, startWorkflow,
+  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
 } from '../lib/api.js';
 import { addSignatureMark, checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
-import { markPixels, prepareMark } from '../lib/markImage.js';
+import { markPixels } from '../lib/markImage.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
 // Mark sizes in points (width, height): small fits a DV signature line.
@@ -41,12 +41,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [p12, setP12] = useState(null);
   const [password, setPassword] = useState('');
   const [why, setWhy] = useState(reason || '');
-  const [saved, setSaved] = useState(undefined); // the user's certificate kept in DMS (null: none)
-  const [useOther, setUseOther] = useState(false);
-  const [keep, setKeep] = useState(true);
+  // Registered once in My Profile: the user's certificate (null: none) and signature mark.
+  const [saved, setSaved] = useState(undefined);
   // The signature mark: a picture of the signatory's signature, placed on the face of the PDF.
   const [mark, setMark] = useState(undefined); // PNG bytes (null: none yet)
   const [useMark, setUseMark] = useState(true);
@@ -70,7 +68,6 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   useEffect(() => {
     if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch(() => setSaved(null));
   }, [mode, saved, actor.uid]);
-  const withSaved = Boolean(saved) && !useOther;
   useEffect(() => {
     if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch(() => setMark(null));
   }, [mode, mark, actor.uid]);
@@ -80,20 +77,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   useEffect(() => {
     if (!placingMark) { onPlacing?.(null); return; }
     const [w, h] = MARK_SIZES[size];
-    const name = saved && !useOther ? saved.name : 'Your name';
+    const name = saved ? saved.name : 'Your name';
     onPlacing?.({ w, h, preview: markUrl, label: `Digitally signed by\n${name}\n${stampDate().slice(0, 16)}` });
-  }, [placingMark, size, markUrl, saved, useOther]);
-  const changeMark = (file) => run('Preparing your mark…', async () => {
-    if (!file) return;
-    const png = await prepareMark(file);
-    await saveMark(actor.uid, png);
-    setMark(png); setUseMark(true);
-  });
-  const forgetMark = () => run('Removing…', async () => {
-    if (!window.confirm('Remove your signature mark from DMS?')) return;
-    await removeSavedMark(actor.uid);
-    setMark(null);
-  });
+  }, [placingMark, size, markUrl, saved]);
 
   const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
   const run = async (label, fn) => {
@@ -116,16 +102,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   });
 
   const signHere = () => run('Signing…', async () => {
-    if (!withSaved && !p12) throw new Error('Choose your certificate file (.p12 or .pfx).');
+    if (!saved) throw new Error('Register your certificate in My Profile first.');
     if (!password) throw new Error('Type your certificate password.');
-    const key = withSaved ? await getSavedCertificateBytes(actor.uid) : await readFile(p12);
+    const key = await getSavedCertificateBytes(actor.uid);
     const cert = readCertificate(key, password);
-    // Keep a new certificate for next time (only after the password has opened it).
-    if (!withSaved && keep) {
-      await saveCertificate(actor.uid, key, cert);
-      setSaved({ ...cert, savedAt: new Date().toISOString() });
-      setUseOther(false);
-    }
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
@@ -137,7 +117,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
-    setP12(null); setPassword(''); setMode('');
+    setPassword(''); setMode('');
     onView?.();
     setNotice(`Signed by ${cert.name}.`);
     onChanged();
@@ -155,12 +135,6 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     onChanged();
   });
 
-  const forget = () => run('Removing…', async () => {
-    if (!window.confirm('Remove your certificate from DMS? You will choose the file again next time you sign.')) return;
-    await removeSavedCertificate(actor.uid);
-    setSaved(null);
-    setNotice('Your certificate was removed from DMS.');
-  });
 
   return (
     <section className="card pdf-card">
@@ -229,33 +203,19 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                 <input id={`${id}-why`} value={why} onChange={(e) => setWhy(e.target.value)} placeholder="e.g. Box A: Certified" />
               </div>
               {mode === 'sign' ? (
+                saved === undefined || mark === undefined ? <div className="spinner" /> : !saved ? (
+                  <div className="alert-info small">To sign in DMS, register your PNPKI certificate once in <Link to="/profile">My Profile</Link>.
+                    Or use <b>Upload signed PDF</b> to sign it in Adobe Acrobat.</div>
+                ) : (
                 <>
-                  {saved === undefined && <div className="spinner" />}
-                  {withSaved ? (
-                    <div className="saved-cert">
-                      <div><b>{saved.name}</b> {saved.pnpki && <span className="badge badge-green">DICT PNPKI</span>}</div>
-                      <div className="small muted">Your certificate, kept in DMS{saved.notAfter ? ` · valid until ${when(saved.notAfter)}` : ''}</div>
-                      <div className="row gap small">
-                        <button type="button" className="link" onClick={() => setUseOther(true)}>Use another certificate file</button>
-                        <button type="button" className="link" onClick={forget}>Remove from DMS</button>
-                      </div>
-                    </div>
-                  ) : saved !== undefined && (
-                    <>
-                      <div className="field field-wide">
-                        <label className="field-label" htmlFor={`${id}-p12`}>Your PNPKI certificate file (.p12 or .pfx)</label>
-                        <input id={`${id}-p12`} type="file" accept=".p12,.pfx,application/x-pkcs12" onChange={(e) => setP12(e.target.files[0] || null)} />
-                      </div>
-                      <label className="check">
-                        <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
-                        Keep this certificate in DMS: next time, sign with the password only
-                      </label>
-                      {saved && <button type="button" className="link small" onClick={() => setUseOther(false)}>Use my saved certificate ({saved.name})</button>}
-                    </>
-                  )}
+                  <div className="saved-cert">
+                    <div><b>{saved.name}</b> {saved.pnpki && <span className="badge badge-green">DICT PNPKI</span>}</div>
+                    <div className="small muted">Your registered certificate{saved.notAfter ? ` · valid until ${when(saved.notAfter)}` : ''}
+                      {' · '}<Link to="/profile">Change in My Profile</Link></div>
+                  </div>
                   <div className="mark-box">
                     <div className="field-label">Signature mark on the PDF</div>
-                    {mark === undefined ? <div className="spinner" /> : mark ? (
+                    {mark ? (
                       <>
                         <div className="row gap wrap mark-row">
                           <img className="mark-preview" src={markUrl} alt="Your signature mark" />
@@ -271,35 +231,26 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                             </div>
                             <p className={`small ${placement ? 'muted' : 'mark-todo'}`}>{placement
                               ? `Placed on page ${placement.page + 1}. Tap the PDF again to move it.`
-                              : 'Tap the PDF (on the left) where your mark goes, e.g. the Signature line of your box.'}</p>
+                              : 'Tap the PDF where your mark goes, e.g. the Signature line of your box.'}</p>
                           </>
                         )}
-                        <div className="row gap small">
-                          <label className="link">Change picture<input type="file" accept="image/png,image/jpeg" hidden onChange={(e) => changeMark(e.target.files[0])} /></label>
-                          <button type="button" className="link" onClick={forgetMark}>Remove</button>
-                        </div>
                       </>
                     ) : (
-                      <>
-                        <p className="small muted">Optional. Upload a picture of your handwritten signature (dark ink on white paper, or a PNG
-                          with a transparent background). DMS keeps it for you and places it where you tap, with your name and the date.</p>
-                        <input type="file" accept="image/png,image/jpeg" aria-label="Signature mark picture" onChange={(e) => changeMark(e.target.files[0])} />
-                      </>
+                      <p className="small muted">No signature mark yet: the signature is added without one.
+                        {' '}<Link to="/profile">Add your signature mark in My Profile</Link>.</p>
                     )}
                   </div>
-                  <p className="small muted">{withSaved || keep
-                    ? 'Only you can use your saved certificate; not even an administrator can open it. Your password is never stored: you type it each time. Use a strong certificate password.'
-                    : 'Your certificate file and password stay on this computer: DMS signs here, in your browser, and uploads only the signed PDF.'}</p>
                   <div className="field field-wide">
                     <label className="field-label" htmlFor={`${id}-pw`}>Certificate password</label>
                     <input id={`${id}-pw`} type="password" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && signHere()} />
                   </div>
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || saved === undefined || (!withSaved && !p12) || !password || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || !password || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>
+                )
               ) : (
                 <>
                   <ol className="small steps-mini">

@@ -5,7 +5,7 @@ import {
   signInWithRedirect, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase.js';
-import { ensureUserProfile, getSettings, setupSite } from '../lib/api.js';
+import { ensureUserProfile, getSettings, setupSite, updateUser } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 
@@ -69,6 +69,8 @@ export function AuthProvider({ children }) {
     isSuper: profile?.active && profile.role === 'superadmin',
     // The office head sees every document of the office (Users > Office head).
     isHead: Boolean(profile?.active && profile.office && profile.head),
+    // Saves changes to the user's own profile (e.g. their name) and shows them at once.
+    updateMyProfile: async (patch) => { await updateUser(user.uid, patch); setProfile((p) => ({ ...p, ...patch })); },
     // Combined identity used when stamping documents.
     actor: user && profile ? { uid: user.uid, email: user.email, displayName: profile.displayName, office: profile.office } : null,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
