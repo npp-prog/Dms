@@ -236,14 +236,26 @@ test('admin route and signature-required steps', () => {
   assert.equal(signatureMissing(doc), true);
   doc.pdf = { files: [{ kind: 'generated', stage: 0, at: '2026-10-01T00:30:00Z' }] };
   assert.throws(() => applyAction(doc, 'release', user), /requires a signature/);
-  // A signature from an earlier stay does not count; one made at this step does.
-  doc.pdf.files.push({ kind: 'signed', stage: 0, at: '2026-09-30T00:00:00Z' });
+  // Another step's signature does not count; this step's does.
+  doc.pdf.files.push({ kind: 'signed', stage: 2, at: '2026-10-01T00:40:00Z' });
   assert.equal(signatureMissing(doc), true);
   doc.pdf.files.push({ kind: 'signed', stage: 0, at: '2026-10-01T01:00:00Z' });
   assert.equal(signatureMissing(doc), false);
   doc = { ...doc, ...applyAction(doc, 'release', user, '', '2026-10-01T02:00:00Z') };
   assert.equal(doc.currentOffice, 'Municipal Budget Office');
   assert.equal(signatureMissing(doc), false); // this step needs no signature
+  // Returned for a correction: back at the first step, already signed, so it can go again at once.
+  const budget = { uid: 'b1', displayName: 'Ben' };
+  doc = { ...doc, ...applyAction(doc, 'receive', budget, '', '2026-10-01T03:00:00Z') };
+  doc = { ...doc, ...applyAction(doc, 'return', budget, 'Attach OBR', '2026-10-01T03:10:00Z') };
+  assert.equal(doc.workflow.stage, 0);
+  assert.equal(signatureMissing(doc), false);
+  // Converted to PDF again (the document was corrected): the new PDF needs the signature again.
+  doc.pdf.files.push({ kind: 'generated', stage: 0, at: '2026-10-01T03:20:00Z' });
+  assert.equal(signatureMissing(doc), true);
+  // Signed before steps were recorded: counts for the first step.
+  doc.pdf.files.push({ kind: 'signed', stage: null, at: '2026-10-01T03:30:00Z' });
+  assert.equal(signatureMissing(doc), false);
 });
 
 test('bulk download file names', () => {

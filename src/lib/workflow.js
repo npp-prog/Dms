@@ -104,13 +104,17 @@ export function availableActions(doc) {
   ];
 }
 
-// A step that requires a signature: has the office holding the document signed its PDF since the
-// document arrived? (PDF versions record the stage they were added at; lib/api.js addPdfVersion.)
+// A step that requires a signature: is this step's signature on the current PDF? (PDF versions
+// record the step they were added at; lib/api.js addPdfVersion.) A document returned and sent
+// back unchanged needs no new signature; once it is converted to PDF again (a new PDF, with no
+// signatures), the step signs again. Signatures from before steps were recorded count for the
+// first step (the preparer's).
 export function signatureMissing(doc) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress' || !wf.steps[wf.stage]?.sign) return false;
-  const arrived = [...wf.events].reverse().find((e) => ['started', 'released', 'returned'].includes(e.type))?.at || '';
-  return !(doc.pdf?.files || []).some((f) => f.kind === 'signed' && f.stage === wf.stage && f.at >= arrived);
+  const files = doc.pdf?.files || [];
+  const current = files.slice(files.map((f) => f.kind).lastIndexOf('generated') + 1);
+  return !current.some((f) => f.kind === 'signed' && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 
 // Applies an action; returns the fields to write ({ workflow, currentOffice, routeOffices }).
