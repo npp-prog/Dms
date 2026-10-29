@@ -4,6 +4,7 @@ import { listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { routeFromGuide } from '../../lib/workflow.js';
 import Icon from '../../components/Icon.jsx';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
+import Select from '../../components/Select.jsx';
 
 const PREPARER = ''; // the office that prepared the document
 const PREPARER_PICK = '@preparer'; // the preparer's office in a select (whose value cannot be '')
@@ -168,10 +169,10 @@ function RouteEditor({ type, offices, actor, onSaved }) {
               <div className="route-done"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>Done</button></div>
               <label className="field">
                 <span className="field-label">Office</span>
-                <select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
+                <Select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
                   <option value={PREPARER}>Preparer&apos;s office (whoever prepared it)</option>
                   {choices.map((o) => <option key={o} value={o}>{o}{offices.includes(o) ? '' : ' (not in Settings)'}</option>)}
-                </select>
+                </Select>
               </label>
               <div className="field alt-offices">
                 <span className="field-label">Alternate offices <span className="muted">(optional: the preparer chooses which office handles this step)</span></span>
@@ -180,12 +181,12 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                     <span key={o} className="alt-chip">or {officeName(o)}
                       <button type="button" title="Remove" onClick={() => set(i, { alternates: s.alternates.filter((x) => x !== o) })}>×</button></span>
                   ))}
-                  <select value="" aria-label="Add an alternate office"
+                  <Select value="" aria-label="Add an alternate office" placeholder="+ Add an alternate office…"
                     onChange={(e) => e.target.value !== '-' && set(i, { alternates: [...(s.alternates || []), e.target.value === PREPARER_PICK ? PREPARER : e.target.value] })}>
                     <option value="-">+ Add an alternate office…</option>
                     {[PREPARER_PICK, ...choices].filter((o) => (o === PREPARER_PICK ? PREPARER : o) !== s.office && !(s.alternates || []).includes(o === PREPARER_PICK ? PREPARER : o))
                       .map((o) => <option key={o} value={o}>{o === PREPARER_PICK ? "Preparer's office" : o}</option>)}
-                  </select>
+                  </Select>
                 </div>
               </div>
               <label className="field">
@@ -205,16 +206,16 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 <div className="assign-fields">
                   <label className="field">
                     <span className="field-label">Reference no. field</span>
-                    <select value={s.assign.field} onChange={(e) => set(i, { assign: { ...s.assign, field: e.target.value } })}>
+                    <Select value={s.assign.field} onChange={(e) => set(i, { assign: { ...s.assign, field: e.target.value } })}>
                       {textFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                    </select>
+                    </Select>
                   </label>
                   <label className="field">
                     <span className="field-label">Date field (today's date)</span>
-                    <select value={s.assign.dateField || ''} onChange={(e) => set(i, { assign: { ...s.assign, dateField: e.target.value } })}>
+                    <Select value={s.assign.dateField || ''} onChange={(e) => set(i, { assign: { ...s.assign, dateField: e.target.value } })}>
                       <option value="">— None —</option>
                       {dateFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                    </select>
+                    </Select>
                   </label>
                   <label className="field assign-pattern">
                     <span className="field-label">Number pattern</span>

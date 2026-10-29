@@ -5,6 +5,7 @@ import { listDocuments } from '../lib/api.js';
 import { STATUSES } from '../lib/defaults.js';
 import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
+import Select from '../components/Select.jsx';
 
 function fmt(ts) {
   return ts?.toDate ? ts.toDate().toLocaleString() : '';
@@ -51,21 +52,21 @@ export default function Documents() {
       <div className="filters">
         <input className="search" placeholder="Search control no., DV/OBR no., payee…" value={filters.q}
           onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
-        <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
+        <Select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
           <option value="">All types</option>
           {types.map((t) => <option key={t}>{t}</option>)}
-        </select>
+        </Select>
         {isAdmin && (
-          <select value={filters.office} onChange={(e) => setFilters({ ...filters, office: e.target.value })}>
+          <Select value={filters.office} onChange={(e) => setFilters({ ...filters, office: e.target.value })}>
             <option value="">All offices</option>
             {offices.map((o) => <option key={o}>{o}</option>)}
             <option value="__none">No office</option>
-          </select>
+          </Select>
         )}
-        <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+        <Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           <option value="">All statuses</option>
           {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
+        </Select>
       </div>
       {error && <div className="alert">{error}</div>}
       {!docs && !error && <div className="spinner" />}

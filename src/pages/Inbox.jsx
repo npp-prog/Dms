@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listForwarded, listInbox } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
+import Select from '../components/Select.jsx';
 
 const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
@@ -36,10 +37,10 @@ export default function Inbox() {
             : isAdmin ? 'Every document on its route, in any office.' : 'An administrator has not assigned you to an office yet.'}</p>
         </div>
         {isAdmin && (
-          <select value={office} onChange={(e) => setOffice(e.target.value)} aria-label="Office">
+          <Select value={office} onChange={(e) => setOffice(e.target.value)} aria-label="Office">
             <option value="">All offices</option>
             {offices.map((o) => <option key={o}>{o}</option>)}
-          </select>
+          </Select>
         )}
       </div>
       {error && <div className="alert">{error}</div>}

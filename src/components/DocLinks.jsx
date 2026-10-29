@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { acceptsDocument, systemFor } from '../lib/checklists.js';
+import Select from './Select.jsx';
 
 // Links from a checklist item to the supporting document: one already in DMS (e.g. the OBR
 // or PO) or one in another LGU system (PIM, CBO, ...). Stored on the document as
@@ -115,9 +116,9 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
       ) : (
         <div className="fields">
           <div className="field"><label className="field-label" htmlFor={`${id}-s`}>System</label>
-            <select id={`${id}-s`} value={ext.system} onChange={(e) => setExt({ ...ext, system: e.target.value })}>
+            <Select id={`${id}-s`} value={ext.system} onChange={(e) => setExt({ ...ext, system: e.target.value })}>
               {SYSTEMS.map((s) => <option key={s}>{s}</option>)}
-            </select></div>
+            </Select></div>
           <div className="field"><label className="field-label" htmlFor={`${id}-r`}>Reference no. (optional)</label>
             <input id={`${id}-r`} className="caps" value={ext.ref} onChange={(e) => setExt({ ...ext, ref: e.target.value })} placeholder="e.g. PO-2026-10-005" /></div>
           <div className="field field-wide"><label className="field-label" htmlFor={`${id}-u`}>Link</label>

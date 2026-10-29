@@ -8,6 +8,7 @@ import { CHECKLIST_SOURCES } from '../../lib/checklists.js';
 import { PAPER_SIZES } from '../../lib/paper.js';
 import { generateDefaultTemplate } from '../../lib/template.js';
 import DocumentPreview from '../../components/DocumentPreview.jsx';
+import Select from '../../components/Select.jsx';
 
 const EMPTY = {
   code: '', name: '', category: '', description: '', active: true,
@@ -48,9 +49,9 @@ function ColumnsEditor({ columns = [], onChange }) {
           <input placeholder="Column label" value={c.label}
             onChange={(e) => set(i, { label: e.target.value, ...(c.keyTouched ? {} : { key: slugKey(e.target.value) }) })} />
           <input placeholder="key" value={c.key} onChange={(e) => set(i, { key: e.target.value, keyTouched: true })} />
-          <select value={c.type} onChange={(e) => set(i, { type: e.target.value })}>
+          <Select value={c.type} onChange={(e) => set(i, { type: e.target.value })}>
             {COLUMN_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          </Select>
           <input placeholder="Computed (a*b)" value={c.compute || ''} onChange={(e) => set(i, { compute: e.target.value })} />
           <label className="check"><input type="checkbox" checked={Boolean(c.total)} onChange={(e) => set(i, { total: e.target.checked })} /> Total</label>
           <RowActions list={columns} i={i} onChange={onChange} />
@@ -151,25 +152,25 @@ export default function DocumentTypeEditor() {
             <div className="field"><label className="field-label">Category</label>
               <input value={type.category} placeholder="e.g. Disbursement, Procurement, Budget" onChange={(e) => patch({ category: e.target.value })} /></div>
             <div className="field field-wide"><label className="field-label">Documents of this type are</label>
-              <select value={type.uploadOnly ? 'upload' : 'prepare'} onChange={(e) => { patch({ uploadOnly: e.target.value === 'upload' }); setTab('General'); }}>
+              <Select value={type.uploadOnly ? 'upload' : 'prepare'} onChange={(e) => { patch({ uploadOnly: e.target.value === 'upload' }); setTab('General'); }}>
                 <option value="prepare">Prepared in DMS from its format (fields, steps and template)</option>
                 <option value="upload">Uploaded only: no format (a scanned or signed file, a PDF from another system)</option>
-              </select>
+              </Select>
               {type.uploadOnly && <span className="small muted">It is not listed in Prepare Document. Users choose it in Documents → Upload, and it follows its workflow (Administration → Workflow).</span>}
             </div>
             <div className="field"><label className="field-label">Status</label>
-              <select value={type.active === false ? 'no' : 'yes'} onChange={(e) => patch({ active: e.target.value === 'yes' })}>
+              <Select value={type.active === false ? 'no' : 'yes'} onChange={(e) => patch({ active: e.target.value === 'yes' })}>
                 <option value="yes">Active (available to users)</option><option value="no">Inactive</option>
-              </select></div>
+              </Select></div>
             {!type.uploadOnly && <>
             <div className="field"><label className="field-label">Paper size</label>
-              <select value={type.paperSize === 'Long' ? 'Folio' : type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
+              <Select value={type.paperSize === 'Long' ? 'Folio' : type.paperSize} onChange={(e) => patch({ paperSize: e.target.value })}>
                 {Object.entries(PAPER_SIZES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select></div>
+              </Select></div>
             <div className="field"><label className="field-label">Orientation</label>
-              <select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
+              <Select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
                 <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
-              </select></div>
+              </Select></div>
             </>}
             <div className="field"><label className="field-label">Bulk download</label>
               <label className="check"><input type="checkbox" checked={Boolean(type.bulkDownload)} onChange={(e) => patch({ bulkDownload: e.target.checked })} />
@@ -209,16 +210,16 @@ export default function DocumentTypeEditor() {
                 <input placeholder="Label" value={f.label}
                   onChange={(e) => setItem('fields', i, { label: e.target.value, ...(f.keyTouched || typeId ? {} : { key: slugKey(e.target.value) }) })} />
                 <input placeholder="key" className="mono" value={f.key} onChange={(e) => setItem('fields', i, { key: e.target.value, keyTouched: true })} />
-                <select value={f.type} onChange={(e) => setItem('fields', i, {
+                <Select value={f.type} onChange={(e) => setItem('fields', i, {
                   type: e.target.value,
                   ...(e.target.value === 'table' && !f.columns ? { columns: [{ key: 'description', label: 'Description', type: 'text' }, { key: 'amount', label: 'Amount', type: 'currency', total: true }] } : {}),
                 })}>
                   {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-                <select value={f.step || ''} onChange={(e) => setItem('fields', i, { step: e.target.value })}>
+                </Select>
+                <Select value={f.step || ''} onChange={(e) => setItem('fields', i, { step: e.target.value })}>
                   <option value="">— No step —</option>
                   {type.steps.map((s, si) => <option key={s.id} value={s.id}>Step {si + 1}: {s.title}</option>)}
-                </select>
+                </Select>
                 <label className="check"><input type="checkbox" checked={Boolean(f.required)} onChange={(e) => setItem('fields', i, { required: e.target.checked })} /> Required</label>
                 <label className="check" title="Not shown to the end user; filled in by the Accounting Office (admins) on the saved document">
                   <input type="checkbox" checked={f.filledBy === 'accounting'} onChange={(e) => setItem('fields', i, { filledBy: e.target.checked ? 'accounting' : '' })} /> Filled in by Accounting</label>
@@ -250,9 +251,9 @@ export default function DocumentTypeEditor() {
         <section className="card">
           <div className="field" style={{ maxWidth: 520, marginBottom: '1rem' }}>
             <label className="field-label">Checklist source</label>
-            <select value={type.checklistSource || 'own'} onChange={(e) => patch({ checklistSource: e.target.value })}>
+            <Select value={type.checklistSource || 'own'} onChange={(e) => patch({ checklistSource: e.target.value })}>
               {CHECKLIST_SOURCES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            </Select>
             <div className="help">With a library source, the user picks the transaction type (e.g. 1613) and its checklist from the
               Checklists page is used and printed. The list below is then not used.</div>
           </div>

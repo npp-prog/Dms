@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listUsers, updateUser } from '../../lib/api.js';
+import Select from '../../components/Select.jsx';
 
 export default function Users() {
   const { user: me, isSuper, settings } = useAuth();
@@ -30,11 +31,11 @@ export default function Users() {
             rights. A user who <b>may route documents to any person</b> can send a document they hold to any active user outside its route
             (admins always can). The list of offices is in Settings.</p>
         </div>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All users</option>
           <option value="pending">Pending approval</option>
           <option value="active">Active</option>
-        </select>
+        </Select>
       </div>
       {error && <div className="alert">{error}</div>}
       {!users && !error && <div className="spinner" />}
@@ -49,10 +50,10 @@ export default function Users() {
                   <td>{u.email}</td>
                   <td>
                     {canManage(u) || (isSuper && u.id === me.uid) ? (
-                      <select value={u.office || ''} onChange={(e) => change(u, { office: e.target.value })}>
+                      <Select value={u.office || ''} onChange={(e) => change(u, { office: e.target.value })}>
                         <option value="">— No office —</option>
                         {[...new Set([...offices, ...(u.office ? [u.office] : [])])].map((o) => <option key={o}>{o}</option>)}
-                      </select>
+                      </Select>
                     ) : (u.office || '—')}
                     {u.requestedOffice && u.requestedOffice !== u.office && <div className="small muted">Asked for: {u.requestedOffice}</div>}
                     {u.office && (canManage(u) || (isSuper && u.id === me.uid) ? (
@@ -70,11 +71,11 @@ export default function Users() {
                   </td>
                   <td>
                     {isSuper && u.id !== me.uid ? (
-                      <select value={u.role} onChange={(e) => change(u, { role: e.target.value })}>
+                      <Select value={u.role} onChange={(e) => change(u, { role: e.target.value })}>
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                         <option value="superadmin">Superadmin</option>
-                      </select>
+                      </Select>
                     ) : u.role}
                   </td>
                   <td><span className={`badge ${u.active ? 'badge-green' : 'badge-yellow'}`}>{u.active ? 'Active' : 'Pending / inactive'}</span></td>

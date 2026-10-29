@@ -72,6 +72,8 @@ You should see this in the terminal:
 
 Sign in as **user@fts.local** / **user123**.
 
+**Dropdowns.** A dropdown with more than 5 choices (document types, offices, fields…) is searchable: click it, type part of a choice and pick it, or use the arrow keys and Enter. Dropdowns with 5 choices or fewer work as usual.
+
 ### Sign in
 
 ![Sign-in screen](images/01-sign-in.png)

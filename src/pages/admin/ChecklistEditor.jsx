@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { deleteChecklist, getChecklist, saveChecklist } from '../../lib/api.js';
 import { CHECKLIST_CATEGORIES, newChecklist } from '../../lib/checklists.js';
 import ChecklistSheet from '../../components/ChecklistSheet.jsx';
+import Select from '../../components/Select.jsx';
 
 function move(list, i, dir) {
   const j = i + dir;
@@ -92,13 +93,13 @@ export default function ChecklistEditor() {
               <div className="field"><label className="field-label">Checklist No. <span className="req">*</span></label>
                 <input value={c.code} disabled={!!code} placeholder="e.g. 1613" onChange={(e) => patch({ code: e.target.value })} /></div>
               <div className="field"><label className="field-label">Kind</label>
-                <select value={c.kind} onChange={(e) => patch({ kind: e.target.value, ...(e.target.value === 'liquidation' ? { category: 'Liquidation' } : {}) })}>
+                <Select value={c.kind} onChange={(e) => patch({ kind: e.target.value, ...(e.target.value === 'liquidation' ? { category: 'Liquidation' } : {}) })}>
                   <option value="disbursement">Disbursement</option><option value="liquidation">Liquidation</option>
-                </select></div>
+                </Select></div>
               <div className="field"><label className="field-label">Category</label>
-                <select value={c.category} onChange={(e) => patch({ category: e.target.value })}>
+                <Select value={c.category} onChange={(e) => patch({ category: e.target.value })}>
                   {[...CHECKLIST_CATEGORIES, 'Others'].map((x) => <option key={x}>{x}</option>)}
-                </select></div>
+                </Select></div>
               <div className="field field-wide"><label className="field-label">Title <span className="req">*</span></label>
                 <input value={c.title} onChange={(e) => patch({ title: e.target.value })} /></div>
               <div className="field field-wide"><label className="field-label">Description</label>
@@ -118,10 +119,10 @@ export default function ChecklistEditor() {
                 <input value={it.label} placeholder="Document type, e.g. Oath of Office" onChange={(e) => setItem(i, { label: e.target.value })} />
                 <textarea rows={2} value={it.details || ''} placeholder="Document details (optional), e.g. Certified copy of Oath of Office" onChange={(e) => setItem(i, { details: e.target.value })} />
                 <div className="editor-row compact">
-                  <select value={it.required ? 'y' : 'na'} onChange={(e) => setItem(i, { required: e.target.value === 'y' })}>
+                  <Select value={it.required ? 'y' : 'na'} onChange={(e) => setItem(i, { required: e.target.value === 'y' })}>
                     <option value="y">Always required (Y)</option>
                     <option value="na">If applicable (Y / N/A)</option>
-                  </select>
+                  </Select>
                   <input placeholder="Group heading (optional), e.g. Final Payment" value={it.group || ''} onChange={(e) => setItem(i, { group: e.target.value })} />
                   <div className="row-actions">
                     <button type="button" className="btn-icon" onClick={() => patch({ items: move(c.items, i, -1) })}>↑</button>

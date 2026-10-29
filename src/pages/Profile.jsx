@@ -6,6 +6,7 @@ import {
 import { REMEMBER_CHOICES, certId, forgetPassword, rememberPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { isValidAt, readCertificate } from '../lib/signing.js';
 import { prepareMark } from '../lib/markImage.js';
+import Select from '../components/Select.jsx';
 
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '');
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
@@ -161,9 +162,9 @@ export default function Profile() {
                 <div className="sign-panel">
                   <div className="field">
                     <label className="field-label" htmlFor={`${id}-days`}>For</label>
-                    <select id={`${id}-days`} value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                    <Select id={`${id}-days`} value={days} onChange={(e) => setDays(Number(e.target.value))}>
                       {REMEMBER_CHOICES.map((c) => <option key={c.label} value={c.days}>{c.label}</option>)}
-                    </select>
+                    </Select>
                     {cert.notAfter && <span className="small muted">At most until your certificate expires ({day(cert.notAfter)}).</span>}
                   </div>
                   <div className="field">

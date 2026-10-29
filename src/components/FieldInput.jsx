@@ -1,5 +1,6 @@
 import { computeRow, toCaps } from '../lib/forms.js';
 import { formatCurrency, sumColumn } from '../lib/template.js';
+import Select from './Select.jsx';
 
 function inputType(type) {
   if (type === 'number' || type === 'currency') return 'number';
@@ -91,10 +92,10 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
       placeholder={field.placeholder} onChange={(e) => onChange(toCaps(e.target.value))} />;
   } else if (field.type === 'select') {
     control = (
-      <select id={`f-${field.key}`} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <Select id={`f-${field.key}`} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
         <option value="">— Select —</option>
         {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      </Select>
     );
   } else {
     control = <input id={`f-${field.key}`} type={inputType(field.type)} value={value ?? ''} disabled={disabled}

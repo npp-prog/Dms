@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACTION_LABELS, availableActions, fillsMissing, officeOf, signatureMissing, uploadMissing } from '../lib/workflow.js';
 import PersonPicker from './PersonPicker.jsx';
+import Select from './Select.jsx';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const EVENT_TEXT = {
@@ -82,7 +83,7 @@ function StepTasks({ doc, step, busy, onFill, onUpload, onOpenFile, children }) 
               <label key={k} className="field">
                 <span className="field-label">{f.label}</span>
                 {f.type === 'select'
-                  ? <select value={values[k]} onChange={(e) => set(e.target.value)}><option value="">—</option>{(f.options || []).map((o) => <option key={o}>{o}</option>)}</select>
+                  ? <Select value={values[k]} onChange={(e) => set(e.target.value)}><option value="">—</option>{(f.options || []).map((o) => <option key={o}>{o}</option>)}</Select>
                   : <input type={f.type === 'date' ? 'date' : 'text'} className={f.type === 'date' ? '' : 'caps'} value={values[k]}
                     onChange={(e) => set(f.type === 'date' ? e.target.value : e.target.value.toUpperCase())} />}
               </label>

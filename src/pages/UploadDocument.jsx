@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, listDocumentTypes, setDocumentStatus, startWorkflow } from '../lib/api.js';
+import Select from '../components/Select.jsx';
 
 // A document that is not prepared in DMS but already exists as a file: a scanned OBR, a letter,
 // a PDF made in another system. It gets a DMS control number, its file becomes its PDF (a photo
@@ -90,10 +91,10 @@ export default function UploadDocument() {
       <form className="card upload-form" onSubmit={submit}>
         <div className="field upload-wide">
           <label className="field-label" htmlFor={`${id}-t`}>Document type</label>
-          <select id={`${id}-t`} value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!types}>
+          <Select id={`${id}-t`} value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!types}>
             <option value="">Other document (no workflow)</option>
             {(types || []).map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}{t.uploadOnly ? ' (upload only)' : ''}</option>)}
-          </select>
+          </Select>
           <span className="small muted">{type.id
             ? 'It follows the workflow set for this type in Administration → Workflow.'
             : 'Kept in DMS with a control number; it is not routed.'}</span>

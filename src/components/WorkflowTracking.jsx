@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
+import Select from './Select.jsx';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Offices chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
@@ -69,10 +70,10 @@ export default function WorkflowTracking() {
 
       <div className="filters">
         <input className="search" placeholder="Search control no., payee, office…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select value={at} onChange={(e) => setAt(e.target.value)} aria-label="Now at">
+        <Select value={at} onChange={(e) => setAt(e.target.value)} aria-label="Now at">
           <option value="">Now at: any office</option>
           {offices.map((o) => <option key={o}>{o}</option>)}
-        </select>
+        </Select>
       </div>
 
       {error && <div className="alert">{error}</div>}
