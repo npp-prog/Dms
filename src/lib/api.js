@@ -412,6 +412,34 @@ export async function removeSavedCertificate(uid) {
   }
 }
 
+// The signatory's signature mark (an image of their handwritten signature), owner only too.
+const markRef = (uid) => storageRef(storage, `certificates/${uid}/mark.png`);
+
+export async function getSavedMark(uid) {
+  try {
+    return new Uint8Array(await getBytes(markRef(uid)));
+  } catch (e) {
+    if (e?.code === 'storage/object-not-found') return null;
+    throw storageError(e, 'download');
+  }
+}
+
+export async function saveMark(uid, pngBytes) {
+  try {
+    await uploadBytes(markRef(uid), pngBytes, { contentType: 'image/png' });
+  } catch (e) {
+    throw storageError(e, 'upload');
+  }
+}
+
+export async function removeSavedMark(uid) {
+  try {
+    await deleteObject(markRef(uid));
+  } catch (e) {
+    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload');
+  }
+}
+
 // Checks, in a few seconds, that PDFs can be stored, before spending time drawing one.
 // Reading a file that does not exist answers "not found" when Storage and its rules are in place.
 export async function checkStorage(docId) {

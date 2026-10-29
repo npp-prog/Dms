@@ -41,6 +41,9 @@ export default function DocumentView() {
   const [pdfView, setPdfView] = useState(null);
   const viewer = useRef(null);
   const shownPdf = useRef(null); // a newly loaded PDF opens in the viewer once
+  // Placing a signature mark: the size and preview while placing, and where it was tapped.
+  const [placing, setPlacing] = useState(null);
+  const [placement, setPlacement] = useState(null);
   // Working copy of the data while the Accounting Office fills in its part.
   const [draft, setDraft] = useState(null);
 
@@ -141,6 +144,20 @@ export default function DocumentView() {
                 if (shownPdf.current !== p.bytes) { shownPdf.current = p.bytes; setView('pdf'); }
               }}
               onView={() => { setView('pdf'); viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+              placement={placement}
+              onPlacing={(p) => {
+                setPlacing(p);
+                if (!p) setPlacement(null);
+                // A new size keeps the mark centred where it was.
+                else {
+                  setView('pdf');
+                  setPlacement((cur) => {
+                    if (!cur) return cur;
+                    const cx = (cur.rect[0] + cur.rect[2]) / 2; const cy = (cur.rect[1] + cur.rect[3]) / 2;
+                    return { ...cur, rect: [cx - p.w / 2, cy - p.h / 2, cx + p.w / 2, cy + p.h / 2] };
+                  });
+                }
+              }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
           {type && !wf && (
@@ -215,7 +232,9 @@ export default function DocumentView() {
               </div>
             )}
             {view === 'pdf' && pdfView ? (
-              <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`} />
+              <PdfViewer bytes={pdfView.bytes} signatures={pdfView.signatures} title={`${docData.controlNo} · ${hasSignature ? 'signed PDF' : 'PDF'}`}
+                placing={placing} onPlace={setPlacement}
+                mark={placing && placement ? { ...placement, preview: placing.preview, label: placing.label } : null} />
             ) : view === 'checklist' && activeChecklist ? (
               <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (

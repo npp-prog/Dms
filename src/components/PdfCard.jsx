@@ -1,10 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, removeSavedCertificate,
-  saveCertificate, startWorkflow,
+  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, removeSavedCertificate,
+  removeSavedMark, saveCertificate, saveMark, startWorkflow,
 } from '../lib/api.js';
-import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf } from '../lib/signing.js';
+import { addSignatureMark, checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
+import { markPixels, prepareMark } from '../lib/markImage.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
+
+// Mark sizes in points (width, height): small fits a DV signature line.
+const MARK_SIZES = { S: [110, 30], M: [150, 42], L: [200, 56] };
+const MARK_LABELS = { S: 'Small', M: 'Medium', L: 'Large' };
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const readFile = (file) => file.arrayBuffer().then((b) => new Uint8Array(b));
@@ -23,7 +28,7 @@ function saveAs(bytes, name) {
 // finished document to PDF; then each signatory, while the document is in their office, signs
 // it in DMS with their certificate file, or signs it in Adobe Acrobat and uploads it back.
 // Every version is kept; the newest is the current PDF.
-export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView }) {
+export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView, placement, onPlacing }) {
   const id = useId();
   const files = docData.pdf?.files || [];
   const current = files.at(-1);
@@ -42,6 +47,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [saved, setSaved] = useState(undefined); // the user's certificate kept in DMS (null: none)
   const [useOther, setUseOther] = useState(false);
   const [keep, setKeep] = useState(true);
+  // The signature mark: a picture of the signatory's signature, placed on the face of the PDF.
+  const [mark, setMark] = useState(undefined); // PNG bytes (null: none yet)
+  const [useMark, setUseMark] = useState(true);
+  const [size, setSize] = useState('M');
 
   // Load the current PDF and check every signature in it.
   useEffect(() => {
@@ -62,6 +71,29 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch(() => setSaved(null));
   }, [mode, saved, actor.uid]);
   const withSaved = Boolean(saved) && !useOther;
+  useEffect(() => {
+    if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch(() => setMark(null));
+  }, [mode, mark, actor.uid]);
+  const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
+  const placingMark = mode === 'sign' && Boolean(mark) && useMark;
+  // Ask the viewer to take a tap for the mark while signing with it.
+  useEffect(() => {
+    if (!placingMark) { onPlacing?.(null); return; }
+    const [w, h] = MARK_SIZES[size];
+    const name = saved && !useOther ? saved.name : 'Your name';
+    onPlacing?.({ w, h, preview: markUrl, label: `Digitally signed by\n${name}\n${stampDate().slice(0, 16)}` });
+  }, [placingMark, size, markUrl, saved, useOther]);
+  const changeMark = (file) => run('Preparing your mark…', async () => {
+    if (!file) return;
+    const png = await prepareMark(file);
+    await saveMark(actor.uid, png);
+    setMark(png); setUseMark(true);
+  });
+  const forgetMark = () => run('Removing…', async () => {
+    if (!window.confirm('Remove your signature mark from DMS?')) return;
+    await removeSavedMark(actor.uid);
+    setMark(null);
+  });
 
   const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
   const run = async (label, fn) => {
@@ -96,7 +128,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     }
     if (!isValidAt(cert)) throw new Error(`Your certificate is not valid today (valid ${when(cert.notBefore)} to ${when(cert.notAfter)}). Renew it with DICT.`);
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
-    const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
+    if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
+    // The mark is added first; the signature then covers it.
+    const base = placingMark
+      ? await addSignatureMark(bytes, { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, stampDate()] })
+      : bytes;
+    const out = await signPdf(base, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
@@ -216,6 +253,40 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                       {saved && <button type="button" className="link small" onClick={() => setUseOther(false)}>Use my saved certificate ({saved.name})</button>}
                     </>
                   )}
+                  <div className="mark-box">
+                    <div className="field-label">Signature mark on the PDF</div>
+                    {mark === undefined ? <div className="spinner" /> : mark ? (
+                      <>
+                        <div className="row gap wrap mark-row">
+                          <img className="mark-preview" src={markUrl} alt="Your signature mark" />
+                          <label className="check"><input type="checkbox" checked={useMark} onChange={(e) => setUseMark(e.target.checked)} /> Place my signature mark</label>
+                        </div>
+                        {useMark && (
+                          <>
+                            <div className="row gap wrap small">
+                              Size:
+                              {Object.keys(MARK_SIZES).map((k) => (
+                                <button key={k} type="button" className={`chip${size === k ? ' active' : ''}`} onClick={() => setSize(k)}>{MARK_LABELS[k]}</button>
+                              ))}
+                            </div>
+                            <p className={`small ${placement ? 'muted' : 'mark-todo'}`}>{placement
+                              ? `Placed on page ${placement.page + 1}. Tap the PDF again to move it.`
+                              : 'Tap the PDF (on the left) where your mark goes, e.g. the Signature line of your box.'}</p>
+                          </>
+                        )}
+                        <div className="row gap small">
+                          <label className="link">Change picture<input type="file" accept="image/png,image/jpeg" hidden onChange={(e) => changeMark(e.target.files[0])} /></label>
+                          <button type="button" className="link" onClick={forgetMark}>Remove</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="small muted">Optional. Upload a picture of your handwritten signature (dark ink on white paper, or a PNG
+                          with a transparent background). DMS keeps it for you and places it where you tap, with your name and the date.</p>
+                        <input type="file" accept="image/png,image/jpeg" aria-label="Signature mark picture" onChange={(e) => changeMark(e.target.files[0])} />
+                      </>
+                    )}
+                  </div>
                   <p className="small muted">{withSaved || keep
                     ? 'Only you can use your saved certificate; not even an administrator can open it. Your password is never stored: you type it each time. Use a strong certificate password.'
                     : 'Your certificate file and password stay on this computer: DMS signs here, in your browser, and uploads only the signed PDF.'}</p>
@@ -225,7 +296,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                       onKeyDown={(e) => e.key === 'Enter' && signHere()} />
                   </div>
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || saved === undefined || (!withSaved && !p12) || !password} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || saved === undefined || (!withSaved && !p12) || !password || (placingMark && !placement)} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>

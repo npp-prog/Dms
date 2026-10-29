@@ -42,10 +42,13 @@ service firebase.storage {
             || (isHead() && d.get('currentOffice', '') == myOffice())));
     }
 
-    match /certificates/{uid}/signing.p12 {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
+    // And their signature mark (mark.png), placed on the face of the PDFs they sign.
+    match /certificates/{uid}/{file} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid
+        && file.matches('signing\\.p12|mark\\.png');
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.size < 64 * 1024;
+        && ((file == 'signing.p12' && request.resource.size < 64 * 1024)
+            || (file == 'mark.png' && request.resource.size < 2 * 1024 * 1024));
     }
 
     match /documents/{docId}/{file} {

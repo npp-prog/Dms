@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import forge from 'node-forge';
 import { jsPDF } from 'jspdf';
 import { Buffer as BrowserBuffer } from 'buffer/index.js';
-import { checkSignedVersion, fixBufferLastIndexOf, readCertificate, readSignatures, signPdf } from './signing.js';
+import { addSignatureMark, checkSignedVersion, fixBufferLastIndexOf, readCertificate, readSignatures, signPdf, stampDate } from './signing.js';
 
 // Test certificates only: a CA named like the PNPKI and one signer, plus a non-PNPKI signer.
 function makeP12(cn, issuerDn, password = 'secret') {
@@ -92,4 +92,23 @@ test("browser Buffer: lastIndexOf(value, 'utf8') searches from the end, as in No
   } finally {
     globalThis.Buffer = NodeBuffer;
   }
+});
+
+test('signature mark: placed on the page, covered by the signature, earlier signatures intact', async () => {
+  const v0 = unsignedPdf();
+  const v1 = await signPdf(v0, makeP12('JUAN DELA CRUZ', PNPKI), 'secret');
+  const W = 40; const H = 12;
+  const image = { width: W, height: H, rgb: new Uint8Array(W * H * 3).fill(30), alpha: new Uint8Array(W * H).fill(255) };
+  const marked = await addSignatureMark(v1, { page: 1, rect: [50, 60, 200, 102], image, lines: ['Digitally signed by', 'ROSA (ACCOUNTING)', stampDate(new Date(2026, 9, 29, 15, 11, 5))] });
+  const text = Buffer.from(marked).toString('latin1');
+  assert.match(text, /\/Subtype \/Stamp \/Name \/DMSSignatureMark \/Rect \[50 60 200 102\] \/F 644/);
+  assert.match(text, /\(ROSA \\\(ACCOUNTING\\\)\) Tj/); // parentheses escaped
+  assert.match(text, /\(2026\.10\.29 15:11:05 [+-]\d\d'\d\d'\) Tj/);
+  // the mark sits on the second page, which now lists it
+  assert.match(text, /\/Annots \[\d+ 0 R\]/);
+  const v2 = await signPdf(marked, makeP12('ROSA ACCOUNTING', PNPKI), 'secret');
+  const check = checkSignedVersion(v1, v2);
+  assert.equal(check.ok, true, check.error);
+  assert.deepEqual(check.signatures.map((s) => s.valid), [true, true]);
+  wellFormed(v2);
 });
