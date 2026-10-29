@@ -25,14 +25,14 @@ export default function Checklists() {
     return Object.entries(by).sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
   }, [list, q, kind]);
 
-  const loadLibrary = async (overwrite) => {
-    if (overwrite && !window.confirm('Replace every checklist with the original library? Edits made in DMS to those checklists will be lost.')) return;
+  // Adds library checklists that are missing (e.g. deleted); never replaces edited ones.
+  const loadLibrary = async () => {
     setBusy('Loading the checklist library…');
     setError('');
     try {
       const bundled = await loadBundledChecklists();
       const have = new Set((list || []).map((c) => c.code));
-      await importChecklists(overwrite ? bundled : bundled.filter((c) => !have.has(c.code)), actor);
+      await importChecklists(bundled.filter((c) => !have.has(c.code)), actor);
       await load();
     } catch (e) {
       setError(e.message);
@@ -55,12 +55,9 @@ export default function Checklists() {
         {isAdmin && (
           <div className="row gap wrap">
             {list && missing > 0 && (
-              <button className="btn btn-gold" disabled={!!busy} onClick={() => loadLibrary(false)}>
+              <button className="btn btn-gold" disabled={!!busy} onClick={loadLibrary}>
                 Load checklist library ({missing} {list.length ? 'missing' : 'checklists'})
               </button>
-            )}
-            {list && list.length > 0 && (
-              <button className="btn" disabled={!!busy} onClick={() => loadLibrary(true)}>Reload original library</button>
             )}
             <Link className="btn btn-primary" to="/admin/checklists/new">+ New checklist</Link>
           </div>

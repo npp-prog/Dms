@@ -26,6 +26,7 @@ export default function Layout() {
       items: [
         ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/inbox', 'inbox', 'Inbox', false, waiting],
+        ['/tracking', 'workflow', 'Tracking'],
         ['/formats', 'formats', 'Document Formats'],
         ['/checklists', 'check', 'Checklists'],
         ['/new', 'new', 'Prepare Document'],

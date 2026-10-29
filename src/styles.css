@@ -875,3 +875,13 @@ a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 .send-panel .fields { display: grid; gap: .5rem; }
 .forward-list { margin: 0; padding-left: 1.1rem; }
 .inbox-sub { margin: 1.6rem 0 .6rem; font-size: 1.1rem; }
+
+/* Route editor: steps collapsed to one line; one open at a time */
+.route-steps li.closed { align-items: center; padding: .5rem .7rem; }
+.route-steps li.closed .wf-dot { margin-top: 0; }
+.route-steps li.closed .route-tools { flex-direction: row; margin-top: 0; }
+.route-summary { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .7rem; background: none; border: 0; padding: .2rem 0; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.route-summary b { color: var(--ink); }
+.route-summary:hover b { text-decoration: underline; }
+.route-badges { display: flex; flex-wrap: wrap; gap: .3rem; }
+.route-done { grid-column: 1 / -1; display: flex; justify-content: flex-end; }

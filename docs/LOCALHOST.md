@@ -232,8 +232,7 @@ Sign out (top right), then sign in as **npp@mgocandoniaccounting.org** / **admin
 
 On **Checklists**, an administrator can:
 
-- **load the checklist library**: on the live site, click this once;
-- **reload the original library**, which overwrites your edits;
+- **load missing checklists** from the library (the button appears only when some are missing; the library is installed by itself on a new site, and edited checklists are never replaced);
 - create a new checklist;
 - edit or delete any checklist.
 
@@ -277,7 +276,7 @@ A step can also **fill in details before releasing** (tick the fields, e.g. the 
 
 A type with no route yet follows its processing guide; the editor starts from it. New documents follow the saved route; documents already on their way keep the route they started with. Saving a route doesn't change the document format or its version.
 
-**Workflow → Tracking** shows every routed document: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it (*On the move*, *In your office*, *Returned*, *Processed*, *All routed*), and **Now at** filters by office.
+**Tracking** (left menu, for everyone) shows the routed documents you can see: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it (*On the move*, *In your office*, *Returned*, *Processed*, *All routed*), and **Now at** filters by office.
 
 **Users** is where you approve new accounts and **assign each person to an office**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
 

@@ -12,6 +12,7 @@ import Inbox from './pages/Inbox.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import UploadDocument from './pages/UploadDocument.jsx';
+import Tracking from './pages/Tracking.jsx';
 import Workflow from './pages/admin/Workflow.jsx';
 import DocumentView from './pages/DocumentView.jsx';
 import DocumentTypes from './pages/admin/DocumentTypes.jsx';
@@ -54,7 +55,8 @@ export default function App() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="profile" element={<Profile />} />
         <Route path="verify" element={<Verify />} />
-        <Route path="workflow" element={<Navigate to="/admin/workflow?tab=tracking" replace />} />
+        <Route path="tracking" element={<Tracking />} />
+        <Route path="workflow" element={<Navigate to="/tracking" replace />} />
         <Route path="documents" element={<Documents />} />
         <Route path="documents/:docId" element={<DocumentView />} />
         <Route path="documents/:docId/edit" element={<PrepareDocument />} />

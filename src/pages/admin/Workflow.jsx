@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { routeFromGuide } from '../../lib/workflow.js';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
-import WorkflowTracking from '../../components/WorkflowTracking.jsx';
 
 const PREPARER = ''; // the office that prepared the document
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -16,25 +15,19 @@ const clean = (route) => route.map((s) => ({
 }));
 
 // Administration > Workflow: the route of every document type (which offices receive it, in
-// what order, what each does, which must sign), and the tracking of documents on their routes.
+// what order, what each does, which must sign, assign, fill in or upload). Tracking where the
+// documents are is its own page (Documents > Tracking).
 export default function Workflow() {
-  const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'tracking' ? 'tracking' : 'routes';
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h1>Workflow</h1>
-          <p className="muted">{tab === 'routes'
-            ? 'Set the flow of each document: the offices it goes through after it is marked complete, in order. Each office receives it, acts, and releases it to the next one.'
-            : 'Where each routed document is, step by step.'}</p>
+          <p className="muted">Set the flow of each document: the offices it goes through, in order, once it is converted to PDF (or uploaded).
+            Each office receives it, acts, and releases it to the next one.</p>
         </div>
       </div>
-      <div className="tabs page-tabs">
-        <button type="button" className={tab === 'routes' ? 'active' : ''} onClick={() => setParams({})}>Routes</button>
-        <button type="button" className={tab === 'tracking' ? 'active' : ''} onClick={() => setParams({ tab: 'tracking' })}>Tracking</button>
-      </div>
-      {tab === 'routes' ? <Routes /> : <WorkflowTracking />}
+      <Routes />
     </div>
   );
 }
@@ -97,12 +90,16 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     const office = fillable.filter((f) => f.filledBy && f.filledBy !== 'accounting').map((f) => f.key);
     return office.length ? office : [];
   };
+  // One step open for editing at a time; the others show as one-line summaries.
+  const [open, setOpen] = useState(null);
+  const fieldLabel = (key) => (type.fields || []).find((f) => f.key === key)?.label || key;
   const choices = [...new Set([...offices, ...route.map((s) => s.office).filter(Boolean)])];
   const set = (i, patch) => setRoute(route.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i, d) => {
     const next = [...route];
     [next[i], next[i + d]] = [next[i + d], next[i]];
     setRoute(next);
+    setOpen((o) => (o === i ? i + d : o === i + d ? i : o));
   };
   const problems = [
     !route.length && 'Add at least one step.',
@@ -146,9 +143,22 @@ function RouteEditor({ type, offices, actor, onSaved }) {
 
       <ol className="route-steps">
         {route.map((s, i) => (
-          <li key={i}>
+          <li key={i} className={open === i ? 'open' : 'closed'}>
             <span className="wf-dot">{i + 1}</span>
+            {open !== i ? (
+              <button type="button" className="route-summary" onClick={() => setOpen(i)} title="Edit this step">
+                <b>{s.office || "Preparer's office"}</b>
+                <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
+                <span className="route-badges">
+                  {s.sign && <span className="badge badge-blue">Signs</span>}
+                  {s.assign && <span className="badge badge-blue">Assigns {fieldLabel(s.assign.field)}</span>}
+                  {s.fills?.length > 0 && <span className="badge badge-blue">Fills in {s.fills.length} detail{s.fills.length > 1 ? 's' : ''}</span>}
+                  {s.upload !== undefined && <span className="badge badge-blue">Upload</span>}
+                </span>
+              </button>
+            ) : (
             <div className="route-fields">
+              <div className="route-done"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>Done</button></div>
               <label className="field">
                 <span className="field-label">Office</span>
                 <select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
@@ -222,15 +232,16 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 </label>
               )}
             </div>
+            )}
             <div className="route-tools">
               <button type="button" className="btn-icon" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
               <button type="button" className="btn-icon" title="Move down" disabled={i === route.length - 1} onClick={() => move(i, 1)}>↓</button>
-              <button type="button" className="btn-icon" title="Remove step" onClick={() => setRoute(route.filter((_, j) => j !== i))}>×</button>
+              <button type="button" className="btn-icon" title="Remove step" onClick={() => { setRoute(route.filter((_, j) => j !== i)); setOpen(null); }}>×</button>
             </div>
           </li>
         ))}
       </ol>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRoute([...route, { office: offices[0] || '', action: '', sign: false }])}>+ Add step</button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRoute([...route, { office: offices[0] || '', action: '', sign: false }]); setOpen(route.length); }}>+ Add step</button>
 
       {problems.length > 0 && <ul className="route-problems small">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       {msg && <div className={msg.ok ? 'alert alert-ok' : 'alert'}>{msg.text}</div>}
