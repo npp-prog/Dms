@@ -763,12 +763,18 @@ button.stat.active::before { background: var(--primary); }
 .route-tools { display: flex; flex-direction: column; gap: 2px; margin-top: 1.2rem; }
 .route-problems { color: var(--warn); margin: .4rem 0; padding-left: 1.2rem; }
 .route-actions { margin-top: .8rem; }
+/* Types on the left (with their search), the route on the right, down to phone width. */
+.route-layout { grid-template-columns: minmax(190px, 260px) minmax(0, 1fr); }
+.route-types { position: sticky; top: calc(var(--top) + 1rem); max-height: calc(100vh - var(--top) - 2rem); align-content: start; }
+.route-search { position: sticky; top: 0; z-index: 1; margin: .1rem .1rem .4rem; width: auto; }
+.route-none { padding: .4rem .6rem; }
+.route-types .code { min-width: 3.4rem; }
 @media (max-width: 1180px) {
-  .route-layout { grid-template-columns: 1fr; }
-  .route-types { max-height: 240px; }
-}
-@media (max-width: 700px) {
   .route-fields { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .route-layout { grid-template-columns: 1fr; }
+  .route-types { position: static; max-height: 260px; }
 }
 
 /* Document page: the document in the centre, its cards (accounting, workflow, PDF and

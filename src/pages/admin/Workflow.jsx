@@ -38,6 +38,7 @@ function Routes() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const offices = settings.offices || [];
+  const [q, setQ] = useState('');
 
   const load = () => listDocumentTypes().then((t) => {
     setTypes(t);
@@ -48,11 +49,16 @@ function Routes() {
   if (error) return <div className="alert">{error}</div>;
   if (!types) return <div className="spinner" />;
   const type = types.find((t) => t.id === selected);
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = types.filter((t) => words.every((w) => `${t.code} ${t.name}`.toLowerCase().includes(w)));
 
   return (
     <div className="route-layout">
       <div className="card route-types">
-        {types.map((t) => (
+        <input className="search route-search" type="search" placeholder="Search document types…" value={q}
+          onChange={(e) => setQ(e.target.value)} aria-label="Search document types" />
+        {shown.length === 0 && <p className="small muted route-none">No document type matches.</p>}
+        {shown.map((t) => (
           <button key={t.id} type="button" className={t.id === selected ? 'active' : ''} onClick={() => setSelected(t.id)}>
             <span className="code">{t.code}</span>
             <span className="t">{t.name}
