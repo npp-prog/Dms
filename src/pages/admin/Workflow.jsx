@@ -3,11 +3,15 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { routeFromGuide } from '../../lib/workflow.js';
+import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
 import WorkflowTracking from '../../components/WorkflowTracking.jsx';
 
 const PREPARER = ''; // the office that prepared the document
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const clean = (route) => route.map((s) => ({ office: s.office || '', action: s.action || '', sign: Boolean(s.sign) }));
+const clean = (route) => route.map((s) => ({
+  office: s.office || '', action: s.action || '', sign: Boolean(s.sign),
+  ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
+}));
 
 // Administration > Workflow: the route of every document type (which offices receive it, in
 // what order, what each does, which must sign), and the tracking of documents on their routes.
@@ -77,6 +81,14 @@ function RouteEditor({ type, offices, actor, onSaved }) {
   const dirty = !same(clean(route), saved) || !custom;
 
   // Offices in Settings, plus any office a step names that is not (or no longer) in the list.
+  // The type's fields that can take a reference no. and its date; a sensible first choice.
+  const textFields = (type.fields || []).filter((f) => f.type === 'text');
+  const dateFields = (type.fields || []).filter((f) => f.type === 'date');
+  const suggestAssign = () => {
+    const field = textFields.find((f) => f.filledBy === 'accounting' && /no\.?$/i.test(f.label)) || textFields.find((f) => /no\.?/i.test(f.label)) || textFields[0];
+    const date = dateFields.find((f) => f.filledBy === 'accounting') || null;
+    return { field: field?.key || '', dateField: date?.key || '', pattern: DEFAULT_REF_PATTERN };
+  };
   const choices = [...new Set([...offices, ...route.map((s) => s.office).filter(Boolean)])];
   const set = (i, patch) => setRoute(route.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i, d) => {
@@ -144,6 +156,36 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 <input type="checkbox" checked={s.sign} onChange={(e) => set(i, { sign: e.target.checked })} />
                 Must sign the PDF before releasing (DICT PNPKI)
               </label>
+              <label className="check">
+                <input type="checkbox" checked={Boolean(s.assign)} disabled={!textFields.length}
+                  onChange={(e) => set(i, { assign: e.target.checked ? suggestAssign() : undefined })} />
+                Assigns a reference no. when it receives the document (e.g. the DV No.)
+              </label>
+              {s.assign && (
+                <div className="assign-fields">
+                  <label className="field">
+                    <span className="field-label">Reference no. field</span>
+                    <select value={s.assign.field} onChange={(e) => set(i, { assign: { ...s.assign, field: e.target.value } })}>
+                      {textFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Date field (today's date)</span>
+                    <select value={s.assign.dateField || ''} onChange={(e) => set(i, { assign: { ...s.assign, dateField: e.target.value } })}>
+                      <option value="">— None —</option>
+                      {dateFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="field assign-pattern">
+                    <span className="field-label">Number pattern</span>
+                    <input value={s.assign.pattern} onChange={(e) => set(i, { assign: { ...s.assign, pattern: e.target.value } })}
+                      placeholder={DEFAULT_REF_PATTERN} />
+                    <span className="small muted">Next number looks like <b>{refNumber(s.assign.pattern || DEFAULT_REF_PATTERN, { fund: 'General Fund' }).format(1)}</b>.
+                      {' '}{'{YYYY}'} year, {'{YY}'}, {'{MM}'} month, {'{DD}'}, {'{FUND}'} fund (GF, SEF, TF…), {'{####}'} the series. The series starts
+                      again whenever the rest changes (e.g. each month).</span>
+                  </label>
+                </div>
+              )}
             </div>
             <div className="route-tools">
               <button type="button" className="btn-icon" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>

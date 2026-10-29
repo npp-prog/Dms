@@ -5,7 +5,7 @@ import {
 import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
-import { counterFor, formatControlNo } from './naming.js';
+import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
 import { applyAction, buildWorkflow, cancelWorkflow, placement } from './workflow.js';
 
@@ -92,7 +92,10 @@ export async function saveDocumentType(id, data, user) {
 // does not change the format's version, and starter-format updates keep it.
 export async function saveRoute(typeId, route, user) {
   await updateDoc(doc(db, 'documentTypes', typeId), {
-    route: route.map((s) => ({ office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign) })),
+    route: route.map((s) => ({
+      office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign),
+      ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
+    })),
     routeUpdatedAt: serverTimestamp(), routeUpdatedBy: user.displayName || user.email,
   });
 }
@@ -358,7 +361,35 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
     if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
     const patch = applyAction(d, action, user, remarks);
     const label = { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
-    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry(label, user, remarks)] });
+    const history = [...(d.history || []), historyEntry(label, user, remarks)];
+    // Received at a step that assigns a reference no. (e.g. Accounting, the DV No.): the next number
+    // of its series and today's date, unless the field already has one.
+    const step = d.workflow.steps[d.workflow.stage];
+    const assign = action === 'receive' ? step.assign : null;
+    if (assign?.field && !String(d.data?.[assign.field] || '').trim()) {
+      const field = (d.typeSnapshot?.fields || []).find((f) => f.key === assign.field);
+      const now = new Date();
+      const series = refNumber(assign.pattern || DEFAULT_REF_PATTERN, { fund: d.data?.fund, date: now });
+      const counterRef = doc(db, 'counters', `${d.typeCode}_${series.counterId}`.slice(0, 140));
+      const counter = await tx.get(counterRef);
+      const value = (counter.exists() ? counter.data().value : 0) + 1;
+      const number = series.format(value);
+      const iso = now.toISOString();
+      const data = { ...(d.data || {}), [assign.field]: number, ...(assign.dateField ? { [assign.dateField]: iso.slice(0, 10) } : {}) };
+      const who = { stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, at: iso };
+      // Every data field set here is listed in refNos (the security rules allow only those).
+      const refNos = {
+        ...(d.refNos || {}),
+        [assign.field]: { value: number, label: field?.label || assign.field, ...who },
+        ...(assign.dateField ? { [assign.dateField]: { value: iso.slice(0, 10), label: 'Date', of: assign.field, ...who } } : {}),
+      };
+      tx.set(counterRef, { value });
+      patch.data = data;
+      patch.refNos = refNos;
+      patch.workflow = { ...patch.workflow, events: [...patch.workflow.events, { type: 'assigned', stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, uid: user.uid, at: iso, remarks: `${field?.label || assign.field} ${number}` }] };
+      history.push(historyEntry('assigned', user, `${field?.label || assign.field} ${number}`));
+    }
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
   });
 }
 
@@ -375,8 +406,13 @@ const sha256 = async (bytes) => toHex(await crypto.subtle.digest('SHA-256', byte
 const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]`
   : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
     : JSON.stringify(v ?? null));
+// Left out: empty fields, and reference numbers assigned along the workflow (they are recorded in
+// refNos and shown on the assigning office's signature), so assigning one is not a change.
+export const BASIS_VERSION = 3;
 export async function documentBasis(d) {
-  const text = stable([d.data || {}, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
+  const data = Object.fromEntries(Object.entries(d.data || {})
+    .filter(([k, v]) => !(d.refNos || {})[k] && v !== '' && v != null && !(Array.isArray(v) && !v.length)));
+  const text = stable([data, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
   return (await sha256(new TextEncoder().encode(text))).slice(0, 16);
 }
 
@@ -536,8 +572,8 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     });
     const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
     tx.update(docRef, {
-      // basisV 2: the basis is computed with sorted keys (older ones were not, and are not compared).
-      pdf: { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? 2 : d.pdf?.basisV ?? null, files: [...files, file] },
+      // basisV: how the basis was computed (bases computed another way are not compared).
+      pdf: { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? BASIS_VERSION : d.pdf?.basisV ?? null, files: [...files, file] },
       updatedAt: serverTimestamp(),
       history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : 'converted to PDF', user, note)],
     });

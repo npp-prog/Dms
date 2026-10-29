@@ -10,7 +10,7 @@ import {
 import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
-import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, uniqueNamer } from './naming.js';
+import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
 import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
@@ -305,4 +305,16 @@ test('superadmin email', () => {
   // firestore.rules must name the same email
   const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   assert.match(rules, /\['npp@mgocandoniaccounting\.org'\]/);
+});
+
+test('reference numbers from a pattern', () => {
+  const oct = new Date(2026, 9, 29);
+  const dv = refNumber('{FUND}-{YYYY}-{MM}-{####}', { fund: 'General Fund', date: oct });
+  assert.equal(dv.format(45), 'GF-2026-10-0045');
+  assert.equal(dv.counterId, 'REF_GF_2026_10_N');
+  // another month or fund: another series
+  assert.notEqual(refNumber('{FUND}-{YYYY}-{MM}-{####}', { fund: 'General Fund', date: new Date(2026, 10, 2) }).counterId, dv.counterId);
+  assert.notEqual(refNumber('{FUND}-{YYYY}-{MM}-{####}', { fund: 'Special Education Fund', date: oct }).counterId, dv.counterId);
+  assert.equal(refNumber('101-{YY}-{MM}-{###}', { date: oct }).format(7), '101-26-10-007');
+  assert.equal(refNumber('TO-{YYYY}', { date: oct }).format(3), 'TO-2026-0003'); // no series token: one is added
 });

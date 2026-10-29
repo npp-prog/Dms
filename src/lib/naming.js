@@ -60,3 +60,29 @@ export function uniqueNamer() {
     return n === 1 ? `${name}.${ext}` : `${name} (${n}).${ext}`;
   };
 }
+
+// Reference numbers an office assigns when it receives a document (Administration > Workflow),
+// from a pattern: {YYYY} {YY} {MM} {DD} {FUND} and the series {####} (as many digits as #).
+// E.g. {FUND}-{YYYY}-{MM}-{####} -> GF-2026-10-0045. The series restarts whenever the rest
+// changes (a new month, another fund), so each distinct prefix has its own counter.
+export const DEFAULT_REF_PATTERN = '{FUND}-{YYYY}-{MM}-{####}';
+
+export function refNumber(pattern, { fund = '', date = new Date() } = {}) {
+  const p2 = (n) => String(n).padStart(2, '0');
+  const fill = (text) => text
+    .replace(/\{YYYY\}/g, String(date.getFullYear()))
+    .replace(/\{YY\}/g, String(date.getFullYear()).slice(-2))
+    .replace(/\{MM\}/g, p2(date.getMonth() + 1))
+    .replace(/\{DD\}/g, p2(date.getDate()))
+    .replace(/\{FUND\}/g, fundCode(fund));
+  const pat = String(pattern || DEFAULT_REF_PATTERN);
+  const seq = pat.match(/\{(#+)\}/);
+  const width = seq ? seq[1].length : 4;
+  const withSeq = seq ? pat : `${pat}-{####}`;
+  const prefix = fill(withSeq.replace(/\{#+\}/, '#'));
+  return {
+    prefix, // e.g. GF-2026-10-#  (one counter per prefix)
+    counterId: `REF_${prefix.replace(/[^A-Za-z0-9#]+/g, '_').replace('#', 'N')}`.slice(0, 120),
+    format: (n) => prefix.replace('#', String(n).padStart(width, '0')),
+  };
+}

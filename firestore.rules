@@ -108,6 +108,11 @@ service cloud.firestore {
         return myOffice() != '' && holder() == myOffice()
           && resource.data.get('atPreparer', true) == false;
       }
+      // The fields the current route step assigns on receiving (e.g. dvNo and dvDate), if any.
+      function assignedKeys() {
+        let assign = resource.data.workflow.steps[resource.data.workflow.stage].get('assign', {});
+        return [assign.get('field', '-'), assign.get('dateField', '-')];
+      }
       function headSees() {
         return isHead() && (resource.data.get('office', '') == myOffice() || holder() == myOffice()
           || myOffice() in resource.data.get('routeOffices', []));
@@ -131,10 +136,13 @@ service cloud.firestore {
                     || (resource.data.workflow.state == 'in-progress'
                         && (holder() == '' || holder() == myOffice()))))
             // The office holding a routed document receives, releases or returns it, and signs its PDF.
-            // (Its office head too, also at the preparer's step.)
+            // (Its office head too, also at the preparer's step.) On receiving, it may assign a
+            // reference no.: only the field (and date) its own route step assigns change.
             || ((heldByMyOffice() || (isHead() && holder() == myOffice()))
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history'])));
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos'])
+                && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())
+                && request.resource.data.get('refNos', {}).diff(resource.data.get('refNos', {})).affectedKeys().hasOnly(assignedKeys())));
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
             && resource.data.status == 'draft');

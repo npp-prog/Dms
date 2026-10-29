@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, uploadAttachment, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
@@ -228,6 +228,9 @@ export default function DocumentView() {
             <h3>Details</h3>
             <dl className="details">
               <dt>Control No.</dt><dd>{docData.controlNo}</dd>
+              {Object.entries(docData.refNos || {}).filter(([, r]) => !r.of).map(([k, r]) => (
+                <Fragment key={k}><dt>{r.label}</dt><dd><b>{r.value}</b><div className="small muted">Assigned by {r.by}{r.office ? `, ${r.office}` : ''}</div></dd></Fragment>
+              ))}
               <dt>Format version</dt><dd>v{docData.typeVersion || 1}</dd>
               {docData.transaction && (<><dt>Transaction</dt><dd>{docData.transaction.code} — {docData.transaction.title}</dd></>)}
             </dl>

@@ -861,3 +861,7 @@ a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 .item-actions label.link { cursor: pointer; }
 .file-head { margin-bottom: .6rem; }
 .file-image { display: block; max-width: 100%; height: auto; margin: 0 auto; background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.18); }
+.wf-assigned { color: var(--primary); }
+.assign-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem .8rem; padding: .6rem; border-radius: var(--radius-sm); background: var(--sunken); }
+.assign-pattern { grid-column: 1 / -1; }
+.assign-pattern .small { display: block; margin-top: .25rem; }

@@ -27,7 +27,7 @@ export default function Documents() {
     return (!filters.status || d.status === filters.status)
       && (!filters.type || d.typeCode === filters.type)
       && (!filters.office || (filters.office === '__none' ? !d.office : d.office === filters.office))
-      && (!q || `${d.controlNo} ${d.title} ${d.createdByName}`.toLowerCase().includes(q));
+      && (!q || `${d.controlNo} ${d.title} ${d.createdByName} ${Object.values(d.refNos || {}).map((r) => r.value).join(' ')}`.toLowerCase().includes(q));
   }), [docs, filters]);
 
   return (
@@ -46,7 +46,7 @@ export default function Documents() {
         <Link to="/new" className="btn btn-primary">+ Prepare document</Link>
       </div>
       <div className="filters">
-        <input className="search" placeholder="Search control no., payee, subject…" value={filters.q}
+        <input className="search" placeholder="Search control no., DV/OBR no., payee…" value={filters.q}
           onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
           <option value="">All types</option>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ACTION_LABELS, availableActions, officeOf, signatureMissing } from '../lib/workflow.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const EVENT_TEXT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled' };
+const EVENT_TEXT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned' };
 
 // The route of a document: each office on it, where the document is now, who received and
 // released it and when, and the actions open to the office holding it.
@@ -28,6 +28,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
   }
 
   const nameOf = (step) => officeOf(step, doc) || 'Requesting office';
+  const fieldLabel = (key) => (doc.typeSnapshot?.fields || []).find((f) => f.key === key)?.label || key;
   const actions = canAct ? availableActions(doc) : [];
   const next = wf.steps[wf.stage + 1];
   const prev = wf.steps[wf.stage - 1];
@@ -51,11 +52,14 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               <span className="wf-dot">{state === 'done' ? '✓' : i + 1}</span>
               <div>
                 <div className="wf-office">{nameOf(step)}{step.routedTo === '' && doc.office ? '' : ''}</div>
-                <div className="small"><b>{step.action}</b>{step.sign && <span className="muted"> · signs the PDF</span>}</div>
+                <div className="small"><b>{step.action}</b>{step.sign && <span className="muted"> · signs the PDF</span>}
+                  {step.assign && <span className="muted"> · assigns the {fieldLabel(step.assign.field)} on receiving</span>}</div>
                 {state === 'current' && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
                 {events.map((e, j) => (
                   <div key={j} className={`small ${e.type === 'returned' ? 'wf-returned' : 'muted'}`}>
-                    {EVENT_TEXT[e.type]} by {e.by} · {when(e.at)}{e.remarks && <> — <i>{e.remarks}</i></>}
+                    {e.type === 'assigned'
+                      ? <><b className="wf-assigned">{e.remarks}</b> assigned by {e.by} · {when(e.at)}</>
+                      : <>{EVENT_TEXT[e.type]} by {e.by} · {when(e.at)}{e.remarks && <> — <i>{e.remarks}</i></>}</>}
                   </div>
                 ))}
               </div>

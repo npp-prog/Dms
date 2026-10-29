@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
+  BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
 } from '../lib/api.js';
 import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf, stampDate } from '../lib/signing.js';
 import { markPixels } from '../lib/markImage.js';
@@ -61,8 +61,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
         .then((b) => { if (live) { const s = readSignatures(b); setBytes(b); setSignatures(s); onLoaded?.({ bytes: b, signatures: s }); } })
         .catch((e) => live && setError(`Could not open the PDF: ${e.message}`));
     }
-    // Only bases computed the current way (basisV 2) are compared; older ones could differ by key order alone.
-    documentBasis(docData).then((b) => live && setStale(docData.pdf?.basisV === 2 && Boolean(docData.pdf?.basis) && b !== docData.pdf.basis));
+    // Only bases computed the current way are compared; older ones could differ in how, not what.
+    documentBasis(docData).then((b) => live && setStale(docData.pdf?.basisV === BASIS_VERSION && Boolean(docData.pdf?.basis) && b !== docData.pdf.basis));
     return () => { live = false; };
   }, [current?.path, docData]);
   useEffect(() => setWhy(reason || ''), [reason]);
@@ -74,6 +74,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   }, [mode, mark, actor.uid]);
   const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
   const placingMark = mode === 'sign' && Boolean(mark) && useMark;
+  // Reference nos. this office assigned at its step (e.g. the DV No.): shown on its signature.
+  const wf = docData.workflow;
+  const myRefs = Object.values(docData.refNos || {})
+    .filter((r) => !r.of && wf?.state === 'in-progress' && r.stage === wf.stage).map((r) => `${r.label} ${r.value}`);
   // A password remembered on this device (My Profile): sign without typing it.
   const [remembered, setRemembered] = useState(null);
   const [typeIt, setTypeIt] = useState(false);
@@ -86,8 +90,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (!placingMark) { onPlacing?.(null); return; }
     const [w, h] = MARK_SIZES[size];
     const name = saved ? saved.name : 'Your name';
-    onPlacing?.({ w, h, preview: markUrl, label: `Digitally signed by\n${name}\n${stampDate().slice(0, 16)}` });
-  }, [placingMark, size, markUrl, saved]);
+    onPlacing?.({ w, h, preview: markUrl, label: ['Digitally signed by', name, ...myRefs, stampDate()].join('\n') });
+  }, [placingMark, size, markUrl, saved, myRefs.join()]);
 
   const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
   const run = async (label, fn) => {
@@ -127,7 +131,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
     // The signature appears where the mark was placed; clicking it shows its certificate.
     const visible = placingMark
-      ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, stampDate()] }
+      ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, ...myRefs, stampDate()] }
       : null;
     const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible });
     const check = checkSignedVersion(bytes, out);

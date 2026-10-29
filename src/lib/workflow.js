@@ -59,7 +59,11 @@ export function routeFromGuide(type, offices = []) {
 // The steps a new document of this type follows: the admin's route, else the processing guide.
 export function routeSteps(type, offices = []) {
   const route = type?.route?.length ? type.route : routeFromGuide(type, offices);
-  return route.map((s) => ({ office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign) }));
+  return route.map((s) => ({
+    office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign),
+    // The reference no. this office assigns when it receives the document (e.g. the DV No.).
+    ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
+  }));
 }
 
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
