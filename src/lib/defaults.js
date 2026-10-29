@@ -32,7 +32,7 @@ const DV = {
   active: true,
   checklistSource: 'disbursement',
   // Raised when DMS revises this starter format; sites that have not edited it are updated (lib/api.js).
-  starterVersion: 6,
+  starterVersion: 7,
   // Download all: the DV, its checklist and every linked document in one ZIP.
   bulkDownload: true,
   steps: [
@@ -69,14 +69,18 @@ const DV = {
       ],
     },
     { key: 'amountDue', label: 'Amount Due', type: 'currency', compute: 'sum:particulars.amount+sum:adjustments.amount', filledBy: 'accounting' },
+    // Filled in by the Treasurer's Office at the payment step (Payment Details).
+    { key: 'checkNo', label: 'Check/ADA No.', type: 'text', filledBy: 'treasury' },
+    { key: 'checkDate', label: 'Check/ADA Date', type: 'date', filledBy: 'treasury' },
+    { key: 'bankName', label: 'Bank Name', type: 'text', filledBy: 'treasury' },
   ],
   checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved OBR/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
-    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and date and enters any deductions in DMS (Documents > the DV > Accounting), then prepares the Journal Entry Voucher.' },
+    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', assign: { field: 'dvNo', dateField: 'dvDate', pattern: '{FUND}-{YYYY}-{MM}-{####}' }, details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and date and enters any deductions in DMS (Documents > the DV > Accounting), then prepares the Journal Entry Voucher.' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: funds available', details: 'The Treasurer certifies that funds are available and prepares the check or ADA.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
-    { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
+    { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', fills: ['checkNo', 'checkDate', 'bankName'], upload: 'DV signed by the payee in Box E (scanned)', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
     { id: 'p6', office: 'Municipal Accounting Office', action: 'Recording and filing', details: 'Accounting records the disbursement and keeps the original DV with its attachments for COA.' },
   ],
   // Laid out like the Disbursement Voucher of the Municipal Government of Candoni (2026 DV):
@@ -107,9 +111,9 @@ const DV = {
   <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{certA|upper}}</td><td>Printed<br>Name</td><td colspan="2" class="dv-name">{{sig.accountant|upper}}</td><td>Printed<br>Name</td><td class="dv-name">{{sig.treasurer|upper}}</td></tr>
   <tr class="dv-sg"><td>Position</td><td class="dv-pos dv-pos-a">{{certAPos|upper}}</td><td>Position</td><td colspan="2" class="dv-pos">{{sig.accountantPosition|upper}}</td><td>Position</td><td class="dv-pos">{{sig.treasurerPosition|upper}}</td></tr>
   <tr class="dv-d"><td colspan="3"><span class="dv-lt">D.</span> Approved for Payment</td><td colspan="4"><span class="dv-pd">Payment Details</span></td><td colspan="3"><span class="dv-lt">E.</span> Received Payment</td></tr>
-  <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Check No.</td><td colspan="2"></td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
-  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{#if approver=Municipal Mayor}}{{sig.mayor|upper}}{{/if}}{{#if approver=Municipal Vice Mayor}}{{sig.viceMayor|upper}}{{/if}}</td><td>Date</td><td colspan="2"></td><td>Printed<br>Name</td><td class="dv-name">{{payee|upper}}</td></tr>
-  <tr class="dv-sg"><td>Position</td><td class="dv-pos">{{#if approver}}{{approver|upper}}{{/if}}{{#if !approver}}MUNICIPAL MAYOR/ VICE MAYOR{{/if}}</td><td>Bank<br>Name</td><td colspan="2"></td><td>Position</td><td class="dv-pos"></td></tr>
+  <tr class="dv-sg"><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td><td>Check No.</td><td colspan="2" class="dv-pay">{{checkNo|upper}}</td><td rowspan="3" class="dv-gap"></td><td>Signature</td><td></td><td rowspan="3" class="dv-gap"></td></tr>
+  <tr class="dv-sg"><td>Printed<br>Name</td><td class="dv-name">{{#if approver=Municipal Mayor}}{{sig.mayor|upper}}{{/if}}{{#if approver=Municipal Vice Mayor}}{{sig.viceMayor|upper}}{{/if}}</td><td>Date</td><td colspan="2" class="dv-pay">{{checkDate|date}}</td><td>Printed<br>Name</td><td class="dv-name">{{payee|upper}}</td></tr>
+  <tr class="dv-sg"><td>Position</td><td class="dv-pos">{{#if approver}}{{approver|upper}}{{/if}}{{#if !approver}}MUNICIPAL MAYOR/ VICE MAYOR{{/if}}</td><td>Bank<br>Name</td><td colspan="2" class="dv-pay">{{bankName|upper}}</td><td>Position</td><td class="dv-pos"></td></tr>
   </table></div>`,
 };
 

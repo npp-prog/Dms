@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { listInbox } from '../lib/api.js';
+import { listForwarded, listInbox } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
 
 const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
@@ -11,6 +11,9 @@ export default function Inbox() {
   const { user, profile, isAdmin, isHead, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
+  // Documents someone forwarded to this user.
+  const [forwarded, setForwarded] = useState(null);
+  useEffect(() => { listForwarded(user.uid).then(setForwarded).catch(() => setForwarded([])); }, [user.uid]);
   const [office, setOffice] = useState(profile.office || '');
 
   useEffect(() => {
@@ -68,6 +71,32 @@ export default function Inbox() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {forwarded && forwarded.length > 0 && (
+        <>
+          <h2 className="inbox-sub">Forwarded to you</h2>
+          <div className="card table-card">
+            <table className="data-table">
+              <thead><tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th><th>From</th><th>Note</th><th>When</th></tr></thead>
+              <tbody>
+                {forwarded.map((d) => {
+                  const f = [...(d.forwards || [])].reverse().find((x) => x.to === user.uid) || {};
+                  return (
+                    <tr key={d.id}>
+                      <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
+                      <td>{d.typeCode}</td>
+                      <td>{d.title}</td>
+                      <td className="small">{f.by}</td>
+                      <td className="small">{f.note || '—'}</td>
+                      <td className="small">{f.at ? new Date(f.at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : ''}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

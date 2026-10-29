@@ -46,6 +46,22 @@ export async function listUsers() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+// ---------- Directory (names and offices, to forward a document to someone) ----------
+// directory/{uid}: { displayName, office }. Each active user keeps their own entry up to date
+// when they sign in; every active user can read it (no emails or roles).
+export async function syncDirectoryEntry(uid, profile) {
+  if (!profile?.active) return;
+  const entry = { displayName: profile.displayName || '', office: profile.office || '' };
+  const ref = doc(db, 'directory', uid);
+  const cur = await getDoc(ref).catch(() => null);
+  if (!cur?.exists() || cur.data().displayName !== entry.displayName || cur.data().office !== entry.office) await setDoc(ref, entry);
+}
+
+export async function listDirectory() {
+  const snap = await getDocs(collection(db, 'directory'));
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() })).sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 export function updateUser(uid, patch) {
   return updateDoc(doc(db, 'users', uid), patch);
 }
@@ -95,6 +111,8 @@ export async function saveRoute(typeId, route, user) {
     route: route.map((s) => ({
       office: s.office || '', action: String(s.action || '').trim(), sign: Boolean(s.sign),
       ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
+      ...(s.fills?.length ? { fills: [...s.fills] } : {}),
+      ...(String(s.upload || '').trim() ? { upload: String(s.upload).trim() } : {}),
     })),
     routeUpdatedAt: serverTimestamp(), routeUpdatedBy: user.displayName || user.email,
   });
@@ -579,6 +597,65 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     });
   });
   return file;
+}
+
+// The details the current step's office fills in (e.g. Check/ADA No., date, bank), recorded like
+// assigned numbers (refNos: who, when, which office) so they are not a change to the signed PDF.
+export async function fillStepFields(id, values, user, stage) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    if (d.workflow?.stage !== stage) throw new Error('Someone else acted on this document first. Reload the page.');
+    const step = d.workflow.steps[stage];
+    const keys = (step.fills || []).filter((k) => k in values);
+    const fields = d.typeSnapshot?.fields || [];
+    const at = new Date().toISOString();
+    const who = { stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, at };
+    const clean = Object.fromEntries(keys.map((k) => [k, String(values[k] ?? '').trim()]));
+    const label = (k) => fields.find((f) => f.key === k)?.label || k;
+    tx.update(ref, {
+      data: { ...(d.data || {}), ...clean },
+      refNos: { ...(d.refNos || {}), ...Object.fromEntries(keys.map((k) => [k, { value: clean[k], label: label(k), filled: true, ...who }])) },
+      updatedAt: serverTimestamp(),
+      history: [...(d.history || []), historyEntry('filled in', user, keys.map((k) => `${label(k)}: ${clean[k]}`).join('; '))],
+    });
+  });
+}
+
+// A file the current step uploads (e.g. the DV signed by the payee in Box E, scanned).
+export async function addStepFile(id, stage, link, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    if (d.workflow?.stage !== stage) throw new Error('Someone else acted on this document first. Reload the page.');
+    const label = d.workflow.steps[stage].upload || 'File';
+    tx.update(ref, {
+      stepFiles: [...(d.stepFiles || []), { ...link, stage, label }],
+      updatedAt: serverTimestamp(),
+      history: [...(d.history || []), historyEntry('uploaded', user, `${label}: ${link.name}`)],
+    });
+  });
+}
+
+// Forwards a document to a DMS user (e.g. the payment details to the payee's office): they can
+// open it and its PDF, and find it in their Inbox under "Forwarded to you".
+export async function forwardDocument(id, to, note, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const at = new Date().toISOString();
+    tx.update(ref, {
+      sharedWith: [...new Set([...(d.sharedWith || []), to.uid])],
+      forwards: [...(d.forwards || []), { to: to.uid, toName: to.displayName, toOffice: to.office || '', note: String(note || '').trim(), by: user.displayName || user.email, uid: user.uid, at }],
+      updatedAt: serverTimestamp(),
+      history: [...(d.history || []), historyEntry('forwarded', user, `to ${to.displayName}${note ? ` — ${String(note).trim()}` : ''}`)],
+    });
+  });
+}
+
+export async function listForwarded(uid, max = 100) {
+  const snap = await getDocs(query(collection(db, 'documents'), where('sharedWith', 'array-contains', uid), limit(max)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
 }
 
 // Documents waiting in an office (all routed documents for admins: office '').

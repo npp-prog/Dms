@@ -75,6 +75,14 @@ export default function BulkDownload({ docData, type, settings }) {
         }
       });
 
+      // Files uploaded at workflow steps (e.g. the DV signed by the payee in Box E).
+      for (const f of docData.stepFiles || []) {
+        const ext = (f.name.match(/\.([a-z0-9]{1,5})$/i)?.[1] || (f.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
+        jobs.push({ label: f.name, run: async () => ({
+          file: name(fileBase({ ...base, number: ownItemNo(type, docData), type: cleanPart(f.label, 24), ref: controlRef(docData.controlNo) }), ext),
+          blob: new Blob([await getFileBytes(f.path)], { type: f.type }),
+        }) });
+      }
       const files = [];
       for (const [n, job] of jobs.entries()) {
         setStatus(`Preparing ${n + 1} of ${jobs.length}: ${job.label}`);

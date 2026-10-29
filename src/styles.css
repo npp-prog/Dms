@@ -865,3 +865,13 @@ a.me:hover { border-color: var(--gold-soft-2); background: var(--gold-soft); }
 .assign-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .5rem .8rem; padding: .6rem; border-radius: var(--radius-sm); background: var(--sunken); }
 .assign-pattern { grid-column: 1 / -1; }
 .assign-pattern .small { display: block; margin-top: .25rem; }
+.doc-render .dv .dv-pay { text-align: center; font-weight: 700; }
+.fill-fields .check { white-space: normal; }
+.step-tasks { display: grid; gap: .7rem; padding: .7rem; margin-bottom: .7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--sunken); }
+.step-tasks .fields { display: grid; gap: .5rem; }
+.step-upload { display: grid; gap: .35rem; justify-items: start; }
+.step-upload label.btn { cursor: pointer; }
+.send-panel { display: grid; gap: .5rem; padding-top: .6rem; border-top: 1px solid var(--line); }
+.send-panel .fields { display: grid; gap: .5rem; }
+.forward-list { margin: 0; padding-left: 1.1rem; }
+.inbox-sub { margin: 1.6rem 0 .6rem; font-size: 1.1rem; }

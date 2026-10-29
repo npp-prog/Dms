@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, uploadAttachment, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
+import { deleteDocument, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, setDocumentStatus, startWorkflow, workflowAction } from '../lib/api.js';
 import { canAct, editableByPreparer, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -13,6 +13,8 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
+import SendPanel from '../components/SendPanel.jsx';
+import { pdfFileName } from '../components/printables.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
 import { readSignatures } from '../lib/signing.js';
 
@@ -192,7 +194,18 @@ export default function DocumentView() {
               onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
               onAction={(action, remarks, done) => run(async () => {
                 try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
-              })} />
+              })}
+              onFill={(values) => run(() => fillStepFields(docId, values, actor, wf.stage))}
+              onUpload={(file) => file && run(async () => {
+                const link = await uploadAttachment(docId, `step-${wf.stage}`, file, actor);
+                await addStepFile(docId, wf.stage, link, actor);
+              })}
+              onOpenFile={openFile}
+              sendPanel={wf?.steps?.[wf.stage]?.fills && (
+                <SendPanel doc={docData} me={user.uid} busy={busy}
+                  onDownload={pdfView ? () => downloadBytes(pdfView.bytes, pdfFileName(type, docData), 'application/pdf') : null}
+                  onForward={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor); done(); })} />
+              )} />
           )}
           {type && docData.status !== 'draft' && (
             <PdfCard docData={docData} type={type} settings={settings} actor={actor}

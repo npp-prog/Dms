@@ -31,7 +31,7 @@ service firebase.storage {
     // Same as firestore.rules: the preparer, the office the document is waiting in, the office
     // head (every document of the office and every one routed through it), admins.
     function canRead(d) {
-      return isAdmin() || d.createdBy == request.auth.uid || heldByMyOffice(d)
+      return isAdmin() || d.createdBy == request.auth.uid || heldByMyOffice(d) || request.auth.uid in d.get('sharedWith', [])
         || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
             || myOffice() in d.get('routeOffices', [])));
     }

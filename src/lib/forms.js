@@ -77,12 +77,15 @@ export function initialData(type) {
 // Fields the Accounting Office fills in on the saved document (e.g. the DV No. and date),
 // not shown to the end user in the wizard.
 export const byAccounting = (f) => f.filledBy === 'accounting';
+// Fields an office fills in along the workflow (Accounting's DV No., Treasury's check details):
+// not part of the preparer's wizard.
+export const byOffice = (f) => Boolean(f.filledBy);
 
 export function buildSteps(type) {
   const steps = (type?.steps || []).map((s) => ({ ...s, fields: [] }));
   const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
   const loose = [];
-  for (const f of (type?.fields || []).filter((x) => !byAccounting(x))) (byId[f.step] ? byId[f.step].fields : loose).push(f);
+  for (const f of (type?.fields || []).filter((x) => !byOffice(x))) (byId[f.step] ? byId[f.step].fields : loose).push(f);
   if (loose.length) {
     steps.push({ id: '__other', title: steps.length ? 'Other Details' : 'Details', instructions: '', fields: loose });
   }

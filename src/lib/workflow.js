@@ -53,7 +53,10 @@ export const officeOf = (step, doc) => step?.routedTo || doc?.office || '';
 
 // The route suggested by a type's processing guide, as the admin route editor starts it.
 export function routeFromGuide(type, offices = []) {
-  return (type?.processing || []).map((p) => ({ office: resolveOffice(p.office, offices), action: p.action || '', sign: false }));
+  return (type?.processing || []).map((p) => ({
+    office: resolveOffice(p.office, offices), action: p.action || '', sign: false,
+    ...(p.assign ? { assign: p.assign } : {}), ...(p.fills?.length ? { fills: p.fills } : {}), ...(p.upload ? { upload: p.upload } : {}),
+  }));
 }
 
 // The steps a new document of this type follows: the admin's route, else the processing guide.
@@ -63,6 +66,10 @@ export function routeSteps(type, offices = []) {
     office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign),
     // The reference no. this office assigns when it receives the document (e.g. the DV No.).
     ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
+    // Fields this office fills in (e.g. Check/ADA No., date, bank) and a file it must upload
+    // (e.g. the DV signed by the payee in Box E), both before it releases the document.
+    ...(s.fills?.length ? { fills: [...s.fills] } : {}),
+    ...(s.upload ? { upload: String(s.upload) } : {}),
   }));
 }
 
@@ -121,6 +128,21 @@ export function signatureMissing(doc) {
   return !current.some((f) => f.kind === 'signed' && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 
+// Fields the current step's office must fill in that are still empty.
+export function fillsMissing(doc) {
+  const wf = doc?.workflow;
+  if (!wf || wf.state !== 'in-progress') return [];
+  return (wf.steps[wf.stage].fills || []).filter((k) => !String(doc.data?.[k] ?? '').trim());
+}
+
+// The current step must upload a file (e.g. the DV signed in Box E) and none is there yet. Like a
+// signature, one uploaded at this step still counts when the document comes back to it.
+export function uploadMissing(doc) {
+  const wf = doc?.workflow;
+  if (!wf || wf.state !== 'in-progress' || !wf.steps[wf.stage].upload) return false;
+  return !(doc.stepFiles || []).some((f) => f.stage === wf.stage);
+}
+
 // Applies an action; returns the fields to write ({ workflow, currentOffice, routeOffices }).
 export function applyAction(doc, action, user, remarks = '', at = new Date().toISOString()) {
   const wf = doc.workflow;
@@ -128,6 +150,12 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   // The PDF is what travels: the preparer's office converts the document before it leaves.
   if (action === 'release' && wf.stage === 0 && !(doc.pdf?.files || []).length) {
     throw new Error('Convert the document to PDF (PDF and digital signatures) before releasing it.');
+  }
+  if ((action === 'release' || action === 'complete') && fillsMissing(doc).length) {
+    throw new Error('Fill in this step\'s details (in the Workflow card) before releasing it.');
+  }
+  if ((action === 'release' || action === 'complete') && uploadMissing(doc)) {
+    throw new Error(`Upload ${wf.steps[wf.stage].upload} before releasing it.`);
   }
   if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');

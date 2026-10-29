@@ -11,6 +11,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clean = (route) => route.map((s) => ({
   office: s.office || '', action: s.action || '', sign: Boolean(s.sign),
   ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
+  ...(s.fills?.length ? { fills: [...s.fills] } : {}),
+  ...(s.upload !== undefined ? { upload: s.upload } : {}),
 }));
 
 // Administration > Workflow: the route of every document type (which offices receive it, in
@@ -88,6 +90,12 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     const field = textFields.find((f) => f.filledBy === 'accounting' && /no\.?$/i.test(f.label)) || textFields.find((f) => /no\.?/i.test(f.label)) || textFields[0];
     const date = dateFields.find((f) => f.filledBy === 'accounting') || null;
     return { field: field?.key || '', dateField: date?.key || '', pattern: DEFAULT_REF_PATTERN };
+  };
+  // Fields an office can fill in at its step: those not typed by the preparer first.
+  const fillable = (type.fields || []).filter((f) => ['text', 'date', 'select', 'number', 'currency'].includes(f.type) && !f.compute);
+  const suggestFills = () => {
+    const office = fillable.filter((f) => f.filledBy && f.filledBy !== 'accounting').map((f) => f.key);
+    return office.length ? office : [];
   };
   const choices = [...new Set([...offices, ...route.map((s) => s.office).filter(Boolean)])];
   const set = (i, patch) => setRoute(route.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -185,6 +193,33 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                       again whenever the rest changes (e.g. each month).</span>
                   </label>
                 </div>
+              )}
+              <label className="check">
+                <input type="checkbox" checked={Boolean(s.fills)} disabled={!fillable.length}
+                  onChange={(e) => set(i, { fills: e.target.checked ? suggestFills() : undefined })} />
+                Fills in details before releasing (e.g. Check/ADA No., date and bank)
+              </label>
+              {s.fills && (
+                <div className="assign-fields fill-fields">
+                  {fillable.map((f) => (
+                    <label key={f.key} className="check">
+                      <input type="checkbox" checked={s.fills.includes(f.key)}
+                        onChange={(e) => set(i, { fills: e.target.checked ? [...s.fills, f.key] : s.fills.filter((k) => k !== f.key) })} />
+                      {f.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <label className="check">
+                <input type="checkbox" checked={s.upload !== undefined}
+                  onChange={(e) => set(i, { upload: e.target.checked ? 'DV signed by the payee in Box E (scanned)' : undefined })} />
+                Must upload a file before releasing (e.g. the DV signed by the payee in Box E)
+              </label>
+              {s.upload !== undefined && (
+                <label className="field assign-fields">
+                  <span className="field-label">What to upload</span>
+                  <input value={s.upload} onChange={(e) => set(i, { upload: e.target.value })} placeholder="e.g. DV signed by the payee in Box E (scanned)" />
+                </label>
               )}
             </div>
             <div className="route-tools">

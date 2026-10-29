@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, availableActions, buildWorkflow, canAct, fillsMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -71,7 +71,7 @@ test('starter types are consistent and render', () => {
     const keys = type.fields.map((f) => f.key);
     assert.equal(new Set(keys).size, keys.length, `${type.code} has duplicate keys`);
     const stepIds = new Set(type.steps.map((s) => s.id));
-    for (const f of type.fields) assert.ok(f.filledBy === 'accounting' || stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
+    for (const f of type.fields) assert.ok(Boolean(f.filledBy) || stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
     assert.equal(buildSteps(type).length, type.steps.length);
     const columns = type.fields.flatMap((f) => (f.columns || []).map((c) => c.key));
     const known = new Set([...keys, ...columns, 'controlNo', 'lgu', 'sig', 'today', 'preparedBy', 'docType']);
@@ -205,11 +205,19 @@ test('document workflow', () => {
   doc = { ...doc, ...applyAction(doc, 'return', acct, 'OBR not attached', 't2') };
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
   assert.equal(doc.workflow.events.at(-1).remarks, 'OBR not attached');
-  // to the end
+  // to the end; the payment step needs the check details and the DV signed in Box E
   while (doc.workflow.state === 'in-progress') {
     const a = availableActions(doc)[0];
+    if (a !== 'receive' && fillsMissing(doc).length) {
+      assert.deepEqual(fillsMissing(doc), ['checkNo', 'checkDate', 'bankName']);
+      assert.throws(() => applyAction(doc, a, { uid: 'x', displayName: 'X' }), /Fill in/);
+      doc.data = { ...doc.data, checkNo: '0012345', checkDate: '2026-10-29', bankName: 'LBP' };
+      assert.throws(() => applyAction(doc, a, { uid: 'x', displayName: 'X' }), /Upload DV signed by the payee in Box E/);
+      doc.stepFiles = [{ stage: doc.workflow.stage, name: 'box-e.pdf' }];
+    }
     doc = { ...doc, ...applyAction(doc, a, { uid: 'x', displayName: 'X' }) };
   }
+  assert.ok(doc.data?.checkNo, 'the payment step was reached');
   assert.equal(doc.workflow.state, 'done');
   assert.equal(doc.currentOffice, '');
   assert.equal(whereIs(doc), 'Processed');
