@@ -387,3 +387,25 @@ test('referring a document to a person outside the route', () => {
   assert.equal(signatureMissing(doc), true);
   assert.deepEqual(doc.workflow.events.slice(-3).map((e) => e.type), ['referred', 'referral received', 'referral back']);
 });
+
+test('returned for revision: a new PDF supersedes the signed one and every step signs again', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const type = { route: [{ office: '', action: 'Box A', sign: true }, { office: 'Municipal Accounting Office', action: 'Box B', sign: true }] };
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  const rosa = { uid: 'a1', displayName: 'Rosa', office: 'Municipal Accounting Office' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }, { kind: 'signed', stage: 0 }] } };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
+  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't2') };
+  doc.pdf.files.push({ kind: 'signed', stage: 1 });
+  doc = { ...doc, ...applyAction(doc, 'return', rosa, 'Wrong amount', 't3') };
+  assert.equal(doc.workflow.stage, 0);
+  assert.equal(signatureMissing(doc), false); // still signed: could go again unchanged
+  doc.pdf.files.push({ kind: 'generated' }); // the preparer edits it and makes a new PDF
+  assert.equal(signatureMissing(doc), true);
+  assert.throws(() => applyAction(doc, 'release', juan), /requires a signature/);
+  doc.pdf.files.push({ kind: 'signed', stage: 0 });
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't4') };
+  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't5') };
+  assert.equal(signatureMissing(doc), true, 'Accounting signs the new PDF again');
+});

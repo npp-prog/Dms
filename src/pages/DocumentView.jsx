@@ -159,11 +159,17 @@ export default function DocumentView() {
   // Once the document has left the preparer's office, only the offices on its route move it.
   const atPreparer = !wf || (wf.state === 'in-progress' && !wf.referral && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
   // A signed PDF is the record of what was signed: the document can no longer be edited.
-  const hasSignature = (docData.pdf?.files || []).some((f) => f.kind === 'signed');
+  // Signatures on the current PDF (a new PDF supersedes signed ones).
+  const pdfFiles = docData.pdf?.files || [];
+  const hasSignature = pdfFiles.slice(Math.max(0, ...pdfFiles.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)))).some((f) => f.kind === 'signed');
+  // Back with the preparer's office (returned for revision, or not yet released): the preparer
+  // may change the document and convert it again, even if it was signed. The new PDF supersedes
+  // the signed one, and every signature on the route is made again on it.
+  const revising = Boolean(wf) && editableByPreparer(docData);
   // An uploaded document's file is its PDF: nothing to encode, edit or convert.
   const uploaded = Boolean(docData.uploaded);
-  const canChange = !uploaded && editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canConvert = !uploaded && editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canConvert = !uploaded && editable && docData.status === 'complete' && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
   // (An office signs once it has received the document.)
   // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is

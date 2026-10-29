@@ -35,7 +35,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const id = useId();
   const files = docData.pdf?.files || [];
   const current = files.at(-1);
-  const signedFiles = files.filter((f) => f.kind === 'signed');
+  // Versions before the newest converted (or uploaded) PDF are superseded by it.
+  const lastNew = Math.max(0, ...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)));
+  const signedFiles = files.slice(lastNew).filter((f) => f.kind === 'signed');
   const [bytes, setBytes] = useState(null);
   const made = useRef({}); // path -> bytes of versions made in this page
   const [signatures, setSignatures] = useState(null);
@@ -112,14 +114,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     });
   }, [placingMark, placingText, tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize]);
 
-  const signed = (signatures || []).length > 0 || files.some((f) => f.kind === 'signed');
+  // Signed: the current PDF (not a superseded one).
+  const signed = (signatures || []).length > 0 || signedFiles.length > 0;
   const run = async (label, fn) => {
     setBusy(label); setError(''); setNotice('');
     try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(''); }
   };
 
   const uploading = (p) => setBusy(`Saving… ${Math.round(p * 100)}%`);
-  const convert = () => run('Checking file storage…', async () => {
+  // A new PDF of a signed document supersedes it: every signature is made again on the new one.
+  const convert = () => signed && !window.confirm('Make a new PDF of the document as it is now? It replaces the signed PDF (kept under Versions as superseded), and everyone on the route signs again, starting with the first signatory.') ? null : run('Checking file storage…', async () => {
     await checkStorage(docData.id); // fails in seconds if Storage is not set up, before drawing
     const blob = await documentPdf(type, docData, settings, setBusy);
     const pdf = new Uint8Array(await blob.arrayBuffer());
@@ -128,7 +132,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     made.current[file.path] = pdf;
     // The PDF now follows the document's route (Administration > Workflow).
     if (!docData.workflow) await startWorkflow(docData.id, type, actor, settings.offices || []);
-    setNotice(docData.workflow ? 'Converted to PDF again.' : 'Converted to PDF. It now follows its workflow: sign it if your office signs, then release it to the next office.');
+    setNotice(docData.workflow
+      ? (signed ? 'New PDF made: it supersedes the signed one. Sign it if your office signs, then release it: each office on the route signs it again.' : 'Converted to PDF again.')
+      : 'Converted to PDF. It now follows its workflow: sign it if your office signs, then release it to the next office.');
     onChanged();
   });
 
@@ -202,7 +208,14 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <div className="alert-info small">The document was changed after it was converted.
               {canConvert && <> <button className="link" disabled={!!busy} onClick={convert}>Convert again</button></>}</div>
           )}
-          {stale && signed && <div className="alert-info small">The document was changed after it was signed. The signed PDF shows it as it was signed.</div>}
+          {stale && signed && (
+            <div className="alert-info small">The document was changed after it was signed. The signed PDF shows it as it was signed.
+              {canConvert && <> <button className="link" disabled={!!busy} onClick={convert}>Make a new PDF</button>: it supersedes the signed one, and the route's signatories sign again.</>}</div>
+          )}
+          {!stale && signed && canConvert && (
+            <p className="small muted">Returned for revision: <Link to={`/documents/${docData.id}/edit`}>edit the document</Link>, then make a new PDF.
+              {' '}<button className="link" disabled={!!busy} onClick={convert}>Make a new PDF now</button></p>
+          )}
 
           {!signatures && !error && <div className="spinner" />}
           {signatures && (
@@ -350,9 +363,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <summary>Versions ({files.length})</summary>
             <ol>
               {files.map((f, i) => (
-                <li key={f.path}>
+                <li key={f.path} className={i < lastNew ? 'superseded' : ''}>
                   {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
-                  {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : ''}
+                  {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : i < lastNew ? ' · superseded' : ''}
                 </li>
               ))}
             </ol>
