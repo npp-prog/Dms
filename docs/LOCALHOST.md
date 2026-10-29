@@ -84,6 +84,8 @@ A new person can click **Create an account**. An administrator then approves the
 
 ![Dashboard](images/02-dashboard.png)
 
+**My notes** (Dashboard) keeps your own notes and reminders; nobody else can see them, administrators included. Type one and click **Add** (or press Enter); **+ Date** adds a date to be reminded on, shown as *Today* or *Overdue*. Tick a note when it is done: it is archived at once, under **Archived**, where you can untick it to bring it back or delete it with ×.
+
 The dashboard shows:
 
 - the five-step flow: choose the format → encode → checklist → print → process;

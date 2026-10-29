@@ -5,6 +5,7 @@ import { listDocuments, listDocumentTypes, listUsers } from '../lib/api.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Icon, { Avatar } from '../components/Icon.jsx';
 import { stateOf, trackingViews } from '../components/WorkflowTracking.jsx';
+import NotesCard from '../components/NotesCard.jsx';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -106,6 +107,7 @@ export default function Dashboard() {
               )}
             </ul>
           </div>
+          <NotesCard uid={user.uid} />
         </div>
         <div>
           <div className="card">

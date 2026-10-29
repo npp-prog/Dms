@@ -68,6 +68,29 @@ export function updateUser(uid, patch) {
   return updateDoc(doc(db, 'users', uid), patch);
 }
 
+// ---------- Personal notes (Dashboard) ----------
+// users/{uid}/notes/{id}: { text, due ('YYYY-MM-DD' or ''), done, createdAt, doneAt }. Checked
+// notes are archived (shown apart, under Archived).
+
+export async function listNotes(uid) {
+  const snap = await getDocs(collection(db, 'users', uid, 'notes'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function addNote(uid, text, due = '') {
+  const note = { text: String(text).trim().slice(0, 1000), due: due || '', done: false, createdAt: new Date().toISOString(), doneAt: '' };
+  const ref = await addDoc(collection(db, 'users', uid, 'notes'), note);
+  return { id: ref.id, ...note };
+}
+
+export function setNoteDone(uid, id, done) {
+  return updateDoc(doc(db, 'users', uid, 'notes', id), { done, doneAt: done ? new Date().toISOString() : '' });
+}
+
+export function deleteNote(uid, id) {
+  return deleteDoc(doc(db, 'users', uid, 'notes', id));
+}
+
 // ---------- Settings ----------
 
 export async function getSettings() {

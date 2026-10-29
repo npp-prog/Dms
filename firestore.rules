@@ -48,6 +48,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---- Personal notes and reminders (Dashboard): only their owner reads or writes them ----
+    match /users/{uid}/notes/{noteId} {
+      allow read, delete: if isActive() && request.auth.uid == uid;
+      allow create, update: if isActive() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['text', 'due', 'done', 'createdAt', 'doneAt'])
+        && request.resource.data.text is string && request.resource.data.text.size() <= 1000;
+    }
+
     // ---- User profiles ----
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());

@@ -998,3 +998,18 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .check-steps li:not(.done):not(.now) { opacity: .6; }
 .check-steps li.now b { color: var(--primary); }
 .check-head .badge { white-space: normal; text-align: left; }
+
+/* Dashboard: My notes */
+.note-add { display: flex; gap: .45rem; align-items: center; margin-bottom: .6rem; }
+.note-add input:not([type=date]) { flex: 1; min-width: 0; }
+.note-add input[type=date] { width: auto; }
+.note-list { list-style: none; margin: 0; padding: 0; }
+.note-list li { display: flex; align-items: center; gap: .55rem; padding: .5rem .1rem; border-top: 1px solid var(--line); }
+.note-list li:first-child { border-top: 0; }
+.note-check { flex: 1; min-width: 0; align-items: flex-start; white-space: normal; font-weight: 400; }
+.note-check input { margin-top: .2rem; width: auto; }
+.note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-list li.done .note-text { text-decoration: line-through; color: var(--muted); }
+.note-archive { margin-top: .6rem; }
+.note-archive summary { cursor: pointer; color: var(--muted); }
+@media (max-width: 600px) { .note-add { flex-wrap: wrap; } .note-add input:not([type=date]) { flex-basis: 100%; } }
