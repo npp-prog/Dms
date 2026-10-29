@@ -55,7 +55,7 @@ function Wizard({ typeId, docId }) {
   const [checklist, setChecklist] = useState({});
   // Documents attached that are not on the checklist (printed under Additional Documents).
   const [additionalDocs, setAdditionalDocs] = useState([]);
-  // Links from checklist items to the supporting documents (in FTS or another system).
+  // Links from checklist items to the supporting documents (in DMS or another system).
   const [links, setLinks] = useState({});
   const [transaction, setTransaction] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);

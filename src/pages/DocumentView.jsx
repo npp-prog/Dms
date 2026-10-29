@@ -12,6 +12,7 @@ import DocumentPreview from '../components/DocumentPreview.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
+import PdfCard from '../components/PdfCard.jsx';
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 function ItemLinks({ item, links, canEdit, docId, onChange }) {
@@ -61,7 +62,12 @@ export default function DocumentView() {
   const wf = docData.workflow;
   // Once the document has left the preparer's office, only the offices on its route move it.
   const atPreparer = !wf || (wf.state === 'in-progress' && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
-  const canChange = editable && (isAdmin || (isOwner && editableByPreparer(docData)));
+  // A signed PDF is the record of what was signed: the document can no longer be edited.
+  const hasSignature = (docData.pdf?.files || []).some((f) => f.kind === 'signed');
+  const canChange = editable && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canConvert = editable && docData.status === 'complete' && !hasSignature && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? wf.received && canAct(docData, { uid: user.uid, office: profile.office, isAdmin }) : isOwner));
+  // (An office signs once it has received the document.)
   const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
   const run = async (fn) => {
     setBusy(true);
@@ -121,6 +127,11 @@ export default function DocumentView() {
               onAction={(action, remarks, done) => run(async () => {
                 try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
               })} />
+          )}
+          {type && docData.status !== 'draft' && (
+            <PdfCard docData={docData} type={type} settings={settings} actor={actor}
+              canConvert={canConvert} canSign={canSign} onChanged={load}
+              reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
           {type && !wf && (
             <section className="card guide-card">

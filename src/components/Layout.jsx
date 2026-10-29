@@ -49,8 +49,8 @@ export default function Layout() {
         </button>
         <img className="seal" src="/municipal-seal.png" alt="" />
         <div className="brand">
-          <b>FTS</b>
-          <span>Financial Transaction System · {settings.lguName || 'Municipal Government of Candoni'}</span>
+          <b>DMS</b>
+          <span>Document Management System · {settings.lguName || 'Municipal Government of Candoni'}</span>
         </div>
         <div className="spacer" />
         <div className="me">

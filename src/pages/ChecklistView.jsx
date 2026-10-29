@@ -33,8 +33,8 @@ export default function ChecklistView() {
       </div>
       <div className="alert-info no-print">
         Items with only a <b>Y</b> box are always required. Items with <b>Y</b> and <b>N/A</b> boxes are required only if
-        they apply to the transaction. When you prepare a document in FTS, choose this checklist as the transaction type and
-        FTS prints it with your answers.
+        they apply to the transaction. When you prepare a document in DMS, choose this checklist as the transaction type and
+        DMS prints it with your answers.
       </div>
       <ChecklistSheet checklist={checklist} settings={settings} />
     </div>

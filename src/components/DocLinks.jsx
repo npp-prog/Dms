@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { acceptsDocument, systemFor } from '../lib/checklists.js';
 
-// Links from a checklist item to the supporting document: one already in FTS (e.g. the OBR
+// Links from a checklist item to the supporting document: one already in DMS (e.g. the OBR
 // or PO) or one in another LGU system (PIM, CBO, ...). Stored on the document as
 // links: { [itemId]: [{ kind: 'fts', id, controlNo, typeCode, title } | { kind: 'url', system, ref, url }] }.
 
@@ -25,7 +25,7 @@ export function LinkList({ links = [], onRemove }) {
     <ul className="doc-links">
       {links.map((l, i) => (
         <li key={i}>
-          <span className="badge badge-blue">{l.kind === 'fts' ? 'FTS' : l.system}</span>{' '}
+          <span className="badge badge-blue">{l.kind === 'fts' ? 'DMS' : l.system}</span>{' '}
           {l.kind === 'fts'
             ? <Link to={`/documents/${l.id}`} target="_blank" rel="noopener">{l.controlNo}</Link>
             : safeUrl(l.url)
@@ -39,7 +39,7 @@ export function LinkList({ links = [], onRemove }) {
   );
 }
 
-// Choose a document in FTS, or enter a link to another system.
+// Choose a document in DMS, or enter a link to another system.
 export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
   const { user, profile, isAdmin } = useAuth();
   // Documents from PIM (AIR, PAR, ICS, RIS, ...) open on the other-system tab with PIM chosen.
@@ -64,7 +64,7 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
     return fitting.filter((d) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.typeName} ${d.title}`.toLowerCase().includes(w))).slice(0, 30);
   }, [fitting, q]);
   const kinds = [...new Set(fitting.map((d) => d.typeCode))];
-  // Nothing in FTS of this kind (e.g. a BAC Resolution): start on the other-system tab.
+  // Nothing in DMS of this kind (e.g. a BAC Resolution): start on the other-system tab.
   useEffect(() => { if (docs && !fitting.length) setTab('url'); }, [docs, fitting.length]);
 
   const addExternal = () => {
@@ -76,7 +76,7 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
   return (
     <div className="link-editor">
       <div className="tabs">
-        <button type="button" className={tab === 'fts' ? 'active' : ''} onClick={() => setTab('fts')}>Document in FTS</button>
+        <button type="button" className={tab === 'fts' ? 'active' : ''} onClick={() => setTab('fts')}>Document in DMS</button>
         <button type="button" className={tab === 'url' ? 'active' : ''} onClick={() => setTab('url')}>Other system (PIM, CBO, …)</button>
       </div>
       {error && <div className="alert">{error}</div>}
@@ -89,7 +89,7 @@ export function LinkEditor({ item, excludeId, onAdd, onCancel }) {
             <div className="picker-results">
               {shown.length === 0 && (
                 <p className="small muted" style={{ padding: '.5rem' }}>
-                  {fitting.length ? 'No match.' : `No ${item ? `"${item.label}" ` : ''}document in FTS from you or your office. If it is in another system, use the other tab.`}
+                  {fitting.length ? 'No match.' : `No ${item ? `"${item.label}" ` : ''}document in DMS from you or your office. If it is in another system, use the other tab.`}
                 </p>
               )}
               {shown.map((d) => (

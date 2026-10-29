@@ -1,5 +1,5 @@
-// FTS's own Firebase project (a separate project just for FTS, not another LGU app's).
-// Firebase console → FTS project → Project settings → General → Your apps → Web app.
+// DMS's own Firebase project (still named candoni-fts; a separate project just for DMS, not another LGU app's).
+// Firebase console → DMS project → Project settings → General → Your apps → Web app.
 // These values are not secret; access is controlled by Authentication and firestore.rules.
 export const firebaseConfig = {
   apiKey: 'AIzaSyCNI8dJaXA70z5y0oX5tu6DqzBPN9dvsGo',

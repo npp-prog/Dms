@@ -1,4 +1,4 @@
-/* FTS — Financial Transaction System
+/* DMS — Document Management System
    Same design as PMS-IMS (TOSCAN layout: top bar and sidebar, dashboard inbox, gold accents,
    Plus Jakarta Sans for headings, Inter for text and figures) in the same palette: slate navy, steel blue and teal. */
 :root {
@@ -472,7 +472,7 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 
 /* Printed checklist (Municipal Accounting Office format) */
 /* Obligation Request: 28_OBR.xlsx as printed from Google Sheets, at its size and position on the A4
-   page (table 484 pt wide, 49 pt from the left and 52.5 pt from the top; FTS prints 10 mm margins, so
+   page (table 484 pt wide, 49 pt from the left and 52.5 pt from the top; DMS prints 10 mm margins, so
    the rest is padding, and the bottom padding keeps the printout's white space). --k scales it. */
 .doc-render .obr { --k: 1; width: calc(504.65pt * var(--k)); padding: calc(24.15pt * var(--k)) 0 calc(71.2pt * var(--k)) calc(20.65pt * var(--k)); font-family: "DV Tahoma", "DV Sans", Arial, Helvetica, sans-serif; font-size: calc(9.4pt * var(--k)); line-height: calc(11pt * var(--k)); }
 .doc-render .obr table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: inherit; }
@@ -713,3 +713,18 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .wf-now { color: var(--primary); font-weight: 600; }
 .wf-returned { color: var(--bad); }
 .wf-actions { border-top: 1px solid var(--line); padding-top: .8rem; margin-top: .2rem; }
+
+/* PDF and digital signatures */
+.pdf-card { border-left: 4px solid var(--gold); }
+.sig-list { list-style: none; margin: .3rem 0 .8rem; padding: 0; }
+.sig-list li { display: flex; gap: .6rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+.sig-list li:last-child { border-bottom: 0; }
+.sig-list .badge { margin-left: .4rem; }
+.sig-mark { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: .8rem; }
+.sig-ok .sig-mark { background: var(--ok-bg); color: var(--ok); }
+.sig-bad .sig-mark { background: var(--bad-bg); color: var(--bad); }
+.sig-problem { color: var(--bad); }
+.sign-panel { margin-top: .8rem; padding: .8rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--sunken); display: grid; gap: .6rem; }
+.steps-mini { margin: 0; padding-left: 1.2rem; }
+.pdf-versions { margin-top: .8rem; color: var(--muted); }
+.pdf-versions ol { margin: .3rem 0 0; padding-left: 1.2rem; }

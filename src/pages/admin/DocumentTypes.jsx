@@ -30,21 +30,21 @@ export default function DocumentTypes() {
   };
 
   const existingCodes = new Set((types || []).map((t) => t.code));
-  // A starter format that FTS has since revised (e.g. the DV redrawn after the official form).
+  // A starter format that DMS has since revised (e.g. the DV redrawn after the official form).
   const pick = (t) => JSON.stringify(FORMAT_KEYS.map((k) => t[k] ?? null));
   const newerStarter = (t) => {
     const starter = STARTER_TYPES.find((s) => s.code === t.code);
     return starter && pick(starter) !== pick(t) ? starter : null;
   };
   const updateToStarter = (t, starter) => {
-    if (!window.confirm(`Replace the format of ${t.code} with the latest FTS starter format? Your changes to its fields, steps, processing guide and template are replaced. Documents already prepared keep their own copy.`)) return;
+    if (!window.confirm(`Replace the format of ${t.code} with the latest DMS starter format? Your changes to its fields, steps, processing guide and template are replaced. Documents already prepared keep their own copy.`)) return;
     run(() => applyStarterFormat(t.id, starter));
   };
   const missingStarters = STARTER_TYPES.filter((t) => !existingCodes.has(t.code));
 
   const exportAll = () => {
     const clean = types.map(({ id, createdAt, updatedAt, createdBy, updatedBy, ...t }) => t);
-    download(`fts-document-types-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(clean, null, 2));
+    download(`dms-document-types-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(clean, null, 2));
   };
 
   const onImport = (e) => {
@@ -107,7 +107,7 @@ export default function DocumentTypes() {
                   </td>
                   <td className="row gap">
                     {newerStarter(t) && (
-                      <button className="btn btn-gold btn-sm" disabled={busy} title="FTS has a newer version of this starter format"
+                      <button className="btn btn-gold btn-sm" disabled={busy} title="DMS has a newer version of this starter format"
                         onClick={() => updateToStarter(t, newerStarter(t))}>Update format</button>
                     )}
                     <Link className="btn btn-ghost btn-sm" to={`/formats/${t.id}`}>Preview</Link>

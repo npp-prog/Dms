@@ -265,7 +265,7 @@ export default function DocumentTypeEditor() {
       {tab === 'Processing Guide' && (
         <section className="card">
           <p className="muted small">Tell the end user how to process the document after encoding and printing: which office
-            receives it, in what order, and what each office does. FTS does not route the document; this is a guide.</p>
+            receives it, in what order, and what each office does. When a document is marked complete, DMS routes it along these steps (Workflow and Inbox).</p>
           {type.processing.map((p, i) => (
             <div key={p.id} className="editor-block">
               <div className="editor-row">

@@ -121,10 +121,10 @@ service cloud.firestore {
                 && (workflowUntouched() || !('workflow' in resource.data)
                     || (resource.data.workflow.state == 'in-progress'
                         && (holder() == '' || holder() == myOffice()))))
-            // The office holding a routed document receives, releases or returns it.
+            // The office holding a routed document receives, releases or returns it, and signs its PDF.
             || (myOffice() != '' && holder() == myOffice()
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'updatedAt', 'history'])));
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'pdf', 'updatedAt', 'history'])));
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
             && resource.data.status == 'draft');

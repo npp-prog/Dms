@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
     pendingProfile.current = null;
     if (p.active && ['admin', 'superadmin'].includes(p.role)) {
       // New site: install the starter formats, checklists and settings. Existing site:
-      // bring in the formats and checklists FTS has revised since.
+      // bring in the formats and checklists DMS has revised since.
       const installed = await setupSite({ uid: firebaseUser.uid }).catch(() => []);
       if (installed.length) setSetupNotice(installed);
     }

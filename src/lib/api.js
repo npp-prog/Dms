@@ -2,7 +2,8 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { getBytes, ref as storageRef, uploadBytes } from 'firebase/storage';
+import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
 import { applyAction, buildWorkflow, cancelWorkflow } from './workflow.js';
@@ -144,7 +145,7 @@ export async function loadBundledChecklists() {
 
 // ---------- Setup and updates ----------
 
-// Replaces a document type's format with the starter format FTS ships (e.g. the redrawn DV).
+// Replaces a document type's format with the starter format DMS ships (e.g. the redrawn DV).
 // Documents already prepared keep their own frozen copy.
 export function applyStarterFormat(id, starter) {
   return updateDoc(doc(db, 'documentTypes', id), {
@@ -154,9 +155,9 @@ export function applyStarterFormat(id, starter) {
   });
 }
 
-// Runs when an admin signs in. On a new site it installs what FTS needs: the starter formats
+// Runs when an admin signs in. On a new site it installs what DMS needs: the starter formats
 // (DV, OBR, PR, PO, ...), the checklist library and the LGU settings. On an existing site it
-// brings in what FTS has revised since: starter formats nobody has edited (version 1 = never
+// brings in what DMS has revised since: starter formats nobody has edited (version 1 = never
 // saved in the editor) and library checklists nobody has edited. Returns what it did.
 export async function setupSite(user) {
   const done = [];
@@ -204,7 +205,8 @@ export async function setupSite(user) {
 
 // ---------- Documents ----------
 
-// FTS control number: one series for every document type, e.g. FTS-000001.
+// Control number: one series for every document type, e.g. DMS-000001. The counter keeps
+// its old name (counters/FTS) so the series continues from the FTS-###### numbers.
 async function nextControlNo() {
   const ref = doc(db, 'counters', 'FTS');
   const value = await runTransaction(db, async (tx) => {
@@ -213,7 +215,7 @@ async function nextControlNo() {
     tx.set(ref, { value: next });
     return next;
   });
-  return `FTS-${String(value).padStart(6, '0')}`;
+  return `DMS-${String(value).padStart(6, '0')}`;
 }
 
 function historyEntry(action, user, note = '') {
@@ -313,6 +315,49 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
     const label = { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry(label, user, remarks)] });
   });
+}
+
+// ---------- PDF and digital signatures ----------
+// document.pdf = { basis, files: [{ path, size, sha256, kind: 'generated' | 'signed',
+//   method: 'dms' | 'upload', at, by, uid, reason, signer: { name, email, issuer, pnpki, serial, signedAt } }] }
+// The newest file is the current PDF. Files in Storage are never replaced (storage.rules).
+
+const toHex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const sha256 = async (bytes) => toHex(await crypto.subtle.digest('SHA-256', bytes));
+
+// What the PDF was made from: if this changes, the PDF no longer shows the document as it is.
+export async function documentBasis(d) {
+  const text = JSON.stringify([d.data || {}, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
+  return (await sha256(new TextEncoder().encode(text))).slice(0, 16);
+}
+
+export async function getPdfBytes(path) {
+  return new Uint8Array(await getBytes(storageRef(storage, path)));
+}
+
+// Stores a new version of the document's PDF (converted, or signed) and records it.
+export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', signer = null, reason = '', basis = null }) {
+  const docRef = doc(db, 'documents', id);
+  const current = (await getDoc(docRef)).data();
+  const n = current?.pdf?.files?.length || 0;
+  const path = `documents/${id}/${n}-${kind}.pdf`;
+  await uploadBytes(storageRef(storage, path), bytes, { contentType: 'application/pdf' });
+  const file = {
+    path, size: bytes.length, sha256: await sha256(bytes), kind, method, reason,
+    at: new Date().toISOString(), by: user.displayName || user.email, uid: user.uid, signer,
+  };
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(docRef)).data();
+    const files = d.pdf?.files || [];
+    if (files.length !== n) throw new Error('Someone else added a version of this PDF first. Reload the page and try again.');
+    const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
+    tx.update(docRef, {
+      pdf: { basis: basis ?? d.pdf?.basis ?? null, files: [...files, file] },
+      updatedAt: serverTimestamp(),
+      history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : 'converted to PDF', user, note)],
+    });
+  });
+  return file;
 }
 
 // Documents waiting in an office (all routed documents for admins: office '').

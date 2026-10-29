@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { firebaseConfig as fileConfig } from './firebase-config.js';
 
 // The config comes from src/firebase-config.js. VITE_FIREBASE_* environment variables,
@@ -23,9 +24,12 @@ export const isConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.proj
 const app = isConfigured ? initializeApp(firebaseConfig) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
+// PDFs and signed PDFs (Firebase Storage; rules in storage.rules).
+export const storage = app ? getStorage(app) : null;
 
 // Local development against the Firebase emulators (`npm run local` sets VITE_USE_EMULATOR=true).
 if (app && env.VITE_USE_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectStorageEmulator(storage, '127.0.0.1', 9199);
 }

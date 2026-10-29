@@ -10,7 +10,7 @@ import {
 import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
-import { cleanPart, fileBase, fundCode, ftsNo, uniqueNamer } from './naming.js';
+import { cleanPart, fileBase, fundCode, controlRef, uniqueNamer } from './naming.js';
 import { applyAction, availableActions, buildWorkflow, canAct, resolveOffice, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
@@ -213,7 +213,7 @@ test('document workflow', () => {
 });
 
 test('bulk download file names', () => {
-  assert.equal(fileBase({ fund: 'General Fund', subject: 'Neil Priolo', number: 2, type: 'OBR', ref: ftsNo('FTS-000001') }), 'GF_NEIL PRIOLO_02_OBR_FTS000001');
+  assert.equal(fileBase({ fund: 'General Fund', subject: 'Neil Priolo', number: 2, type: 'OBR', ref: controlRef('DMS-000001') }), 'GF_NEIL PRIOLO_02_OBR_DMS000001');
   assert.equal(fundCode('Special Education Fund'), 'SEF');
   assert.equal(fundCode('20% Development Fund'), '20DF');
   assert.equal(fundCode(''), 'NOFUND');

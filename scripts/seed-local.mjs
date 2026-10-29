@@ -36,7 +36,7 @@ connectFirestoreEmulator(db, '127.0.0.1', 8080);
 async function main() {
   try {
     await signInWithEmailAndPassword(auth, DEMO.admin.email, DEMO.admin.password);
-    console.log('[FTS] Demo data already loaded.');
+    console.log('[DMS] Demo data already loaded.');
     return;
   } catch {
     // not seeded yet
@@ -89,7 +89,7 @@ async function main() {
   for (const [uid, office] of approved) await updateDoc(doc(db, 'users', uid), { active: true, office });
 
   console.log(`
-[FTS] Demo data loaded:
+[DMS] Demo data loaded:
       Superadmin  ${DEMO.admin.email} / ${DEMO.admin.password}
       End user    ${DEMO.user.email} / ${DEMO.user.password}  (${DEMO.user.office})
       Same office ${DEMO.colleague.email} / ${DEMO.colleague.password}
@@ -101,5 +101,5 @@ async function main() {
 }
 
 main()
-  .catch((e) => console.error('[FTS] Could not load demo data:', e.message))
+  .catch((e) => console.error('[DMS] Could not load demo data:', e.message))
   .finally(() => process.exit(0));

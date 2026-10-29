@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// PDFs of documents and their signed versions: documents/{docId}/{n}-{kind}.pdf
+// Who may read or add a file follows the document in Firestore (firestore.rules):
+// the preparer, admins, the preparer's office and the offices on the document's route.
+// Files are never replaced or deleted: each signature adds a new file, so every
+// version stays on record.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function profile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function docOf(docId) {
+      return firestore.get(/databases/(default)/documents/documents/$(docId)).data;
+    }
+    function isActive() {
+      return request.auth != null && profile().active == true;
+    }
+    function isAdmin() {
+      return profile().role in ['admin', 'superadmin'];
+    }
+    function myOffice() {
+      return profile().get('office', '');
+    }
+    function canRead(d) {
+      return isAdmin() || d.createdBy == request.auth.uid
+        || (myOffice() != '' && (d.get('office', '') == myOffice()
+            || d.get('currentOffice', '') == myOffice()
+            || myOffice() in d.get('routeOffices', [])));
+    }
+    // The preparer, or the office now holding the document.
+    function canAdd(d) {
+      return isAdmin() || (d.status != 'cancelled'
+        && (d.createdBy == request.auth.uid || (myOffice() != '' && d.get('currentOffice', '') == myOffice())));
+    }
+
+    match /documents/{docId}/{file} {
+      allow read: if isActive() && canRead(docOf(docId));
+      // resource == null: a new file only, never over an existing version.
+      allow create: if resource == null && isActive() && canAdd(docOf(docId))
+        && file.matches('[0-9]+-(generated|signed)\\.pdf')
+        && request.resource.contentType == 'application/pdf'
+        && request.resource.size < 25 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+  }
+}

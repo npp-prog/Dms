@@ -31,7 +31,7 @@ const DV = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'disbursement',
-  // Raised when FTS revises this starter format; sites that have not edited it are updated (lib/api.js).
+  // Raised when DMS revises this starter format; sites that have not edited it are updated (lib/api.js).
   starterVersion: 6,
   // Download all: the DV, its checklist and every linked document in one ZIP.
   bulkDownload: true,
@@ -73,7 +73,7 @@ const DV = {
   checklist: [],
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A and the supporting documents', details: 'The head of office signs Box A. Attach the approved OBR/FURS and every document on the printed checklist, in the order listed. Put the printed checklist on top.' },
-    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and date and enters any deductions in FTS (Documents > the DV > Accounting), then prepares the Journal Entry Voucher.' },
+    { id: 'p2', office: 'Municipal Accounting Office', action: 'Pre-audit, Box B and the JEV', details: 'Accounting checks the documents against the checklist and certifies Box B (completeness and propriety of supporting documents, previous cash advances liquidated). It assigns the Disbursement No. and date and enters any deductions in DMS (Documents > the DV > Accounting), then prepares the Journal Entry Voucher.' },
     { id: 'p3', office: "Municipal Treasurer's Office", action: 'Box C: funds available', details: 'The Treasurer certifies that funds are available and prepares the check or ADA.' },
     { id: 'p4', office: 'Office of the Municipal Mayor', action: 'Box D: approved for payment', details: 'The Local Chief Executive approves the payment.' },
     { id: 'p5', office: "Municipal Treasurer's Office", action: 'Payment and Box E', details: 'The Treasury fills in the payment details (check/ADA no., date, bank) and releases the payment. The payee signs Box E (Received Payment) and issues an official receipt where required.' },
@@ -285,7 +285,7 @@ const PR = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Office', instructions: 'Encode the requesting department and section, fund and FPP (function/program/project).' },
     { id: 's2', title: 'Items', instructions: 'One line per item: unit, description (with specifications), quantity and estimated unit cost based on your price reference. The total cost is computed.' },
@@ -334,7 +334,7 @@ const PR = {
     <tr><td>Printed Name:</td><td class="c"><b>{{requestedBy|upper}}</b></td><td class="c"><b>{{sig.treasurer|upper}}</b></td><td class="c"><b>{{sig.mayor|upper}}</b></td></tr>
     <tr><td>Designation:</td><td class="c">{{requestedByPos}}</td><td class="c">{{sig.treasurerPosition}}</td><td class="c">{{sig.mayorPosition}}</td></tr>
   </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // Shared bottom part of PO and JO (Negotiated purchase per Sec. 369(a) of RA 7160).
@@ -373,7 +373,7 @@ const PO = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier exactly as in the BAC Resolution / Notice of Award, and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'Mode of procurement, place and date of delivery, delivery and payment terms.' },
@@ -425,7 +425,7 @@ const PO = {
   </table>
   ${conformeBlock}
   <br>${sanggunianBlock}
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // ---------------------------------------------------------------- JO
@@ -439,7 +439,7 @@ const JO = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Supplier', instructions: 'Encode the supplier/contractor and the PR No./s covered.' },
     { id: 's2', title: 'Terms', instructions: 'The date of the quotation, place and date of delivery, delivery and payment terms.' },
@@ -491,7 +491,7 @@ const JO = {
     Violation by the contractor/ dealer of terms and conditions stipulated upon by both parties due to unjustifiable and / or unreasonable cause shall be subject to any legal action that this Agency deems proper and necessary.</td></tr></table>
   ${conformeBlock}
   <br>${sanggunianBlock}
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // ---------------------------------------------------------------- PCV
@@ -505,7 +505,7 @@ const PCV = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Request', instructions: 'Encode the payee/office and what the petty cash is for (Part I, to be filled out upon request). The PCV No. is assigned by the Petty Cash Custodian.' },
     { id: 's2', title: 'Signatories', instructions: 'The requestor and the immediate supervisor who approves. The Petty Cash Custodian signs when paying.' },
@@ -537,7 +537,7 @@ const PCV = {
   processing: [
     { id: 'p1', office: 'Requesting Office', action: 'Box A: request and approval', details: 'The requestor signs and the immediate supervisor approves.' },
     { id: 'p2', office: 'Petty Cash Custodian', action: 'Box B: payment', details: 'The custodian pays out; the payee signs "Cash Received by" and dates it.' },
-    { id: 'p3', office: 'Payee', action: 'Liquidate', details: 'Submit the OR/invoice to the custodian. Fill in Part II in FTS (edit this PCV) and reprint.' },
+    { id: 'p3', office: 'Payee', action: 'Liquidate', details: 'Submit the OR/invoice to the custodian. Fill in Part II in DMS (edit this PCV) and reprint.' },
     { id: 'p4', office: 'Petty Cash Custodian', action: 'Boxes C and D: refund or reimbursement', details: 'The custodian receives any refund or pays the reimbursement and marks the liquidation submitted. Paid PCVs support the replenishment of petty cash (checklist 1902).' },
   ],
   template: `${header('PETTY CASH VOUCHER')}
@@ -561,7 +561,7 @@ const PCV = {
       <td class="pf-cell"><b>D.</b><br><span class="pf-box"></span> <i>Liquidation Submitted</i><br><span class="pf-box"></span> <i>Reimbursement Received by:</i>
         ${signBlock('{{payee|upper}}', 'Signature over Printed Name', 'Payee')}<div>Date: __________</div></td></tr>
   </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // ---------------------------------------------------------------- LR
@@ -657,7 +657,7 @@ const IT = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Traveler', instructions: 'Name, position and official station of the traveler, date and purpose of travel.' },
     { id: 's2', title: 'Itinerary', instructions: 'One line per leg: date, place visited (destination), time of departure and arrival, means of transportation, fare, per diem and other expenses. The line total is computed.' },
@@ -713,7 +713,7 @@ const IT = {
       <td class="pf-cell" style="height:70px">Prepared by :${signBlock('{{name|upper}}', 'Signature over Printed Name')}</td></tr>
     <tr><td class="pf-cell" style="height:70px">Approved by:${signBlock('{{sig.mayor|upper}}', 'Signature over Printed Name', 'Agency Head/Authorized Representative')}</td></tr>
   </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // ---------------------------------------------------------------- Payroll
@@ -727,7 +727,7 @@ const PAYROLL = {
   active: true,
   checklistSource: 'own',
   // No checklist: only the DV and the Liquidation Report have one (v2).
-  starterVersion: 2,
+  starterVersion: 3,
   steps: [
     { id: 's1', title: 'Payroll', instructions: 'The period covered, fund, office and the approved OBR No. The Payroll No. is assigned by Accounting.' },
     { id: 's2', title: 'Employees', instructions: 'One line per employee: name, position, employee no., gross amount earned and total deductions. The net amount due is computed.' },
@@ -788,7 +788,7 @@ const PAYROLL = {
     ${blankRows(8, 3)}
     <tr><td colspan="8" class="cap" style="text-align:left">Encoded by: ________ &nbsp; Journal Entry by: ________ &nbsp; Certified Correct: <b>{{sig.accountant|upper}}</b>, Head, Accounting Department/Unit</td></tr>
   </table>
-  <div class="pf-foot">FTS Control No. {{controlNo}} · Prepared in FTS by {{preparedBy}}</div>`,
+  <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
 // Settings filled in on a new site (Settings page can change them): the LGU and the

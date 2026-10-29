@@ -1,6 +1,6 @@
 // File names for bulk downloads (e.g. a DV with all its linked documents):
-//   Fund_Subject or Payee_Checklist No._Document Type_FTS No.
-//   GF_NEIL P. PRIOLO_02_OBR_FTS000003
+//   Fund_Subject or Payee_Checklist No._Document Type_Control No.
+//   GF_NEIL P. PRIOLO_02_OBR_DMS000003
 // The checklist number is the item's number on the checklist (00 for the checklist itself).
 
 const FUND_CODES = {
@@ -33,7 +33,7 @@ export function cleanPart(text, max = 40) {
     .replace(/[. ]+$/, '');
 }
 
-export const ftsNo = (controlNo) => cleanPart(String(controlNo || '').replace(/-/g, ''), 24);
+export const controlRef = (controlNo) => cleanPart(String(controlNo || '').replace(/-/g, ''), 24);
 
 export function fileBase({ fund, subject, number, type, ref }) {
   return [

@@ -26,7 +26,7 @@ export default function Checklists() {
   }, [list, q, kind]);
 
   const loadLibrary = async (overwrite) => {
-    if (overwrite && !window.confirm('Replace every checklist with the original library? Edits made in FTS to those checklists will be lost.')) return;
+    if (overwrite && !window.confirm('Replace every checklist with the original library? Edits made in DMS to those checklists will be lost.')) return;
     setBusy('Loading the checklist library…');
     setError('');
     try {

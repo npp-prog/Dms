@@ -1,5 +1,5 @@
 // "How to process this document": the routing an end user follows after
-// encoding and printing. FTS does not route documents itself.
+// encoding and printing. The Workflow card routes the document along these steps.
 export default function ProcessingGuide({ type, compact = false }) {
   const steps = type?.processing || [];
   if (!steps.length) {

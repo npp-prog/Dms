@@ -1,85 +1,19 @@
 import { useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { getDocument, getTypeForDocument } from '../lib/api.js';
-import { acceptsDocument, effectiveChecklist, itemTypeCode } from '../lib/checklists.js';
-import { fileBase, fundCode, cleanPart, ftsNo, uniqueNamer } from '../lib/naming.js';
-import { pageSize } from '../lib/paper.js';
-import DocumentPreview from './DocumentPreview.jsx';
-import ChecklistSheet from './ChecklistSheet.jsx';
+import { getDocument, getPdfBytes, getTypeForDocument } from '../lib/api.js';
+import { effectiveChecklist, itemTypeCode } from '../lib/checklists.js';
+import { fileBase, fundCode, cleanPart, controlRef, uniqueNamer } from '../lib/naming.js';
+import { renderPdf } from '../lib/pdf.js';
+import { checklistElement, documentElement, ownItemNo } from './printables.jsx';
 import { linkText, safeUrl } from './DocLinks.jsx';
 
 // "Download all": one ZIP with the document (e.g. the DV), its checklist and every document
-// linked to the checklist, each as a PDF named Fund_Payee_Checklist No._Type_FTS No.
-// (GF_NEIL P. PRIOLO_02_OBR_FTS000003.pdf). Links to other systems (PIM, CBO, ...) cannot be
+// linked to the checklist, each as a PDF named Fund_Payee_Checklist No._Type_Control No.
+// (GF_NEIL P. PRIOLO_02_OBR_DMS000003.pdf). Links to other systems (PIM, CBO, ...) cannot be
 // downloaded from here; they are included as internet shortcuts with the same naming.
 
-const frames = (n) => new Promise((resolve) => {
-  const step = (i) => (i ? requestAnimationFrame(() => step(i - 1)) : resolve());
-  step(n);
-});
-
-// Lays out a printable page off screen exactly as it prints, then draws it to a PDF.
-async function renderPdf(element, paperSize, orientation) {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
-  const host = document.createElement('div');
-  host.style.cssText = 'position:fixed;left:-20000px;top:0;width:1400px;background:#fff;';
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  try {
-    root.render(element);
-    await frames(2);
-    await Promise.all([...host.querySelectorAll('img')].map((img) => (img.complete ? null
-      : new Promise((r) => { img.onload = r; img.onerror = r; }))));
-    await document.fonts?.ready;
-    await frames(3);
-    const paper = host.querySelector('.paper');
-    const fit = host.querySelector('.fit');
-    paper.style.transform = 'none';
-    // The canvas renderer does not support CSS zoom (used to fit the page): use a transform.
-    const zoom = parseFloat(fit.style.zoom || '1');
-    if (zoom !== 1) {
-      const h = fit.offsetHeight;
-      fit.style.zoom = '';
-      fit.style.transformOrigin = 'top left';
-      fit.style.transform = `scale(${zoom})`;
-      fit.style.height = `${(fit.offsetHeight || h) * zoom}px`;
-    }
-    const canvas = await html2canvas(paper, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
-    const page = pageSize(paperSize, orientation);
-    const pdf = new jsPDF({ unit: 'mm', format: [page.w, page.h], orientation: page.w > page.h ? 'landscape' : 'portrait' });
-    const pageHpx = Math.round(canvas.width * (page.h / page.w));
-    const orient = page.w > page.h ? 'landscape' : 'portrait';
-    // A little taller than one page (the canvas renderer lays text out slightly taller than the
-    // browser's print): shrink it onto one page rather than spill a sliver onto a second.
-    if (canvas.height <= pageHpx * 1.15) {
-      const k = Math.min(1, pageHpx / canvas.height);
-      const w = page.w * k;
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (page.w - w) / 2, 0, w, (canvas.height / canvas.width) * w);
-      return pdf.output('blob');
-    }
-    const pages = Math.ceil(canvas.height / pageHpx - 0.02);
-    for (let i = 0; i < pages; i++) {
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = pageHpx;
-      const ctx = slice.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(canvas, 0, i * pageHpx, canvas.width, pageHpx, 0, 0, canvas.width, pageHpx);
-      if (i) pdf.addPage([page.w, page.h], orient);
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, page.w, page.h);
-    }
-    return pdf.output('blob');
-  } finally {
-    root.unmount();
-    host.remove();
-  }
-}
-
-const documentElement = (type, d, settings) => (
-  <DocumentPreview type={type} data={d.data || {}} checklist={d.checklist || {}} settings={settings}
-    signatories={d.signatories} controlNo={d.controlNo} preparedBy={d.createdByName} />
-);
+// A document converted to PDF (and possibly signed) is downloaded as stored: the signed file.
+const storedPdf = (d) => (d.pdf?.files?.length ? d.pdf.files.at(-1) : null);
+const pdfBlob = async (file) => new Blob([await getPdfBytes(file.path)], { type: 'application/pdf' });
 
 export default function BulkDownload({ docData, type, settings }) {
   const [status, setStatus] = useState('');
@@ -99,16 +33,16 @@ export default function BulkDownload({ docData, type, settings }) {
       const jobs = [];
 
       // The document itself, numbered as its own item on the checklist (e.g. 01 Disbursement Voucher).
-      const ownNo = items.findIndex((i) => acceptsDocument(i, { typeCode: docData.typeCode, typeName: docData.typeName })) + 1;
+      // Its stored PDF (signed, with the checklist inside) when it has been converted.
+      const own = storedPdf(docData);
       jobs.push({ label: docData.controlNo, run: async () => ({
-        file: name(fileBase({ ...base, number: ownNo, type: docData.typeCode, ref: ftsNo(docData.controlNo) }), 'pdf'),
-        blob: await renderPdf(documentElement(type, docData, settings), type.paperSize, type.orientation),
+        file: name(fileBase({ ...base, number: ownItemNo(type, docData), type: docData.typeCode, ref: controlRef(docData.controlNo) }), 'pdf'),
+        blob: own ? await pdfBlob(own) : await renderPdf(documentElement(type, docData, settings), type.paperSize, type.orientation),
       }) });
-      if (items.length) {
+      if (items.length && !own) {
         jobs.push({ label: 'checklist', run: async () => ({
-          file: name(fileBase({ ...base, number: 0, type: `CHECKLIST ${checklist.code}`, ref: ftsNo(docData.controlNo) }), 'pdf'),
-          blob: await renderPdf(<ChecklistSheet checklist={checklist} state={docData.checklist} data={data}
-            additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />, 'A4', 'portrait'),
+          file: name(fileBase({ ...base, number: 0, type: `CHECKLIST ${checklist.code}`, ref: controlRef(docData.controlNo) }), 'pdf'),
+          blob: await renderPdf(checklistElement(checklist, docData, settings), 'A4', 'portrait'),
         }) });
       }
       // Every document linked to the checklist.
@@ -118,11 +52,10 @@ export default function BulkDownload({ docData, type, settings }) {
             jobs.push({ label: link.controlNo, run: async () => {
               const linked = await getDocument(link.id);
               if (!linked) throw new Error('not found');
+              const file = name(fileBase({ ...base, number: i + 1, type: linked.typeCode, ref: controlRef(linked.controlNo) }), 'pdf');
+              if (storedPdf(linked)) return { file, blob: await pdfBlob(storedPdf(linked)) };
               const linkedType = await getTypeForDocument(linked);
-              return {
-                file: name(fileBase({ ...base, number: i + 1, type: linked.typeCode, ref: ftsNo(linked.controlNo) }), 'pdf'),
-                blob: await renderPdf(documentElement(linkedType, linked, settings), linkedType.paperSize, linkedType.orientation),
-              };
+              return { file, blob: await renderPdf(documentElement(linkedType, linked, settings), linkedType.paperSize, linkedType.orientation) };
             } });
           } else if (safeUrl(link.url)) {
             jobs.push({ label: linkText(link), run: async () => ({
@@ -147,14 +80,14 @@ export default function BulkDownload({ docData, type, settings }) {
         }
       }
       if ((docData.additionalDocs || []).length) {
-        index.push('', 'Additional documents (not in FTS):', ...docData.additionalDocs.map((t, i) => `  ${items.length + i + 1}. ${t}`));
+        index.push('', 'Additional documents (not in DMS):', ...docData.additionalDocs.map((t, i) => `  ${items.length + i + 1}. ${t}`));
       }
       zip.file('00_INDEX.txt', [...index.slice(0, 4), 'Files:', ...files.map((f) => `  ${f}`), ...index.slice(4)].join('\r\n'));
       setStatus('Zipping…');
       const blob = await zip.generateAsync({ type: 'blob' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${fundCode(data.fund)}_${cleanPart(base.subject) || 'NO PAYEE'}_${ftsNo(docData.controlNo)}.zip`;
+      a.download = `${fundCode(data.fund)}_${cleanPart(base.subject) || 'NO PAYEE'}_${controlRef(docData.controlNo)}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();

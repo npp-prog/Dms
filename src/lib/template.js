@@ -206,7 +206,7 @@ export function generateDefaultTemplate(type) {
     <div class="l1">{{lgu.name|upper}}</div>
     <div class="l2">{{lgu.address}}</div>
     <div class="l3">${escapeHtml((type?.name || 'DOCUMENT').toUpperCase())}</div></div>
-  <table class="pmeta-t"><tr><td></td><td class="r">FTS Control No.: <b>{{controlNo}}</b></td></tr></table>
+  <table class="pmeta-t"><tr><td></td><td class="r">Control No.: <b>{{controlNo}}</b></td></tr></table>
   <table class="pt">
     ${rows}
   </table>
