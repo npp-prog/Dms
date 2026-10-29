@@ -192,6 +192,9 @@ test('document workflow', () => {
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
   assert.ok(doc.routeOffices.includes('Municipal Accounting Office') && doc.routeOffices.includes('Office of the Municipal Mayor'));
   assert.deepEqual(availableActions(doc), ['release']);
+  // The PDF is what travels: no release before the document is converted.
+  assert.throws(() => applyAction(doc, 'release', user), /Convert the document to PDF/);
+  doc.pdf = { files: [{ kind: 'generated', stage: 0, at: 't0' }] };
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't1') };
   assert.equal(doc.currentOffice, 'Municipal Accounting Office');
   assert.equal(whereIs(doc), 'Municipal Accounting Office (to receive)');
@@ -231,9 +234,10 @@ test('admin route and signature-required steps', () => {
   doc = { ...doc, ...buildWorkflow(type, doc, offices, user, '2026-10-01T00:00:00Z') };
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
   assert.equal(signatureMissing(doc), true);
+  doc.pdf = { files: [{ kind: 'generated', stage: 0, at: '2026-10-01T00:30:00Z' }] };
   assert.throws(() => applyAction(doc, 'release', user), /requires a signature/);
   // A signature from an earlier stay does not count; one made at this step does.
-  doc.pdf = { files: [{ kind: 'signed', stage: 0, at: '2026-09-30T00:00:00Z' }] };
+  doc.pdf.files.push({ kind: 'signed', stage: 0, at: '2026-09-30T00:00:00Z' });
   assert.equal(signatureMissing(doc), true);
   doc.pdf.files.push({ kind: 'signed', stage: 0, at: '2026-10-01T01:00:00Z' });
   assert.equal(signatureMissing(doc), false);

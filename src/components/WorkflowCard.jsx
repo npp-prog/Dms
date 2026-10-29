@@ -17,11 +17,12 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
         <h3>Workflow</h3>
         {canStart ? (
           <>
-            <p className="small muted">This document is complete but not routed yet. Start the workflow to send it along its route
-              (see How to process this document).</p>
+            <p className="small muted">This document is converted to PDF but not routed yet. Start the workflow to send the PDF
+              along its route.</p>
             <button className="btn btn-primary" disabled={busy} onClick={onStart}>Start workflow</button>
           </>
-        ) : <p className="small muted">The workflow starts when the document is marked complete.</p>}
+        ) : <p className="small muted">The workflow starts when the document is converted to PDF: the PDF then goes from office to
+          office along its route, to be received, signed and released.</p>}
       </section>
     );
   }

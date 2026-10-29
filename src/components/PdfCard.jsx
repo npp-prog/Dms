@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from 'react';
-import { addPdfVersion, checkStorage, documentBasis, getPdfBytes } from '../lib/api.js';
+import { useEffect, useId, useRef, useState } from 'react';
+import { addPdfVersion, checkStorage, documentBasis, getPdfBytes, startWorkflow } from '../lib/api.js';
 import { checkSignedVersion, isValidAt, readCertificate, readSignatures, signPdf } from '../lib/signing.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
 
@@ -26,6 +26,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const current = files.at(-1);
   const signedFiles = files.filter((f) => f.kind === 'signed');
   const [bytes, setBytes] = useState(null);
+  const made = useRef({}); // path -> bytes of versions made in this page
   const [signatures, setSignatures] = useState(null);
   const [stale, setStale] = useState(false);
   const [mode, setMode] = useState('');
@@ -41,7 +42,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     let live = true;
     setBytes(null); setSignatures(null);
     if (current) {
-      getPdfBytes(current.path)
+      // A version made in this page is already here: no need to download it again.
+      (made.current[current.path] ? Promise.resolve(made.current[current.path]) : getPdfBytes(current.path))
         .then((b) => { if (live) { setBytes(b); setSignatures(readSignatures(b)); } })
         .catch((e) => live && setError(`Could not open the PDF: ${e.message}`));
     }
@@ -62,8 +64,11 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const blob = await documentPdf(type, docData, settings, setBusy);
     const pdf = new Uint8Array(await blob.arrayBuffer());
     uploading(0);
-    await addPdfVersion(docData.id, pdf, actor, { kind: 'generated', basis: await documentBasis(docData), onProgress: uploading });
-    setNotice('Converted to PDF. It is ready to be signed.');
+    const file = await addPdfVersion(docData.id, pdf, actor, { kind: 'generated', basis: await documentBasis(docData), onProgress: uploading });
+    made.current[file.path] = pdf;
+    // The PDF now follows the document's route (Administration > Workflow).
+    if (!docData.workflow) await startWorkflow(docData.id, type, actor, settings.offices || []);
+    setNotice(docData.workflow ? 'Converted to PDF again.' : 'Converted to PDF. It now follows its workflow: sign it if your office signs, then release it to the next office.');
     onChanged();
   });
 
@@ -76,7 +81,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const out = await signPdf(bytes, key, password, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
-    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } });
+    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
     setP12(null); setPassword(''); setMode('');
     setNotice(`Signed by ${cert.name}.`);
     onChanged();
@@ -88,7 +93,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
     const last = check.added.at(-1);
-    await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'upload', onProgress: uploading, reason: why.trim(), signer: signerOf(last) });
+    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'upload', onProgress: uploading, reason: why.trim(), signer: signerOf(last) })).path] = out;
     setMode('');
     setNotice(`Signature of ${last.signer?.name || 'the signatory'} checked and saved.`);
     onChanged();

@@ -108,8 +108,8 @@ export default function DocumentView() {
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}
       {docData.status === 'complete' && !wf && (
-        <div className="alert alert-ok no-print"><b>Encoding complete.</b> Print the document, have it signed, attach the
-          requirements, and process it by following the steps under <b>How to process this document</b>.</div>
+        <div className="alert alert-ok no-print"><b>Encoding complete.</b> Check the document, then click <b>Convert to PDF</b> under
+          <b>PDF and digital signatures</b>: the PDF then follows its workflow from office to office.</div>
       )}
 
       <div className="split">
@@ -122,7 +122,7 @@ export default function DocumentView() {
           {type && (type.processing || []).length > 0 && docData.status !== 'draft' && (
             <WorkflowCard doc={docData} busy={busy}
               canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin })}
-              canStart={docData.status === 'complete' && (isOwner || isAdmin)}
+              canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
               onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
               onAction={(action, remarks, done) => run(async () => {
                 try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }

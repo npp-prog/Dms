@@ -338,8 +338,12 @@ const toHex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padSta
 const sha256 = async (bytes) => toHex(await crypto.subtle.digest('SHA-256', bytes));
 
 // What the PDF was made from: if this changes, the PDF no longer shows the document as it is.
+// Keys sorted: Firestore may return a map's fields in another order than they were written.
+const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]`
+  : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+    : JSON.stringify(v ?? null));
 export async function documentBasis(d) {
-  const text = JSON.stringify([d.data || {}, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
+  const text = stable([d.data || {}, d.checklist || {}, d.additionalDocs || [], d.transaction?.code || '', d.signatories || {}]);
   return (await sha256(new TextEncoder().encode(text))).slice(0, 16);
 }
 

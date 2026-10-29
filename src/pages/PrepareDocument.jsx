@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  createDocument, getDocument, startWorkflow, getDocumentType, getTypeForDocument, listDocumentTypes, updateDocument,
+  createDocument, getDocument, getDocumentType, getTypeForDocument, listDocumentTypes, updateDocument,
 } from '../lib/api.js';
 import { buildSteps, computeFields, initialData, missingFields, byAccounting } from '../lib/forms.js';
 import { carryOver, effectiveChecklist, missingRequired } from '../lib/checklists.js';
@@ -137,8 +137,6 @@ function Wizard({ typeId, docId }) {
       const payload = { data, checklist, additionalDocs: additionalDocs.filter((t) => t.trim()), links, transaction, status, signatories: existing?.signatories || signatoriesFrom(settings) };
       if (existing) await updateDocument(docId, type, payload, actor, existing.history);
       else id = await createDocument(type, payload, actor);
-      // Marked complete: the document starts along its route (first step: the preparer's office).
-      if (status === 'complete') await startWorkflow(id, type, actor, settings.offices || []).catch(() => {});
       // Editing (opened from the document page): return there. New document: replace the
       // wizard in the history, so Back from the document does not reopen the wizard.
       if (existing && (window.history.state?.idx ?? 0) > 0) navigate(-1);

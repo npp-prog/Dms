@@ -166,7 +166,7 @@ The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from th
 
 ### Workflow: where is the document?
 
-When you mark a document complete, DMS starts its **workflow**: the route from **How to process this document**. For a DV: your office → Municipal Accounting Office → Municipal Treasurer's Office → Office of the Municipal Mayor → Treasurer's Office → Accounting. The **Workflow** card on the document shows each office, where the document is now, and who received or released it and when.
+When you **convert a document to PDF**, DMS starts its **workflow**: from then on the PDF goes from office to office along the route set under Administration → Workflow (or, if none is set, the steps of **How to process this document**). Marking it complete is not enough: the document leaves your office only as a PDF. For a DV: your office → Municipal Accounting Office → Municipal Treasurer's Office → Office of the Municipal Mayor → Treasurer's Office → Accounting. The **Workflow** card on the document shows each office, where the document is now, and who received or released it and when.
 
 - **Release.** When the paper leaves your office, click **Release to Municipal Accounting Office**. From then on you can't edit the document.
 - **Receive.** The next office finds it in its **Inbox** (left menu, with the number waiting) and clicks **Receive** when the paper arrives.

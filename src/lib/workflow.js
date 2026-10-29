@@ -112,6 +112,10 @@ export function signatureMissing(doc) {
 export function applyAction(doc, action, user, remarks = '', at = new Date().toISOString()) {
   const wf = doc.workflow;
   if (!availableActions(doc).includes(action)) throw new Error(`"${action}" is not possible at this step.`);
+  // The PDF is what travels: the preparer's office converts the document before it leaves.
+  if (action === 'release' && wf.stage === 0 && !(doc.pdf?.files || []).length) {
+    throw new Error('Convert the document to PDF (PDF and digital signatures) before releasing it.');
+  }
   if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');
   }
