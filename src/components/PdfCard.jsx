@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import {
   BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
 } from '../lib/api.js';
-import { checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
+import { addNotes, checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
+import { refStampMissing } from '../lib/workflow.js';
 import { markPixels } from '../lib/markImage.js';
 import { certId, forgetPassword, rememberedPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
@@ -59,6 +60,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [noteText, setNoteText] = useState('');
   const [noteSize, setNoteSize] = useState('M');
   const [target, setTarget] = useState('mark'); // what a tap on the PDF places
+  const [refSize, setRefSize] = useState('M');
   const placement = placements.mark;
 
   // Load the current PDF and check every signature in it.
@@ -98,10 +100,17 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const useRemembered = Boolean(remembered) && !typeIt;
   const noteLines = useMemo(() => wrapNote(noteText), [noteText]);
   const placingText = mode === 'sign' && addText && noteLines.length > 0;
-  const tapFor = placingMark && placingText ? target : placingMark ? 'mark' : 'text';
-  // Ask the viewer to take taps for the mark and the text while signing with them.
+  // The reference no. this office assigned (e.g. the DV No.): it goes on the face of the PDF, where
+  // they tap, with their signature or stamped on its own; the step is released only once it is.
+  const pendingRef = canSign ? refStampMissing(docData) : null;
+  const refLines = pendingRef ? [`${pendingRef.label} ${pendingRef.value}`, ...(pendingRef.date ? [`Date: ${new Date(`${pendingRef.date}T00:00:00`).toLocaleDateString('en-PH', { dateStyle: 'medium' })}`] : [])] : [];
+  const placingRef = Boolean(pendingRef) && (mode === 'sign' || mode === 'stamp');
+  const active = [placingMark && 'mark', placingText && 'text', placingRef && 'ref'].filter(Boolean);
+  const tapFor = active.includes(target) ? target : active[0];
+  const refNote = () => ({ page: placements.ref.page, rect: placements.ref.rect, lines: refLines, size: NOTE_SIZES[refSize] });
+  // Ask the viewer to take taps for the mark, the text and the reference no.
   useEffect(() => {
-    if (!placingMark && !placingText) { onPlacing?.(null); return; }
+    if (!active.length) { onPlacing?.(null); return; }
     const [w, h] = MARK_SIZES[size];
     const name = saved ? saved.name : 'Your name';
     const box = noteBox(noteLines, NOTE_SIZES[noteSize]);
@@ -110,9 +119,21 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
       items: {
         mark: placingMark ? { w, h, preview: markUrl, label: ['Digitally signed by', name, ...myRefs, stampDate()].join('\n'), hint: 'Tap the page where your signature mark goes (e.g. the Signature line of your box).' } : null,
         text: placingText ? { ...box, label: noteLines.join('\n'), size: NOTE_SIZES[noteSize], hint: 'Tap the page where your text goes.' } : null,
+        ref: placingRef ? { ...noteBox(refLines, NOTE_SIZES[refSize]), label: refLines.join('\n'), size: NOTE_SIZES[refSize], hint: `Tap the page where the ${pendingRef.label} goes.` } : null,
       },
     });
-  }, [placingMark, placingText, tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize]);
+  }, [active.join(), tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize, refLines.join('\n'), refSize]);
+
+  // The reference no. stamped on its own (a step that does not sign, or signed in Acrobat).
+  const stampRef = () => run('Putting it on the PDF…', async () => {
+    if (!placements.ref) throw new Error(`Tap the PDF where the ${pendingRef.label} goes.`);
+    const out = await addNotes(bytes, [refNote()], { name: actor.displayName || actor.email });
+    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'stamped', refStage: wf.stage, onProgress: uploading, reason: refLines[0] })).path] = out;
+    setMode('');
+    onView?.();
+    setNotice(`${refLines[0]} is on the PDF.`);
+    onChanged();
+  });
 
   // Signed: the current PDF (not a superseded one).
   const signed = (signatures || []).length > 0 || signedFiles.length > 0;
@@ -155,15 +176,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (!cert.pnpki && !window.confirm(`This certificate was issued by "${cert.issuer}", not by the DICT PNPKI. Sign with it anyway?`)) return;
     if (placingMark && !placement) throw new Error('Tap the PDF where your signature mark goes, or untick "Place my signature mark".');
     if (placingText && !placements.text) throw new Error('Tap the PDF where your text goes, or untick "Add text on the PDF".');
+    if (placingRef && !placements.ref) throw new Error(`Tap the PDF where the ${pendingRef.label} goes.`);
     // The signature appears where the mark was placed; clicking it shows its certificate.
     const visible = placingMark
       ? { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['Digitally signed by', cert.name, ...myRefs, stampDate()] }
       : null;
     const note = placingText ? { page: placements.text.page, rect: placements.text.rect, lines: noteLines, size: NOTE_SIZES[noteSize] } : null;
-    const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible, note });
+    const out = await signPdf(bytes, key, pw, { reason: why.trim(), location: settings.lguName || 'Municipal Government of Candoni', name: cert.name, contactInfo: cert.email, mark: visible, note, notes: placingRef ? [refNote()] : [] });
     const check = checkSignedVersion(bytes, out);
     if (!check.ok) throw new Error(check.error);
-    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), note: note ? noteLines.join(' ') : '', signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
+    made.current[(await addPdfVersion(docData.id, out, actor, { kind: 'signed', method: 'dms', onProgress: uploading, reason: why.trim(), note: note ? noteLines.join(' ') : '', refStage: placingRef ? wf.stage : null, signer: { ...signerOf(check.added.at(-1)), name: cert.name } })).path] = out;
     setPassword(''); setMode(''); setAddText(false); setNoteText('');
     onView?.();
     setNotice(`Signed by ${cert.name}.`);
@@ -244,6 +266,34 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
               )
           )}
 
+          {pendingRef && bytes && (
+            <div className="mark-box ref-box">
+              <div className="field-label">Put the {pendingRef.label} on the PDF</div>
+              <p className="small"><b>{refLines.join(' · ')}</b></p>
+              <div className="row gap wrap small">
+                Size:
+                {Object.keys(NOTE_SIZES).map((k) => (
+                  <button key={k} type="button" className={`chip${refSize === k ? ' active' : ''}`} onClick={() => setRefSize(k)}>{MARK_LABELS[k]}</button>
+                ))}
+              </div>
+              {placingRef ? (
+                <p className={`small ${placements.ref ? 'muted' : 'mark-todo'}`}>{placements.ref
+                  ? `Placed on page ${placements.ref.page + 1}.${tapFor === 'ref' ? ' Tap the PDF again to move it.' : ''}`
+                  : 'Tap the PDF where it goes, anywhere on the page.'}</p>
+              ) : (
+                <p className="small muted">{wf.steps[wf.stage].sign
+                  ? 'It goes on the PDF with your signature: click Sign with PNPKI and tap where it goes. Signing in Acrobat instead? Stamp it here first.'
+                  : 'Click Place it, tap the PDF where it goes, then stamp it.'}</p>
+              )}
+              {mode === 'stamp' ? (
+                <div className="row gap">
+                  <button className="btn btn-primary btn-sm" disabled={!!busy || !placements.ref} onClick={stampRef}>{busy || 'Stamp it on the PDF'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setMode('')}>Cancel</button>
+                </div>
+              ) : mode !== 'sign' && <div><button className="btn btn-ghost btn-sm" onClick={() => { setMode('stamp'); setTarget('ref'); }}>Place it</button></div>}
+            </div>
+          )}
+
           <div className="row gap wrap">
             <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => onView?.()}>View PDF</button>
             <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
@@ -251,7 +301,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             {canSign && bytes && mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}
           </div>
 
-          {canSign && mode && (
+          {canSign && (mode === 'sign' || mode === 'upload') && (
             <div className="sign-panel">
               <div className="field field-wide">
                 <label className="field-label" htmlFor={`${id}-why`}>Reason (shown in the signature)</label>
@@ -280,11 +330,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                   )}
                 </div>
               )}
-              {mode === 'sign' && placingMark && placingText && (
+              {mode === 'sign' && active.length > 1 && (
                 <div className="row gap wrap small place-target">
                   Tapping the PDF places:
-                  <button type="button" className={`chip${tapFor === 'mark' ? ' active' : ''}`} onClick={() => setTarget('mark')}>Signature mark</button>
-                  <button type="button" className={`chip${tapFor === 'text' ? ' active' : ''}`} onClick={() => setTarget('text')}>Text</button>
+                  {active.map((k) => (
+                    <button key={k} type="button" className={`chip${tapFor === k ? ' active' : ''}`} onClick={() => setTarget(k)}>
+                      {{ mark: 'Signature mark', text: 'Text', ref: pendingRef?.label || 'Reference no.' }[k]}</button>
+                  ))}
                 </div>
               )}
               {mode === 'sign' ? (
@@ -336,7 +388,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                     </div>
                   )}
                   <div className="row gap">
-                    <button className="btn btn-primary" disabled={!!busy || (!useRemembered && !password) || (placingMark && !placement) || (placingText && !placements.text) || (addText && !noteLines.length)} onClick={signHere}>{busy || 'Sign PDF'}</button>
+                    <button className="btn btn-primary" disabled={!!busy || (!useRemembered && !password) || (placingMark && !placement) || (placingText && !placements.text) || (placingRef && !placements.ref) || (addText && !noteLines.length)} onClick={signHere}>{busy || 'Sign PDF'}</button>
                     <button className="btn btn-ghost" onClick={() => { setMode(''); setPassword(''); }}>Cancel</button>
                   </div>
                 </>
@@ -364,7 +416,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <ol>
               {files.map((f, i) => (
                 <li key={f.path} className={i < lastNew ? 'superseded' : ''}>
-                  {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
+                  {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : f.kind === 'stamped' ? `${f.reason || 'Reference no.'} put on it` : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
                   {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : i < lastNew ? ' · superseded' : ''}
                 </li>
               ))}

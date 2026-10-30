@@ -149,6 +149,23 @@ export function signatureMissing(doc) {
   return !current.some((f) => f.kind === 'signed' && !f.referral && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 
+// The reference no. this step assigned (e.g. the DV No.) and is still to put on the face of the PDF
+// ({ field, label, value, date } or null). It is put there with this step's signature, or stamped on
+// its own (PDF versions record refStage). A PDF converted again after the number was assigned
+// prints it in the form.
+export function refStampMissing(doc) {
+  const wf = doc?.workflow;
+  const step = wf?.state === 'in-progress' && !wf.referral ? wf.steps[wf.stage] : null;
+  const r = step?.assign?.field ? doc.refNos?.[step.assign.field] : null;
+  if (!r || r.stage !== wf.stage) return null;
+  const files = doc.pdf?.files || [];
+  const lastNew = Math.max(-1, ...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1)));
+  if (lastNew >= 0 && files[lastNew].kind === 'generated' && files[lastNew].at > r.at) return null;
+  if (files.slice(lastNew + 1).some((f) => f.refStage === wf.stage)) return null;
+  const date = step.assign.dateField ? doc.refNos?.[step.assign.dateField]?.value : '';
+  return { field: step.assign.field, label: r.label, value: r.value, date: date || '' };
+}
+
 // Fields the current step's office must fill in that are still empty.
 export function fillsMissing(doc) {
   const wf = doc?.workflow;
@@ -177,6 +194,9 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   }
   if ((action === 'release' || action === 'complete') && uploadMissing(doc)) {
     throw new Error(`Upload ${wf.steps[wf.stage].upload} before releasing it.`);
+  }
+  if ((action === 'release' || action === 'complete') && refStampMissing(doc)) {
+    throw new Error(`Put the ${refStampMissing(doc).label} on the PDF (PDF and digital signatures) before releasing it.`);
   }
   if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');

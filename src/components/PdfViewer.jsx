@@ -181,7 +181,7 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
               );
             })}
             {marks.filter((m) => m.page === i).map((m) => (
-              <div key={m.kind || 'mark'} className={`pdf-mark${m.kind === 'text' ? ' pdf-note' : ''}${m.active === false ? ' idle' : ''}`} style={{
+              <div key={m.id || m.kind || 'mark'} className={`pdf-mark${m.kind === 'text' ? ' pdf-note' : ''}${m.active === false ? ' idle' : ''}`} style={{
                 left: `${(m.rect[0] / s.w) * 100}%`,
                 bottom: `${(m.rect[1] / s.h) * 100}%`,
                 width: `${((m.rect[2] - m.rect[0]) / s.w) * 100}%`,

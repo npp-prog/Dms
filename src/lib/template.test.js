@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, refStampMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -427,4 +427,23 @@ test('positions: only the named positions in the office act on a step (the offic
   assert.equal(canAct(doc, { uid: 'r1', office, positions: ['Encoder', 'Reviewer'] }), true);
   assert.equal(canAct(doc, { uid: 'h1', office, isHead: true }), true);
   assert.equal(canAct(doc, { uid: 'x', office: 'Municipal Budget Office', positions: ['Reviewer'] }), false);
+});
+
+test('a step that assigns a reference no. puts it on the PDF before releasing', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const type = { route: [{ office: '', action: 'Box A' }, { office: 'Municipal Accounting Office', action: 'Pre-audit', assign: { field: 'dvNo', dateField: 'dvDate', pattern: '{####}' } }, { office: 'Municipal Treasurer\'s Office', action: 'Box C' }] };
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  const rosa = { uid: 'a1', displayName: 'Rosa', office: 'Municipal Accounting Office' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated', at: '2026-10-30T01:00:00Z' }] } };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
+  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't2') };
+  assert.equal(refStampMissing(doc), null, 'nothing assigned yet');
+  doc.refNos = { dvNo: { value: '0001', label: 'Disbursement No.', stage: 1, at: '2026-10-30T02:00:00Z' }, dvDate: { value: '2026-10-30', label: 'Date', of: 'dvNo', stage: 1 } };
+  assert.deepEqual(refStampMissing(doc), { field: 'dvNo', label: 'Disbursement No.', value: '0001', date: '2026-10-30' });
+  assert.throws(() => applyAction(doc, 'release', rosa), /Put the Disbursement No\. on the PDF/);
+  doc.pdf.files.push({ kind: 'stamped', refStage: 1, at: '2026-10-30T02:10:00Z' });
+  assert.equal(refStampMissing(doc), null);
+  doc = { ...doc, ...applyAction(doc, 'release', rosa, '', 't3') };
+  assert.equal(refStampMissing(doc), null, 'the next step assigns nothing');
 });

@@ -6,7 +6,7 @@ import { Buffer as BrowserBuffer } from 'buffer/index.js';
 import jsQR from 'jsqr';
 import { qrAppearance, qrRuns, verifyUrl } from './qr.js';
 import { checkRecord, CHECK_KEYS } from './publicRecord.js';
-import { addQrStamps, addSignatureField, checkSignedVersion, fixBufferLastIndexOf, noteBox, readCertificate, readSignatures, signPdf, stampDate, verifyPdf, wrapNote } from './signing.js';
+import { addNotes, addQrStamps, addSignatureField, checkSignedVersion, fixBufferLastIndexOf, noteBox, readCertificate, readSignatures, signPdf, stampDate, verifyPdf, wrapNote } from './signing.js';
 
 // Test certificates only: a CA named like the PNPKI and one signer, plus a non-PNPKI signer.
 function makeP12(cn, issuerDn, password = 'secret') {
@@ -214,4 +214,22 @@ test('public record: only what confirms the document, no amounts or data fields'
   assert.deepEqual(r.versions.map((v) => v.sha256), ['aa', 'bb']);
   assert.deepEqual(r.refNos, ['Disbursement No. GF-2026-10-0001']);
   assert.ok(!JSON.stringify(r).includes('10000'));
+});
+
+test('reference no. stamped on its own, then signed; or with the signature', async () => {
+  const lines = ['Disbursement No. GF-2026-10-0012', 'Date: Oct 30, 2026'];
+  const box = noteBox(lines, 10);
+  const ref = { page: 0, rect: [380, 760, 380 + box.w, 760 + box.h], lines, size: 10 };
+  const v0 = unsignedPdf();
+  const stamped = await addNotes(v0, [ref], { name: 'ROSA' });
+  assert.ok(Buffer.from(stamped.subarray(0, v0.length)).equals(Buffer.from(v0)));
+  assert.match(Buffer.from(stamped).toString('latin1'), /\/Subtype \/FreeText .*\/Contents \(Disbursement No\. GF-2026-10-0012 Date: Oct 30, 2026\)/);
+  const v1 = await signPdf(stamped, makeP12('ROSA ACCOUNTING', PNPKI), 'secret');
+  assert.equal(checkSignedVersion(stamped, v1).ok, true);
+  // With the signature: the number and an added text in the same update.
+  const v2 = await signPdf(v0, makeP12('ROSA ACCOUNTING', PNPKI), 'secret', { notes: [ref, { ...ref, page: 1, lines: ['Noted'] }] });
+  const check = checkSignedVersion(v0, v2);
+  assert.equal(check.ok, true, check.error);
+  assert.equal((Buffer.from(v2).toString('latin1').match(/\/Subtype \/FreeText/g) || []).length, 2);
+  wellFormed(v2);
 });

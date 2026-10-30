@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, availableActions, fillsMissing, officeOf, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { ACTION_LABELS, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
 import PersonPicker from './PersonPicker.jsx';
 import Select from './Select.jsx';
 
@@ -140,7 +140,8 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
   const released = wf.events.some((e) => e.type === 'released');
   const hasAlternates = wf.steps.some((s) => s.alternates?.length);
   const showChoice = wf.state === 'in-progress' && hasAlternates && wf.stage === 0 && !released && !referral && canAct;
-  const blocked = fillsMissing(doc).length > 0 || uploadMissing(doc);
+  const refPending = refStampMissing(doc);
+  const blocked = fillsMissing(doc).length > 0 || uploadMissing(doc) || Boolean(refPending);
   const act = (action) => onAction(action, remarks, () => { setRemarks(''); setReturning(false); });
 
   return (
@@ -242,6 +243,9 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               )}
               {wf.received && (fillsMissing(doc).length > 0 || uploadMissing(doc)) && (
                 <div className="alert-info small">Before releasing: {[fillsMissing(doc).length && 'fill in and save the details above', uploadMissing(doc) && `upload ${wf.steps[wf.stage].upload}`].filter(Boolean).join(', and ')}.</div>
+              )}
+              {refPending && wf.received && (
+                <div className="alert-info small">Put the <b>{refPending.label} {refPending.value}</b> on the PDF under <b>PDF and digital signatures</b>{wf.steps[wf.stage].sign ? ' (with your signature)' : ''}, then release it.</div>
               )}
               {unsigned && wf.received && (
                 <div className="alert-info small">This step requires a signature. Sign the PDF under <b>PDF and digital signatures</b>, then release it.</div>

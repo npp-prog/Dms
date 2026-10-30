@@ -143,8 +143,8 @@ export default function DocumentView() {
   const [placing, setPlacing] = useState(null);
   const [placements, setPlacements] = useState({});
   const tapItem = placing?.items?.[placing.target] || null;
-  const placedMarks = placing ? ['mark', 'text'].filter((k) => placing.items[k] && placements[k])
-    .map((k) => ({ ...placements[k], ...placing.items[k], kind: k, active: k === placing.target })) : [];
+  const placedMarks = placing ? ['mark', 'text', 'ref'].filter((k) => placing.items[k] && placements[k])
+    .map((k) => ({ ...placements[k], ...placing.items[k], id: k, kind: k === 'mark' ? 'mark' : 'text', active: k === placing.target })) : [];
   const onPlace = (p) => placing && setPlacements((cur) => ({ ...cur, [placing.target]: p }));
   // Working copy of the data while the Accounting Office fills in its part.
   const [draft, setDraft] = useState(null);

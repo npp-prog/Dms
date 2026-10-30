@@ -88,10 +88,11 @@ export function readCertificate(p12Bytes, password) {
 // mark: { page, rect, image, lines } puts the signature, with the signatory's mark, where they placed it.
 // note: { page, rect, lines, size } text the signatory adds elsewhere on the page (e.g. "Approved for
 // payment"), written in the same update as the signature, so the signature covers it.
-export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null } = {}) {
+// notes: several of them (e.g. the text and the reference no. the office assigned).
+export async function signPdf(pdfBytes, p12Bytes, password, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null, notes = [] } = {}) {
   const { P12Signer, signpdf } = await signpdfLibs();
   const B = globalThis.Buffer; // the Buffer @signpdf checks against
-  const withPlaceholder = await addSignatureField(pdfBytes, { reason, location, name, contactInfo, mark, note });
+  const withPlaceholder = await addSignatureField(pdfBytes, { reason, location, name, contactInfo, mark, note, notes });
   let signer;
   try {
     signer = new P12Signer(B.from(p12Bytes), { passphrase: password });
@@ -293,10 +294,22 @@ export function noteBox(lines, size = 10) {
   return { w: Math.ceil(longest * size * 0.52 + 6), h: Math.ceil(lines.length * size * 1.25 + 4) };
 }
 
+// A note: text on the page as a locked FreeText annotation (printed, read-only, locked: 4 + 64 + 128).
+function putNote(put, note, ids, pageRef, name, at) {
+  const B = globalThis.Buffer;
+  const fs = note.size || 10;
+  const w = note.rect[2] - note.rect[0];
+  const h = note.rect[3] - note.rect[1];
+  const body = B.from(`0 0 0.35 rg\n${note.lines.map((l, i) => `BT /F1 ${num(fs)} Tf 3 ${num(h - 2 - fs - i * fs * 1.25 + fs * 0.2)} Td (${pdfText(l)}) Tj ET`).join('\n')}\n`, 'latin1');
+  put(ids.form, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
+  put(ids.annot, `<< /Type /Annot /Subtype /FreeText /Rect [${note.rect.map(num).join(' ')}] /Contents (${pdfText(note.lines.join(' '))}) /T (${pdfText(name)}) /M (${pdfDate(at)}) /DA (/Helv ${num(fs)} Tf 0 0 0.35 rg) /F 196 /Border [0 0 0] /P ${pageRef} /AP << /N ${ids.form} 0 R >> >>`);
+}
+
 // Adds an empty signature field (the placeholder @signpdf fills in). mark: { page, rect, image,
 // lines } for a visible signature; without it the signature is invisible (on the first page).
 // note: { page, rect, lines, size } added text, as a locked FreeText annotation in the same update.
-export async function addSignatureField(pdfBytes, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null, signatureLength = 16384, at = new Date() } = {}) {
+export async function addSignatureField(pdfBytes, { reason = '', location = '', name = '', contactInfo = '', mark = null, note = null, notes: more = [], signatureLength = 16384, at = new Date() } = {}) {
+  const notes = [...(note ? [note] : []), ...more];
   if (!globalThis.Buffer) globalThis.Buffer = Buffer;
   fixBufferLastIndexOf(globalThis.Buffer);
   const B = globalThis.Buffer;
@@ -315,9 +328,9 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
 
   const kids = obj(getPagesDictionaryRef(info)).match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
   const pageRef = kids[mark ? mark.page : 0];
-  const notePageRef = note ? kids[note.page] : null;
-  if (!pageRef || (note && !notePageRef)) throw cannot('page not found');
-  const pagesHit = [...new Set([pageRef, notePageRef].filter(Boolean))];
+  const notePages = notes.map((n) => kids[n.page]);
+  if (!pageRef || notePages.some((r) => !r)) throw cannot('page not found');
+  const pagesHit = [...new Set([pageRef, ...notePages])];
   if (pagesHit.some((r) => /\/Annots\s+\d+\s+\d+\s+R/.test(obj(r)))) throw cannot('page annotations in a separate object');
   const root = info.root;
   const acroRef = root.match(/\/AcroForm\s+(\d+\s+\d+\s+R)/)?.[1];
@@ -329,8 +342,8 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
   const ids = {
     img: mark ? next++ : null, smask: mark?.image.alpha ? next++ : null, form: mark ? next++ : null,
     sig: next++, widget: next++, acro: acroRef ? idOf(acroRef) : next++,
-    noteForm: note ? next++ : null, note: note ? next++ : null,
   };
+  const noteIds = notes.map(() => ({ form: next++, annot: next++ }));
   const rect = mark ? mark.rect : [0, 0, 0, 0];
 
   const chunks = [B.from('\n')];
@@ -368,18 +381,10 @@ export async function addSignatureField(pdfBytes, { reason = '', location = '', 
     : `/Type /AcroForm\n${fieldsArr}`;
   put(ids.acro, `<<\n${(/\/SigFlags/.test(acro) ? acro.replace(/\/SigFlags\s+\d+/, '/SigFlags 3') : `${acro}\n/SigFlags 3`).trim()}\n>>`);
   if (!acroRef) put(idOf(info.rootRef), `<<\n${root.trim()}\n/AcroForm ${ids.acro} 0 R\n>>`);
-  if (note) {
-    const fs = note.size || 10;
-    const w = note.rect[2] - note.rect[0];
-    const h = note.rect[3] - note.rect[1];
-    const body = B.from(`0 0 0.35 rg\n${note.lines.map((l, i) => `BT /F1 ${num(fs)} Tf 3 ${num(h - 2 - fs - i * fs * 1.25 + fs * 0.2)} Td (${pdfText(l)}) Tj ET`).join('\n')}\n`, 'latin1');
-    put(ids.noteForm, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
-    // Printed, read-only and locked (4 + 64 + 128): part of what the signature covers.
-    put(ids.note, `<< /Type /Annot /Subtype /FreeText /Rect [${note.rect.map(num).join(' ')}] /Contents (${pdfText(note.lines.join(' '))}) /T (${pdfText(name)}) /M (${pdfDate(at)}) /DA (/Helv ${num(fs)} Tf 0 0 0.35 rg) /F 196 /Border [0 0 0] /P ${notePageRef} /AP << /N ${ids.noteForm} 0 R >> >>`);
-  }
+  notes.forEach((n, i) => putNote(put, n, noteIds[i], notePages[i], name, at));
   for (const ref of pagesHit) {
     const dict = obj(ref);
-    const add = [...(ref === pageRef ? [ids.widget] : []), ...(note && ref === notePageRef ? [ids.note] : [])].map((n) => `${n} 0 R`).join(' ');
+    const add = [...(ref === pageRef ? [ids.widget] : []), ...noteIds.filter((_, i) => notePages[i] === ref).map((x) => x.annot)].map((n) => `${n} 0 R`).join(' ');
     const annots = /\/Annots\s*\[/.test(dict)
       ? dict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${add}]`)
       : `${dict}\n/Annots [${add}]`;
@@ -468,6 +473,54 @@ export async function addQrStamps(pdfBytes, appearance) {
     put(idOf(p.ref), `<<\n${annots.trim()}\n>>`);
   }
   if (offsets.length < 2) return pdfBytes;
+  const xrefAt = pos;
+  const rows = offsets.sort((x, y) => x[0] - y[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
+  chunks.push(B.from(`xref\n0 1\n0000000000 65535 f \n${rows}trailer\n<<\n/Size ${next}\n/Root ${info.rootRef}\n${info.infoRef ? `/Info ${info.infoRef}\n` : ''}/Prev ${info.xRefPosition}\n>>\nstartxref\n${xrefAt}\n%%EOF\n`, 'latin1'));
+  return new Uint8Array(B.concat([pdf, ...chunks]));
+}
+
+// Text put on the PDF without a signature (e.g. the reference no. an office assigns at a step that
+// does not sign), as locked FreeText annotations in an update after the original bytes.
+export async function addNotes(pdfBytes, notes, { name = '', at = new Date() } = {}) {
+  if (!globalThis.Buffer) globalThis.Buffer = Buffer;
+  fixBufferLastIndexOf(globalThis.Buffer);
+  const B = globalThis.Buffer;
+  const def = (m) => (typeof m.default === 'function' ? m.default : m.default?.default);
+  const [readPdf, findObject, getPagesDictionaryRef] = (await Promise.all([
+    import('@signpdf/placeholder-plain/dist/readPdf.js'), import('@signpdf/placeholder-plain/dist/findObject.js'),
+    import('@signpdf/placeholder-plain/dist/getPagesDictionaryRef.js'),
+  ])).map(def);
+  const pdf = B.from(pdfBytes);
+  const cannot = (why) => new Error(`DMS cannot add text to this PDF (${why}).`);
+  let info;
+  try { info = readPdf(pdf); } catch (e) { throw cannot(e.message); }
+  const obj = (ref) => findObject(pdf, info.xref, ref).toString();
+  const idOf = (ref) => Number(String(ref).trim().split(/\s+/)[0]);
+  const kids = obj(getPagesDictionaryRef(info)).match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
+  const pages = notes.map((n) => kids[n.page]);
+  if (pages.some((r) => !r)) throw cannot('page not found');
+  if (pages.some((r) => /\/Annots\s+\d+\s+\d+\s+R/.test(obj(r)))) throw cannot('page annotations in a separate object');
+  let next = info.xref.maxIndex + 1;
+  const ids = notes.map(() => ({ form: next++, annot: next++ }));
+  const chunks = [B.from('\n')];
+  let pos = pdf.length + 1;
+  const offsets = [];
+  const put = (id, head, stream) => {
+    offsets.push([id, pos]);
+    const parts = stream
+      ? [B.from(`${id} 0 obj\n${head}\nstream\n`, 'latin1'), B.from(stream), B.from('\nendstream\nendobj\n')]
+      : [B.from(`${id} 0 obj\n${head}\nendobj\n`, 'latin1')];
+    for (const part of parts) { chunks.push(part); pos += part.length; }
+  };
+  notes.forEach((n, i) => putNote(put, n, ids[i], pages[i], name, at));
+  for (const ref of [...new Set(pages)]) {
+    const dict = obj(ref);
+    const add = ids.filter((_, i) => pages[i] === ref).map((x) => `${x.annot} 0 R`).join(' ');
+    const annots = /\/Annots\s*\[/.test(dict)
+      ? dict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${add}]`)
+      : `${dict}\n/Annots [${add}]`;
+    put(idOf(ref), `<<\n${annots.trim()}\n>>`);
+  }
   const xrefAt = pos;
   const rows = offsets.sort((x, y) => x[0] - y[0]).map(([id, off]) => `${id} 1\n${String(off).padStart(10, '0')} 00000 n \n`).join('');
   chunks.push(B.from(`xref\n0 1\n0000000000 65535 f \n${rows}trailer\n<<\n/Size ${next}\n/Root ${info.rootRef}\n${info.infoRef ? `/Info ${info.infoRef}\n` : ''}/Prev ${info.xRefPosition}\n>>\nstartxref\n${xrefAt}\n%%EOF\n`, 'latin1'));
