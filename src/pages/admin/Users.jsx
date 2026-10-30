@@ -32,11 +32,6 @@ export default function Users() {
       <div className="page-head">
         <div>
           <h1>Users</h1>
-          <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees the documents they prepared and
-            those waiting in their office; the <b>office head</b> sees every document of the office. Only the superadmin can grant admin
-            rights. Give each user their <b>position</b> in the office (e.g. Reviewer, Inspection Officer): a workflow step can name the
-            positions that act on it. A user who <b>may route documents to any person</b> can send a document they hold to any active user outside its route
-            (admins always can). The list of offices is in Settings.</p>
         </div>
         <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All users</option>

@@ -107,7 +107,6 @@ export default function Profile() {
       <div className="page-head">
         <div>
           <h1>My Profile</h1>
-          <p className="muted">Your details and your digital signature. Register your certificate and signature mark once; change them any time.</p>
         </div>
       </div>
       {msg && <div className={msg.ok ? 'alert alert-ok' : 'alert'}>{msg.text}</div>}

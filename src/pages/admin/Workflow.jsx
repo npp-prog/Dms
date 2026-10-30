@@ -29,8 +29,6 @@ export default function Workflow() {
       <div className="page-head">
         <div>
           <h1>Workflow</h1>
-          <p className="muted">Set the flow of each document: the offices it goes through, in order, once it is converted to PDF (or uploaded).
-            Each office receives it, acts, and releases it to the next one.</p>
         </div>
       </div>
       <Routes />

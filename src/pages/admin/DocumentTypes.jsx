@@ -66,7 +66,6 @@ export default function DocumentTypes() {
       <div className="page-head">
         <div>
           <h1>Document Types</h1>
-          <p className="muted">Define each document&rsquo;s fields, guided steps, checklist of requirements and printable format.</p>
         </div>
         <div className="row gap wrap">
           {missingStarters.length > 0 && (

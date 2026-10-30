@@ -33,9 +33,6 @@ export default function Inbox() {
       <div className="page-head">
         <div>
           <h1>Inbox</h1>
-          <p className="muted">{office
-            ? <>Documents waiting in the <b>{office}</b>. Open one to receive it, then release it to the next office or return it.</>
-            : isAdmin ? 'Every document on its route, in any office.' : 'An administrator has not assigned you to an office yet.'}</p>
         </div>
         {isAdmin && (
           <Select value={office} onChange={(e) => setOffice(e.target.value)} aria-label="Office">

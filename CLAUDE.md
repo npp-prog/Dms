@@ -10,3 +10,4 @@
   A placeholder may only say what to do (e.g. "Search…"); explanations go in help text under the field.
 - **Funds:** only those in Settings (`fundsOf(settings)`, default General Fund, Special Education Fund, Trust Fund);
   admins add more there. Every Fund field and the Upload form use that list.
+- **No description under page titles:** a page shows its title (and actions) only, no explanatory line below it.

@@ -49,8 +49,6 @@ export default function Checklists() {
       <div className="page-head">
         <div>
           <h1>Checklists</h1>
-          <p>Required documents for each type of disbursement and liquidation, from the Municipal Accounting Office.
-            Open one to read or print it.</p>
         </div>
         {isAdmin && (
           <div className="row gap wrap">

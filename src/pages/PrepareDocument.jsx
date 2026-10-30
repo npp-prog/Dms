@@ -25,8 +25,6 @@ function TypePicker() {
   return (
     <div className="page">
       <h1>New document</h1>
-      <p className="muted">Choose the type of document. <b>Prepare</b> encodes it in DMS step by step, followed by its checklist;
-        <b> Upload</b> brings in a file you already have (a scanned or signed form, a PDF from another system).</p>
       {error && <div className="alert">{error}</div>}
       {!types && !error && <div className="spinner" />}
       {types && (

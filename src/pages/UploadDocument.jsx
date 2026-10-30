@@ -76,8 +76,6 @@ export default function UploadDocument() {
         <div>
           <div className="crumbs"><Link to="/new">New document</Link> / Upload</div>
           <h1>Upload a document</h1>
-          <p className="muted">For a document that already exists as a file: a scanned or signed form, a letter, a PDF from another system.
-            It gets a DMS control number, follows the workflow of its type, and can be signed, forwarded and linked like a prepared document.</p>
         </div>
       </div>
       <form className="card upload-form" onSubmit={submit}>

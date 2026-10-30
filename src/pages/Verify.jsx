@@ -49,8 +49,6 @@ export default function Verify({ standalone = false }) {
       <div className="page-head">
         <div>
           <h1>Verify a document</h1>
-          <p className="muted">Check the digital signatures of a PDF from DMS: who signed it, when, with which certificate, and whether it was
-            changed after signing. The file is checked on this device and is not uploaded.</p>
         </div>
       </div>
 

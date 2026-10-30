@@ -41,13 +41,6 @@ export default function Documents() {
       <div className="page-head">
         <div>
           <h1>{isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'}</h1>
-          {!isAdmin && (
-            <p className="muted">{isHead
-              ? <>Every document of the <b>{profile.office}</b> (you are its office head), and those routed through it.</>
-              : profile.office
-                ? <>The documents you prepared, and those waiting in the <b>{profile.office}</b> for you to act on.</>
-                : 'Your documents. An administrator has not assigned you to an office yet.'}</p>
-          )}
         </div>
         <div className="row gap wrap">
           {isAdmin && docs && !zipOpen && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setZipOpen(true)}>Download ZIP</button>}
