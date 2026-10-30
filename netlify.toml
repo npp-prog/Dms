@@ -10,6 +10,14 @@
   # that one value; secret scanning stays on for everything else.
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyCNI8dJaXA70z5y0oX5tu6DqzBPN9dvsGo"
 
+# Firebase sign-in through the site's own address (src/firebase-config.js OWN_AUTH_DOMAINS):
+# its helper pages (/__/auth/…, /__/firebase/init.json) come from Firebase.
+[[redirects]]
+  from = "/__/*"
+  to = "https://candoni-fts-a2f16.firebaseapp.com/__/:splat"
+  status = 200
+  force = true
+
 # Single-page app: let React Router handle every path
 [[redirects]]
   from = "/*"
@@ -19,7 +27,8 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    # SAMEORIGIN: the sign-in helper (/__/auth/iframe) is framed by the site itself.
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 

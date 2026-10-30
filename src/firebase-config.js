@@ -9,3 +9,9 @@ export const firebaseConfig = {
   messagingSenderId: '824193024498',
   appId: '1:824193024498:web:c7604487c1b4af4ba6eb6b',
 };
+
+// Sites that sign in through their own address instead of candoni-fts-a2f16.firebaseapp.com (Google's
+// "Choose an account … to continue to" then shows this address). netlify.toml passes /__/* on to
+// Firebase. Each one must also be in Firebase → Authentication → Settings → Authorized domains, and
+// https://<site>/__/auth/handler in the Google Cloud OAuth client's Authorized redirect URIs.
+export const OWN_AUTH_DOMAINS = ['dms.mgocandoni.com'];

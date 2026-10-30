@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
-import { firebaseConfig as fileConfig } from './firebase-config.js';
+import { OWN_AUTH_DOMAINS, firebaseConfig as siteConfig } from './firebase-config.js';
 
 // The config comes from src/firebase-config.js. VITE_FIREBASE_* environment variables,
 // when set (e.g. by `npm run local` for the emulators), take precedence.
@@ -16,7 +16,13 @@ const firebaseConfig = env.VITE_FIREBASE_API_KEY
     messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: env.VITE_FIREBASE_APP_ID,
   }
-  : fileConfig;
+  : fileConfig();
+
+// On dms.mgocandoni.com, sign in through that address (proxied to Firebase by netlify.toml).
+function fileConfig() {
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  return OWN_AUTH_DOMAINS.includes(host) ? { ...siteConfig, authDomain: host } : siteConfig;
+}
 
 export const isConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
   && !String(firebaseConfig.apiKey).startsWith('PASTE_');
