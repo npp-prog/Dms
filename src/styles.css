@@ -1067,3 +1067,24 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .route-editor .btn-sm { min-height: 28px; padding: .18rem .65rem; font-size: .8rem; }
 .route-editor .btn-primary { color: #fff; }
 .route-actions { gap: .4rem; margin-top: .9rem; }
+
+/* Workflow: the open step (head row, then a two-column grid of fields). */
+.route-steps li.open { flex-direction: column; align-items: stretch; gap: .8rem; padding: .8rem 1rem 1rem; }
+.route-step-head { display: flex; align-items: center; gap: .6rem; }
+.route-step-head .spacer { flex: 1; }
+.route-step-head .wf-dot { margin-top: 0; }
+.route-steps li.open .route-tools { flex-direction: row; margin-top: 0; }
+.route-steps li.open .route-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1rem; align-items: start; }
+.route-fields .field { margin: 0; }
+.route-fields .help { display: block; margin-top: .3rem; font-size: .76rem; color: var(--muted); }
+.chips-field { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.chips-field > .ss, .chips-field > select { flex: 1 1 200px; min-width: 0; }
+.chips-field .positions-picker { flex: 1; display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.chips-field .positions-picker .ss, .chips-field .positions-picker select { flex: 1 1 200px; min-width: 0; }
+.route-options { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem 1.6rem; padding-top: .2rem; }
+.route-options .check { white-space: nowrap; }
+.route-steps li.open .assign-fields { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; padding: .8rem; margin: 0; }
+.assign-fields .assign-help { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 760px) {
+  .route-steps li.open .route-fields, .route-steps li.open .assign-fields { grid-template-columns: 1fr; }
+}

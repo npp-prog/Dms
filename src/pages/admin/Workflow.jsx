@@ -134,6 +134,14 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     }
   };
 
+  const tools = (i) => (
+    <div className="route-tools">
+      <button type="button" className="btn-icon" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+      <button type="button" className="btn-icon" title="Move down" disabled={i === route.length - 1} onClick={() => move(i, 1)}>↓</button>
+      <button type="button" className="btn-icon" title="Remove step" onClick={() => { setRoute(route.filter((_, j) => j !== i)); setOpen(null); }}>×</button>
+    </div>
+  );
+
   return (
     <section className="card route-editor">
       <div className="card-head">
@@ -156,97 +164,108 @@ function RouteEditor({ type, offices, actor, onSaved }) {
       <ol className="route-steps">
         {route.map((s, i) => (
           <li key={i} className={open === i ? 'open' : 'closed'}>
-            <span className="wf-dot">{i + 1}</span>
             {open !== i ? (
-              <button type="button" className="route-summary" onClick={() => setOpen(i)} title="Edit this step">
-                <b>{officesOf(s)}</b>
-                <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
-                <span className="route-badges">
-                  {s.positions?.length > 0 && s.office && <span className="badge badge-blue">By {s.positions.join(' or ')}</span>}
-                  {s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
-                  {s.assign && <span className="badge badge-blue">Assigns {fieldLabel(s.assign.field)}</span>}
-                  {s.fills?.length > 0 && <span className="badge badge-blue">Fills in {s.fills.length} detail{s.fills.length > 1 ? 's' : ''}</span>}
-                  {s.upload !== undefined && <span className="badge badge-blue">Upload</span>}
-                </span>
-              </button>
+              <>
+                <span className="wf-dot">{i + 1}</span>
+                <button type="button" className="route-summary" onClick={() => setOpen(i)} title="Edit this step">
+                  <b>{officesOf(s)}</b>
+                  <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
+                  <span className="route-badges">
+                    {s.positions?.length > 0 && s.office && <span className="badge badge-blue">By {s.positions.join(' or ')}</span>}
+                    {s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
+                    {s.assign && <span className="badge badge-blue">Assigns {fieldLabel(s.assign.field)}</span>}
+                    {s.fills?.length > 0 && <span className="badge badge-blue">Fills in {s.fills.length} detail{s.fills.length > 1 ? 's' : ''}</span>}
+                    {s.upload !== undefined && <span className="badge badge-blue">Upload</span>}
+                  </span>
+                </button>
+                {tools(i)}
+              </>
             ) : (
-            <div className="route-fields">
-              <div className="route-done"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>Done</button></div>
-              <label className="field">
-                <span className="field-label">Office</span>
-                <Select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
-                  <option value={PREPARER}>Preparer&apos;s office (whoever prepared it)</option>
-                  {choices.map((o) => <option key={o} value={o}>{o}{offices.includes(o) ? '' : ' (not in Settings)'}</option>)}
-                </Select>
-              </label>
-              <div className="field alt-offices">
-                <span className="field-label">Alternate offices <span className="muted">(optional: the preparer chooses which office handles this step)</span></span>
-                <div className="row gap wrap">
-                  {(s.alternates || []).map((o) => (
-                    <span key={o} className="alt-chip">or {officeName(o)}
-                      <button type="button" title="Remove" onClick={() => set(i, { alternates: s.alternates.filter((x) => x !== o) })}>×</button></span>
-                  ))}
-                  <Select value="" aria-label="Add an alternate office" placeholder="+ Add an alternate office…"
-                    onChange={(e) => e.target.value !== '-' && set(i, { alternates: [...(s.alternates || []), e.target.value === PREPARER_PICK ? PREPARER : e.target.value] })}>
-                    <option value="-">+ Add an alternate office…</option>
-                    {[PREPARER_PICK, ...choices].filter((o) => (o === PREPARER_PICK ? PREPARER : o) !== s.office && !(s.alternates || []).includes(o === PREPARER_PICK ? PREPARER : o))
-                      .map((o) => <option key={o} value={o}>{o === PREPARER_PICK ? "Preparer's office" : o}</option>)}
-                  </Select>
+              <>
+                <div className="route-step-head">
+                  <span className="wf-dot">{i + 1}</span>
+                  <b>Step {i + 1}</b>
+                  <span className="spacer" />
+                  {tools(i)}
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>Done</button>
                 </div>
-              </div>
-              {s.office !== PREPARER && (
-                <div className="field alt-offices">
-                  <span className="field-label">Who acts <span className="muted">(optional: only these positions in the office receive, sign and release it; the office head always can)</span></span>
-                  <PositionsPicker value={s.positions || []} choices={positionsOf(settings)} onNew={newPosition}
-                    placeholder={s.positions?.length ? '+ Add a position…' : 'Anyone in the office · + Add a position…'}
-                    onChange={(positions) => set(i, { positions })} />
-                </div>
-              )}
-              <label className="field">
-                <span className="field-label">Action</span>
-                <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} />
-              </label>
-              <label className="check">
-                <input type="checkbox" checked={s.sign} onChange={(e) => set(i, { sign: e.target.checked })} />
-                Must sign the PDF before releasing (DICT PNPKI)
-              </label>
-              <label className="check">
-                <input type="checkbox" checked={Boolean(s.assign)} disabled={!textFields.length}
-                  onChange={(e) => set(i, { assign: e.target.checked ? suggestAssign() : undefined })} />
-                Assigns a reference no. when it receives the document
-              </label>
-              {s.assign && (
-                <div className="assign-fields">
+                <div className="route-fields">
                   <label className="field">
-                    <span className="field-label">Reference no. field</span>
-                    <Select value={s.assign.field} onChange={(e) => set(i, { assign: { ...s.assign, field: e.target.value } })}>
-                      {textFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                    <span className="field-label">Office</span>
+                    <Select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
+                      <option value={PREPARER}>Preparer&apos;s office (whoever prepared it)</option>
+                      {choices.map((o) => <option key={o} value={o}>{o}{offices.includes(o) ? '' : ' (not in Settings)'}</option>)}
                     </Select>
                   </label>
                   <label className="field">
-                    <span className="field-label">Date field (today's date)</span>
-                    <Select value={s.assign.dateField || ''} onChange={(e) => set(i, { assign: { ...s.assign, dateField: e.target.value } })}>
-                      <option value="">— None —</option>
-                      {dateFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                    </Select>
+                    <span className="field-label">Action</span>
+                    <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} />
                   </label>
-                  <label className="field assign-pattern">
-                    <span className="field-label">Number pattern</span>
-                    <input value={s.assign.pattern} onChange={(e) => set(i, { assign: { ...s.assign, pattern: e.target.value } })}
-                      placeholder={DEFAULT_REF_PATTERN} />
-                    <span className="small muted">Next number looks like <b>{refNumber(s.assign.pattern || DEFAULT_REF_PATTERN, { fund: 'General Fund' }).format(1)}</b>.
-                      {' '}{'{YYYY}'} year, {'{YY}'}, {'{MM}'} month, {'{DD}'}, {'{FUND}'} fund (GF, SEF, TF…), {'{####}'} the series. The series starts
-                      again whenever the rest changes (e.g. each month).</span>
-                  </label>
+                  <div className="field">
+                    <span className="field-label">Alternate offices <span className="muted">(optional)</span></span>
+                    <div className="chips-field">
+                      {(s.alternates || []).map((o) => (
+                        <span key={o} className="alt-chip">or {officeName(o)}
+                          <button type="button" title="Remove" onClick={() => set(i, { alternates: s.alternates.filter((x) => x !== o) })}>×</button></span>
+                      ))}
+                      <Select value="" aria-label="Add an alternate office" placeholder="+ Add an office…"
+                        onChange={(e) => e.target.value !== '-' && set(i, { alternates: [...(s.alternates || []), e.target.value === PREPARER_PICK ? PREPARER : e.target.value] })}>
+                        <option value="-">+ Add an office…</option>
+                        {[PREPARER_PICK, ...choices].filter((o) => (o === PREPARER_PICK ? PREPARER : o) !== s.office && !(s.alternates || []).includes(o === PREPARER_PICK ? PREPARER : o))
+                          .map((o) => <option key={o} value={o}>{o === PREPARER_PICK ? "Preparer's office" : o}</option>)}
+                      </Select>
+                    </div>
+                    <span className="help">The preparer chooses which office handles this step.</span>
+                  </div>
+                  {s.office !== PREPARER ? (
+                    <div className="field">
+                      <span className="field-label">Who acts <span className="muted">(optional)</span></span>
+                      <div className="chips-field">
+                        <PositionsPicker value={s.positions || []} choices={positionsOf(settings)} onNew={newPosition}
+                          placeholder="+ Add a position…" onChange={(positions) => set(i, { positions })} />
+                      </div>
+                      <span className="help">{s.positions?.length ? 'Only these positions (and the office head) receive, sign and release it.' : 'Anyone in the office.'}</span>
+                    </div>
+                  ) : <div />}
+                  <div className="route-options">
+                    <label className="check">
+                      <input type="checkbox" checked={s.sign} onChange={(e) => set(i, { sign: e.target.checked })} />
+                      Must sign the PDF (DICT PNPKI)
+                    </label>
+                    <label className="check">
+                      <input type="checkbox" checked={Boolean(s.assign)} disabled={!textFields.length}
+                        onChange={(e) => set(i, { assign: e.target.checked ? suggestAssign() : undefined })} />
+                      Assigns a reference no. on receiving
+                    </label>
+                  </div>
+                  {s.assign && (
+                    <div className="assign-fields">
+                      <label className="field">
+                        <span className="field-label">Reference no. field</span>
+                        <Select value={s.assign.field} onChange={(e) => set(i, { assign: { ...s.assign, field: e.target.value } })}>
+                          {textFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </Select>
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Date field</span>
+                        <Select value={s.assign.dateField || ''} onChange={(e) => set(i, { assign: { ...s.assign, dateField: e.target.value } })}>
+                          <option value="">— None —</option>
+                          {dateFields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </Select>
+                      </label>
+                      <label className="field">
+                        <span className="field-label">Number pattern</span>
+                        <input value={s.assign.pattern} onChange={(e) => set(i, { assign: { ...s.assign, pattern: e.target.value } })}
+                          placeholder={DEFAULT_REF_PATTERN} />
+                      </label>
+                      <p className="help assign-help">Next number: <b>{refNumber(s.assign.pattern || DEFAULT_REF_PATTERN, { fund: 'General Fund' }).format(1)}</b>
+                        {' · '}{'{YYYY}'} year, {'{YY}'}, {'{MM}'} month, {'{DD}'}, {'{FUND}'} fund (GF, SEF, TF), {'{####}'} the series, which starts again
+                        whenever the rest changes. The date field gets today&apos;s date.</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
             )}
-            <div className="route-tools">
-              <button type="button" className="btn-icon" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
-              <button type="button" className="btn-icon" title="Move down" disabled={i === route.length - 1} onClick={() => move(i, 1)}>↓</button>
-              <button type="button" className="btn-icon" title="Remove step" onClick={() => { setRoute(route.filter((_, j) => j !== i)); setOpen(null); }}>×</button>
-            </div>
           </li>
         ))}
       </ol>
