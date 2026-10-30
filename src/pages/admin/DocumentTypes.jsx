@@ -70,15 +70,15 @@ export default function DocumentTypes() {
         </div>
         <div className="row gap wrap">
           {missingStarters.length > 0 && (
-            <button className="btn btn-ghost" disabled={busy}
+            <button className="btn btn-ghost btn-sm" disabled={busy}
               onClick={() => run(() => importDocumentTypes(missingStarters, actor))}>
               Load starter formats ({missingStarters.map((t) => t.code).join(', ')})
             </button>
           )}
-          <button className="btn btn-ghost" onClick={() => fileRef.current.click()}>Import JSON</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}>Import JSON</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onImport} />
-          {types?.length > 0 && <button className="btn btn-ghost" onClick={exportAll}>Export JSON</button>}
-          <Link to="/admin/types/new" className="btn btn-primary">+ New document type</Link>
+          {types?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={exportAll}>Export JSON</button>}
+          <Link to="/admin/types/new" className="btn btn-primary btn-sm">+ New document type</Link>
         </div>
       </div>
       {error && <div className="alert">{error}</div>}

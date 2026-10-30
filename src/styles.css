@@ -1033,3 +1033,5 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .type-choose .type-row { padding: .5rem .9rem; }
 .type-choose .type-acts .btn { min-height: 28px; padding: .18rem .65rem; font-size: .8rem; border-radius: 7px; }
 .type-choose .type-acts .btn-primary { color: #fff; }
+.type-actions .btn { min-height: 28px; padding: .18rem .65rem; font-size: .8rem; border-radius: 7px; }
+.type-actions .btn-primary, .type-actions .btn-gold { color: #fff; }
