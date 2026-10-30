@@ -55,7 +55,8 @@ export default function App() {
         <Route path="checklists/:code" element={<ChecklistView />} />
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
-        <Route path="inbox" element={<Inbox />} />
+        <Route path="notifications" element={<Inbox />} />
+        <Route path="inbox" element={<Navigate to="/notifications" replace />} />
         <Route path="profile" element={<Profile />} />
         <Route path="messages" element={<Messages />} />
         <Route path="verify" element={<Verify />} />

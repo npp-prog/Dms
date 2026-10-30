@@ -340,7 +340,7 @@ export default function DocumentView() {
               onAction={(action, remarks, done) => run(async () => {
                 try { await workflowAction(docId, action, actor, { stage: wf.stage, remarks }); done(); } catch (e) { await load(); throw e; }
                 // Sent back by the person it was referred to: it is no longer theirs to open.
-                if (action === 'back' && !isAdmin) navigate('/inbox', { replace: true });
+                if (action === 'back' && !isAdmin) navigate('/notifications', { replace: true });
               })}
               onFill={(values) => run(() => fillStepFields(docId, values, actor, wf.stage))}
               onUpload={(file) => file && run(async () => {

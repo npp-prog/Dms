@@ -33,7 +33,7 @@ export default function Layout() {
       label: 'Documents',
       items: [
         ['/tracking', 'workflow', 'Tracking'],
-        ['/inbox', 'inbox', 'Inbox', false, waiting],
+        ['/notifications', 'bell', 'Notifications', false, waiting],
         ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/checklists', 'check', 'Checklists'],
       ],
@@ -100,7 +100,7 @@ export default function Layout() {
           <button className="pill-btn" title="Log out" onClick={logout}>
             <Icon name="logout" /><span className="lo-txt">Log out</span>
           </button>
-          <Link to="/inbox" className="square-btn" title={waiting ? `${waiting} waiting in your inbox` : 'Inbox'}>
+          <Link to="/notifications" className="square-btn" title={waiting ? `${waiting} waiting for you` : 'Notifications'}>
             <Icon name="bell" />{waiting > 0 && <span className="dot" />}
           </Link>
           <Link to="/profile" className="me" title={`${name} · My Profile`}>

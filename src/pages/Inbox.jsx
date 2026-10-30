@@ -32,7 +32,7 @@ export default function Inbox() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Inbox</h1>
+          <h1>Notifications</h1>
         </div>
         {isAdmin && (
           <Select value={office} onChange={(e) => setOffice(e.target.value)} aria-label="Office">

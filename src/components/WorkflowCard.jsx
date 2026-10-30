@@ -52,7 +52,7 @@ function ReferPanel({ me, busy, onRefer, onCancel }) {
         <span className="field-label">What should they do? (optional)</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
-      <p className="xs muted">They receive it in their Inbox, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
+      <p className="xs muted">They receive it in their Notifications, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
       <div className="row gap">
         <button type="button" className="btn btn-primary btn-sm" disabled={busy || !person} onClick={() => onRefer(person, note)}>Refer to {person?.displayName || 'this person'}</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
