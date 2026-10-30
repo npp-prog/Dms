@@ -874,8 +874,8 @@ label.link { cursor: pointer; }
 }
 
 /* My Profile */
-.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 1.1rem; align-items: start; }
-.profile-grid .card { min-width: 0; }
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.1rem; align-items: stretch; }
+.profile-grid .card { min-width: 0; margin: 0; }
 .profile-grid .row input { flex: 1; min-width: 0; }
 .mark-preview-lg { height: 90px; max-width: 100%; display: block; margin: .3rem 0 .7rem; }
 a.me { text-decoration: none; }
