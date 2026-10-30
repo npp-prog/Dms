@@ -326,6 +326,17 @@ export async function setupSite(user) {
   if (older.length) done.push(`updated ${older.length} routed document(s) for the new office access`);
 
   const settings = await getSettings();
+  // Documents saved before restricting existed: not restricted (folder access finds them).
+  if (!settings.restrictedField) {
+    const all = await getDocs(collection(db, 'documents'));
+    const missing = all.docs.filter((d) => d.data().restricted === undefined);
+    for (let i = 0; i < missing.length; i += 400) {
+      const batch = writeBatch(db);
+      missing.slice(i, i + 400).forEach((d) => batch.update(d.ref, { restricted: false }));
+      await batch.commit();
+    }
+    await saveSettings({ restrictedField: true });
+  }
   if (settings.lguName && !settings.offices) {
     await saveSettings({ offices: DEFAULT_SETTINGS.offices });
     done.push('added the list of offices (Settings)');
@@ -378,6 +389,7 @@ async function nextControlNo() {
 export async function createUploadedDocument(type, { title, fund = '', notes = '', fileName }, user) {
   const controlNo = await nextControlNo();
   const ref = await addDoc(collection(db, 'documents'), {
+    restricted: false,
     typeId: type.id || '',
     typeCode: type.code,
     typeName: type.name,
@@ -417,6 +429,7 @@ function historyEntry(action, user, note = '') {
 export async function createDocument(type, { data, checklist, additionalDocs = [], links = {}, transaction = null, signatories = null, status }, user) {
   const controlNo = await nextControlNo();
   const ref = await addDoc(collection(db, 'documents'), {
+    restricted: false,
     typeId: type.id,
     typeCode: type.code,
     typeName: type.name,
@@ -504,6 +517,7 @@ export async function createSupportingDocument(parent, item, { typeCode = '', fi
   const controlNo = await nextControlNo();
   const typeName = String(item.label || 'Supporting document').slice(0, 120);
   const ref = await addDoc(collection(db, 'documents'), {
+    restricted: false,
     typeId: '', typeCode: typeCode || 'DOC', typeName, typeVersion: 1,
     typeSnapshot: { code: typeCode || 'DOC', name: typeName, fields: [], steps: [], processing: [], template: '' },
     controlNo,
@@ -1006,6 +1020,29 @@ export async function setDocumentAccess(id, person, role, user) {
   });
 }
 
+// Restricts a document: no one gets at it through folder access (the preparer, the office head,
+// administrators, the Records Officer and the people given it one by one still do).
+export async function setDocumentRestricted(id, restricted, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    if (Boolean(d.restricted) === restricted) return;
+    tx.update(ref, { restricted, history: [...(d.history || []), historyEntry(restricted ? 'restricted' : 'restriction lifted', user, '')] });
+  });
+}
+
+// The office's restricted folders (document types): folderRules/{office}.
+export async function getFolderRules(office) {
+  const s = await getDoc(doc(db, 'folderRules', office));
+  return { restricted: [], ...(s.exists() ? s.data() : {}) };
+}
+
+export function setRestrictedFolders(office, restricted, user) {
+  return setDoc(doc(db, 'folderRules', office), {
+    restricted: [...new Set(restricted)].sort(), by: user.uid, byName: user.displayName || user.email || '', at: new Date().toISOString(),
+  });
+}
+
 // To folders (document types) of the office's documents, or all of them: folderAccess/{uid}.
 export async function getFolderAccess(uid) {
   const s = await getDoc(doc(db, 'folderAccess', uid));
@@ -1109,9 +1146,13 @@ export async function getDocument(id) {
 export async function listDocuments({ uid, office = '', all = false, head = false, granted = false, max = 1000 } = {}) {
   const docs = collection(db, 'documents');
   const grant = granted && !all && !head && office ? await getFolderAccess(uid).catch(() => null) : null;
-  const folderQueries = grant?.office !== office ? []
-    : grant.all ? [query(docs, where('office', '==', office), limit(max))]
-      : (grant.types || []).map((t) => query(docs, where('office', '==', office), where('typeCode', '==', t), limit(max)));
+  // A folder at a time, leaving out the folders and documents the office restricted.
+  let folderTypes = [];
+  if (grant?.office === office) {
+    const [rules, types] = await Promise.all([getFolderRules(office).catch(() => ({ restricted: [] })), grant.all ? listDocumentTypes() : null]);
+    folderTypes = (grant.all ? [...new Set([...types.map((t) => t.code), 'DOC'])] : grant.types || []).filter((t) => t && !rules.restricted.includes(t));
+  }
+  const folderQueries = folderTypes.map((t) => query(docs, where('office', '==', office), where('typeCode', '==', t), where('restricted', '==', false), limit(max)));
   const queries = all
     ? [query(docs, orderBy('updatedAt', 'desc'), limit(max))]
     : [

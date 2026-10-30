@@ -5,10 +5,12 @@ import Select from './Select.jsx';
 
 const ROLES = [['viewer', 'Viewer'], ['editor', 'Editor']];
 
-// The office head gives people of the office (besides the preparer) access to this document:
+// The office head (or an administrator or the Records Officer) gives people of the office (besides
+// the preparer) access to this document, or restricts it:
 // a viewer opens it and its files; an editor also does what its preparer does (edits the draft,
-// converts it to PDF, routes it…). Access to whole folders: Folders → Access.
-export default function AccessCard({ doc, me, busy, onChange }) {
+// converts it to PDF, routes it…). Restricted: no one gets at it through folder access, only the
+// people given it here. Access to whole folders: Folders → Access.
+export default function AccessCard({ doc, me, busy, onChange, onRestrict }) {
   const [people, setPeople] = useState([]);
   const [adding, setAdding] = useState(false);
   const [role, setRole] = useState('viewer');
@@ -22,7 +24,12 @@ export default function AccessCard({ doc, me, busy, onChange }) {
         <h3>Access</h3>
         {!adding && <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { setRole('viewer'); setAdding(true); }}>+ Give access</button>}
       </div>
-      {access.length === 0 && !adding && <p className="small muted">Only the preparer, the offices on its route and you. Give others in {doc.office} access: a viewer opens it, an editor does what its preparer does.</p>}
+      <label className="check access-restrict">
+        <input type="checkbox" checked={Boolean(doc.restricted)} disabled={busy}
+          onChange={(e) => window.confirm(e.target.checked ? 'Restrict this document? People with access to its folder will no longer open it; only those given it here.' : 'Lift the restriction? People with access to its folder will open it again.') && onRestrict(e.target.checked)} />
+        <span><b>Restricted</b><span className="small muted"> No access through folders, only the people below.</span></span>
+      </label>
+      {access.length === 0 && !adding && <p className="small muted">Only the preparer, the offices on its route, the office head, administrators and the Records Officer. Give others in {doc.office} access: a viewer opens it, an editor does what its preparer does.</p>}
       {access.length > 0 && (
         <ul className="access-list">
           {access.map((uid) => (

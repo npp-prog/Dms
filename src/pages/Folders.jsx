@@ -7,6 +7,7 @@ import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Icon from '../components/Icon.jsx';
 import FolderAccess from '../components/FolderAccess.jsx';
+import Select from '../components/Select.jsx';
 
 const day = (ts) => {
   const d = ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null;
@@ -33,9 +34,13 @@ function ViewSwitch({ view, onChange }) {
 // type (DV, OBR, PR…), shown as tiles or as a list.
 export default function Folders() {
   const { code = '' } = useParams();
-  const { user, profile, actor, isAdmin, isHead, isRecords } = useAuth();
+  const { user, profile, actor, settings, isAdmin, isHead, isRecords } = useAuth();
   const [access, setAccess] = useState(false);
-  const canGrant = isHead && Boolean(profile.office);
+  // The office head for their office; administrators and the Records Officer for any office.
+  const anyOffice = isAdmin || isRecords;
+  const canGrant = anyOffice || (isHead && Boolean(profile.office));
+  const offices = settings.offices || [];
+  const [accessOffice, setAccessOffice] = useState(anyOffice ? profile.office || offices[0] || '' : profile.office);
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [view, setView] = useView();
@@ -76,7 +81,15 @@ export default function Folders() {
           <ViewSwitch view={view} onChange={setView} />
         </div>
       </div>
-      {canGrant && access && <FolderAccess office={profile.office} me={user.uid} actor={actor} codes={folders.map((f) => f.code)} />}
+      {canGrant && access && anyOffice && (
+        <div className="filters">
+          <Select value={accessOffice} aria-label="Office" onChange={(e) => setAccessOffice(e.target.value)}>
+            {!accessOffice && <option value="">Choose an office…</option>}
+            {[...new Set([...offices, ...(profile.office ? [profile.office] : [])])].sort().map((o) => <option key={o} value={o}>{o}</option>)}
+          </Select>
+        </div>
+      )}
+      {canGrant && access && accessOffice && <FolderAccess key={accessOffice} office={accessOffice} me={user.uid} actor={actor} codes={folders.map((f) => f.code)} />}
       {error && <div className="alert">{error}</div>}
       {!docs && !error && <div className="spinner" />}
 

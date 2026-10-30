@@ -1294,3 +1294,9 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .access-list li:last-child { border-bottom: 0; }
 .access-add { display: grid; gap: .4rem; justify-items: start; }
 .access-add .person-picker { width: 100%; }
+.access-restrict { white-space: normal; align-items: flex-start; margin-bottom: .6rem; }
+.access-restrict input { margin-top: .2rem; }
+.restricted-folders { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: .6rem 0 .9rem; border-bottom: 1px solid var(--line); margin-bottom: .6rem; }
+.restricted-folders > .small { flex: 1 1 260px; }
+.chip.chip-off { text-decoration: line-through; color: var(--muted); }
+.restrict-pick { flex: 0 1 300px; min-width: 220px; }

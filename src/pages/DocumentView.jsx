@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess, setDocumentRestricted } from '../lib/api.js';
 import { assignPending, canAct, editableByPreparer, holdsPosition, isPreparer, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
@@ -145,7 +145,7 @@ export default function DocumentView() {
 
 function DocumentPage({ docId }) {
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, isHead, isExternal, canRefer, user, profile, folderGrant } = useAuth();
+  const { actor, settings, isAdmin, isHead, isRecords, isExternal, canRefer, user, profile, folderGrant } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -447,9 +447,10 @@ function DocumentPage({ docId }) {
                 onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))} />
             </section>
           )}
-          {!isExternal && docData.office && (isAdmin || (isHead && docData.office === profile.office)) && (
+          {!isExternal && docData.office && (isAdmin || isRecords || (isHead && docData.office === profile.office)) && (
             <AccessCard doc={docData} me={user.uid} busy={busy}
-              onChange={(person, role) => run(() => setDocumentAccess(docId, person, role, actor))} />
+              onChange={(person, role) => run(() => setDocumentAccess(docId, person, role, actor))}
+              onRestrict={(on) => run(() => setDocumentRestricted(docId, on, actor))} />
           )}
           <section className="card">
             <h3>History</h3>

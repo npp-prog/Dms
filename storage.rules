@@ -43,12 +43,16 @@ service firebase.storage {
     function isRecords() {
       return 'Records Officer' in profile().get('positions', []);
     }
-    // The office head gave this user access to the document's folder (document type), or all.
+    // The office head gave this user access to the document's folder (document type), or all;
+    // not to a restricted document or folder (as in firestore.rules).
     function folderGranted(d) {
       let g = /databases/(default)/documents/folderAccess/$(request.auth.uid);
-      return myOffice() != '' && d.get('office', '') == myOffice() && firestore.exists(g)
+      let r = /databases/(default)/documents/folderRules/$(d.get('office', '-'));
+      return myOffice() != '' && d.get('office', '') == myOffice() && d.get('restricted', false) == false
+        && firestore.exists(g)
         && firestore.get(g).data.office == myOffice()
-        && (firestore.get(g).data.all == true || d.get('typeCode', '') in firestore.get(g).data.types);
+        && (firestore.get(g).data.all == true || d.get('typeCode', '') in firestore.get(g).data.types)
+        && !(firestore.exists(r) && d.get('typeCode', '') in firestore.get(r).data.get('restricted', []));
     }
     // An editor (given by the office head): adds files as the preparer does.
     function isEditor(d) {
@@ -58,9 +62,10 @@ service firebase.storage {
             || (folderGranted(d) && firestore.get(g).data.get('edit', false) == true));
     }
     function canRead(d) {
-      return isAdmin() || request.auth.uid in d.get('access', []) || folderGranted(d) || isRecords() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', []) || request.auth.uid in d.get('referred', [])
+      return isAdmin() || isRecords() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', []) || request.auth.uid in d.get('referred', [])
         || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
-            || myOffice() in d.get('routeOffices', [])));
+            || myOffice() in d.get('routeOffices', [])))
+        || request.auth.uid in d.get('access', []) || folderGranted(d);
     }
     // At a routed step that names positions, only the people in them (and the office head).
     function holdsStepPosition(d) {
@@ -70,8 +75,8 @@ service firebase.storage {
     // The preparer, or the office now holding the document (its head too).
     function canAdd(d) {
       return isAdmin() || (d.status != 'cancelled'
-        && (d.createdBy == request.auth.uid || isEditor(d) || (heldByMyOffice(d) && holdsStepPosition(d)) || referredToMe(d)
-            || (isHead() && d.get('currentOffice', '') == myOffice())));
+        && (d.createdBy == request.auth.uid || (heldByMyOffice(d) && holdsStepPosition(d)) || referredToMe(d)
+            || (isHead() && d.get('currentOffice', '') == myOffice()) || isEditor(d)));
     }
 
     // The signatory's own PNPKI certificate file (signing.p12), kept so they sign with their password

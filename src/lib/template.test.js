@@ -557,6 +557,8 @@ test('editors given by the office head act as the preparer', () => {
   assert.ok(!isPreparer(doc, { uid: 'f1', office, grant: { office, edit: false, all: true, types: [] } }));
   assert.ok(!isPreparer(doc, { uid: 'f1', office, grant: { office, edit: true, all: false, types: ['PR'] } }));
   assert.ok(isPreparer(doc, { uid: 'f1', office, grant: { office, edit: true, all: true, types: [] } }));
+  assert.ok(!isPreparer({ ...doc, restricted: true }, { uid: 'f1', office, grant: { office, edit: true, all: true, types: [] } }));
+  assert.ok(isPreparer({ ...doc, restricted: true }, { uid: 'e1', office }));
   // At the preparer's step, an editor may release it.
   const routed = { ...doc, workflow: { state: 'in-progress', stage: 0, steps: [{ office: '', action: 'Prepare' }] } };
   assert.ok(canAct(routed, { uid: 'e1', office }));

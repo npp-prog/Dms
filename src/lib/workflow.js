@@ -161,7 +161,8 @@ export function isPreparer(doc, { uid, office = '', grant = null } = {}) {
   if (doc.createdBy === uid) return true;
   if (!office || doc.office !== office) return false;
   if ((doc.editors || []).includes(uid)) return true;
-  return Boolean(grant?.edit && grant.office === office && (grant.all || (grant.types || []).includes(doc.typeCode)));
+  // Not through a folder to a restricted document.
+  return Boolean(grant?.edit && !doc.restricted && grant.office === office && (grant.all || (grant.types || []).includes(doc.typeCode)));
 }
 
 // May this user act on the document's current step?
