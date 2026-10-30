@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import {
-  backupStatus, buildBackup, fileInArchive, getArchiveSettings, isArchived, listArchive, listBackups, logBackup,
+  backupStatus, buildBackup, driveCall, fileInArchive, getArchiveSettings, getDriveBackup, isArchived, listArchive, listBackups, logBackup,
   processedAt, saveArchiveSettings, saveBackup, toBackUp,
 } from '../lib/archive.js';
 import { drnOf } from '../lib/naming.js';
@@ -45,6 +45,7 @@ export default function Archive() {
   return (
     <div className="page">
       <div className="page-head"><div><h1>Archive</h1></div></div>
+      {keeper && <DriveBackup />}
       {keeper && docs && <Backups docs={docs} me={actor} />}
       <div className="filters">
         <input className="search" placeholder="Search control no., DV/OBR no., payee, where filed…" value={filters.q}
@@ -104,6 +105,64 @@ export default function Archive() {
         </div>
       )}
     </div>
+  );
+}
+
+const DRIVE_RESULT = {
+  connected: { ok: true, text: 'Google Drive connected. The archive is backed up to it every 10 minutes.' },
+  cancelled: { ok: false, text: 'Not connected: the Google sign-in was cancelled.' },
+  expired: { ok: false, text: 'Not connected: the sign-in took too long. Try again.' },
+  'no-token': { ok: false, text: 'Not connected: Google gave no lasting access. Remove DMS from the account (myaccount.google.com → Security → Third-party access) and connect again.' },
+  failed: { ok: false, text: 'Not connected: Google refused. See the error below.' },
+  'not-set-up': { ok: false, text: 'The Google Drive backup is not set up in Netlify yet (see the README).' },
+};
+
+// Automatic backup to Google Drive: every 10 minutes, a server function copies new and changed
+// processed documents to the connected account's Drive (folder DMS Archive).
+function DriveBackup() {
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState(() => DRIVE_RESULT[new URLSearchParams(window.location.search).get('drive')] || null);
+  const load = () => getDriveBackup().then(setS).catch(() => setS({}));
+  useEffect(() => { load(); }, []);
+  const act = async (label, fn) => {
+    setBusy(label); setMsg(null);
+    try { await fn(); } catch (e) { setMsg({ ok: false, text: e.message }); } finally { setBusy(''); load(); }
+  };
+  const connect = () => act('Opening Google…', async () => { window.location.href = (await driveCall('drive-auth', { action: 'start' })).url; });
+  const disconnect = () => window.confirm('Stop backing up to this Google account? The files already there stay in its Drive.')
+    && act('Disconnecting…', () => driveCall('drive-auth', { action: 'disconnect' }));
+  const now = () => act('Backing up…', async () => {
+    const r = await driveCall('drive-backup-now');
+    setMsg(r.skipped ? { ok: false, text: r.skipped } : { ok: true, text: `Backed up ${r.documents} document(s), ${r.files} new file(s)${r.caughtUp ? '. Everything is backed up.' : '. More to go: it goes on every 10 minutes.'}` });
+  });
+  if (!s) return null;
+  return (
+    <section className="card archive-backup">
+      <div className="card-head">
+        <h3>Google Drive</h3>
+        <span className={`badge ${s.connected ? (s.lastError ? 'badge-red' : 'badge-green') : 'badge-gray'}`}>{s.connected ? (s.lastError ? 'Problem' : 'Automatic') : 'Not connected'}</span>
+      </div>
+      {s.connected ? (
+        <>
+          <p className="small">Backed up automatically every 10 minutes to <b>{s.email}</b>, folder <b>DMS Archive</b> (by year and type, a folder per document
+            with its PDFs, attachments and record).</p>
+          <p className="small muted">{s.lastRunAt ? `Last run ${when(s.lastRunAt)}` : 'Not run yet'}{s.documents ? ` · ${s.documents} document backup(s), ${s.files || 0} file(s) so far` : ''}{s.lastRunAt && s.caughtUp === false ? ' · still catching up' : ''}.</p>
+          {s.lastError && <div className="alert small">Last run failed: {s.lastError}</div>}
+          <div className="row gap wrap">
+            <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={now}>{busy === 'Backing up…' ? busy : 'Back up now'}</button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={disconnect}>Disconnect</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="small">Connect the Google account whose Drive keeps the archive. From then on, every processed document is copied there
+            automatically, with no one needing to be signed in.</p>
+          <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={connect}>{busy || 'Connect Google Drive'}</button>
+        </>
+      )}
+      {msg && <div className={`alert small ${msg.ok ? 'alert-ok' : ''}`}>{msg.text}</div>}
+    </section>
   );
 }
 

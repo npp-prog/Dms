@@ -23,6 +23,7 @@
     "buffer": "6.0.3",
     "dompurify": "^3.4.17",
     "firebase": "^13.1.0",
+    "firebase-admin": "^12.7.0",
     "html2canvas": "^1.4.1",
     "jose": "^6.2.14",
     "jspdf": "^4.2.1",

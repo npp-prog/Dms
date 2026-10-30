@@ -3,13 +3,15 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { getFileBytes, getPdfBytes } from './api.js';
+import { docFolder, filesOf, processedAt } from './archiveFiles.js';
+
+export { filesOf };
 
 // The Archive: documents whose route is processed (workflow done) leave the working lists and are
 // kept here. The Records Officer controls it: where each one is filed (archive: { location, note,
 // by, at } on the document), the devices it is backed up to, and the backups (backups/{id}).
 
-export const isArchived = (d) => d?.workflow?.state === 'done';
-export const processedAt = (d) => [...(d?.workflow?.events || [])].reverse().find((e) => e.type === 'completed')?.at || '';
+export { isArchived, processedAt } from './archiveFiles.js';
 
 export async function listArchive(max = 2000) {
   const snap = await getDocs(query(collection(db, 'documents'), where('workflow.state', '==', 'done'), limit(max)));
@@ -31,6 +33,21 @@ export async function fileInArchive(id, { location, note }, user) {
 }
 
 // meta/archive: { devices: [{ id, name, note }], everyDays }
+// The automatic Google Drive backup (netlify/functions/drive-*.mjs): its state, and the calls
+// the Records Officer makes (connect, disconnect, back up now) with their Firebase ID token.
+export async function getDriveBackup() {
+  const snap = await getDoc(doc(db, 'meta', 'driveBackup'));
+  return snap.exists() ? snap.data() : {};
+}
+export async function driveCall(fn, body = {}) {
+  const { auth } = await import('../firebase.js');
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(`/.netlify/functions/${fn}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: 'The Google Drive backup is not available here (it runs on the live site).' }));
+  if (!r.ok || j.error) throw new Error(j.error || `Error ${r.status}`);
+  return j;
+}
+
 export const DEFAULT_ARCHIVE = { devices: [], everyDays: 7 };
 export async function getArchiveSettings() {
   const snap = await getDoc(doc(db, 'meta', 'archive'));
@@ -65,20 +82,7 @@ export function toBackUp(docs, last, kind) {
   });
 }
 
-const safe = (s) => String(s || '').replace(/[\\/:*?"<>|\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-
-// Every file of a document: its PDF versions, the files attached to its checklist and other
-// attachments, and the files its route steps uploaded.
-export function filesOf(d) {
-  const out = [];
-  (d.pdf?.files || []).forEach((f, i) => out.push({ path: f.path, name: `PDF ${String(i + 1).padStart(2, '0')} ${f.kind}.pdf`, pdf: true }));
-  for (const list of Object.values(d.links || {})) {
-    for (const l of list || []) if (l?.kind === 'file' && l.path) out.push({ path: l.path, name: `attachments/${safe(l.name) || 'file'}` });
-  }
-  for (const f of d.stepFiles || []) if (f?.path) out.push({ path: f.path, name: `step files/${safe(f.label)} ${safe(f.name)}` });
-  return out;
-}
 
 // One ZIP: a folder per year and type, one per document with its files and record.json (all it
 // holds), and index.csv listing every document. onProgress(text).
@@ -90,8 +94,7 @@ export async function buildBackup(docs, onProgress = () => {}) {
   let files = 0;
   for (const [i, d] of docs.entries()) {
     onProgress(`Adding ${i + 1} of ${docs.length}: ${d.controlNo}`);
-    const year = (processedAt(d) || '').slice(0, 4) || 'undated';
-    const folder = `${year}/${safe(d.typeCode) || 'DOC'}/${safe(`${d.controlNo} ${d.title}`)}`;
+    const folder = docFolder(d).join('/');
     const names = new Set();
     for (const f of filesOf(d)) {
       let name = f.name;

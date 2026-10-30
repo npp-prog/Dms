@@ -140,6 +140,12 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isRecords() || isAdmin();
     }
+    // The automatic Google Drive backup's state (netlify/lib/driveBackup.mjs writes it, as the
+    // project; secrets/ and driveFiles/ are for the server only: no rule lets a browser in).
+    match /meta/driveBackup {
+      allow read: if isRecords() || isAdmin();
+      allow write: if false;
+    }
     // Log of the archive backups (who, when, to which device, how many documents). Never changed.
     match /backups/{id} {
       allow read: if isRecords() || isAdmin();
