@@ -8,8 +8,9 @@ import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
 import { checkRecord } from './publicRecord.js';
-import { applyAction, assignPending, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
+import { applyAction, assignPending, buildWorkflow, cancelWorkflow, officeOf, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
 import { withApprover } from './approver.js';
+import { notify } from './social.js';
 
 // ---------- Users ----------
 
@@ -393,6 +394,13 @@ export async function createUploadedDocument(type, { title, fund = '', notes = '
   return { id: ref.id, controlNo };
 }
 
+// Tells the preparer what happened to their document (Notifications): never fails the action.
+function tellPreparer(d, id, text, user) {
+  if (!d?.createdBy || d.createdBy === user.uid) return;
+  const name = `${d.controlNo || ''}${d.title ? ` (${d.title})` : ''}`.trim();
+  notify(d.createdBy, { kind: 'document', text: `${name}: ${text}`, link: `/documents/${id}` }, user).catch(() => {});
+}
+
 function historyEntry(action, user, note = '') {
   return { action, note, by: user.displayName || user.email, uid: user.uid, at: new Date().toISOString() };
 }
@@ -602,30 +610,44 @@ export async function chooseStepOffices(id, picks, user) {
 // admins, and users with "May route documents to any person"). They send it back.
 export async function referDocument(id, to, note, user) {
   const ref = doc(db, 'documents', id);
+  let d;
   await runTransaction(db, async (tx) => {
-    const d = (await tx.get(ref)).data();
+    d = (await tx.get(ref)).data();
     const patch = referPatch(d, to, note, user);
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('referred', user, patch.workflow.events.at(-1).remarks)] });
     publishCheck(tx, id, { ...d, ...patch });
   });
+  tellPreparer(d, id, `referred by ${user.displayName || user.email} to ${to.displayName || to.email}${note ? ` — ${note}` : ''}.`, user);
 }
 
 // Release, return or complete the current step. Runs as a transaction: the step must
 // still be the one the user saw (another office may have acted meanwhile).
 export async function workflowAction(id, action, user, { stage, remarks = '' } = {}) {
   const ref = doc(db, 'documents', id);
+  let d;
+  let patch;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    const d = snap.data();
+    d = snap.data();
     if (!d?.workflow) throw new Error('This document has no workflow.');
     if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
-    const patch = applyAction(d, action, user, remarks);
+    patch = applyAction(d, action, user, remarks);
     const label = d.workflow.referral ? { back: 'sent back' }[action]
       : { release: 'released', return: 'returned', complete: 'processed' }[action];
     const history = [...(d.history || []), historyEntry(label, user, remarks)];
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
     publishCheck(tx, id, { ...d, ...patch });
   });
+  const who = `${user.displayName || user.email}${user.office ? ` (${user.office})` : ''}`;
+  const at = (wf) => officeOf(wf.steps[wf.stage], d) || 'your office';
+  const why = remarks ? ` — ${remarks}` : '';
+  const text = {
+    release: () => `released by ${who} to ${at(patch.workflow)}${why}.`,
+    return: () => `returned by ${who} to ${at(patch.workflow)}${why}.`,
+    complete: () => `processed by ${who}: its route is complete${why}.`,
+    back: () => `sent back by ${who} to ${at(patch.workflow)}${why}.`,
+  }[action];
+  if (text) tellPreparer(d, id, text(), user);
 }
 
 // The office holding the document opens it at a step that assigns a reference no. (e.g.
@@ -633,6 +655,7 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
 // already has one.
 export async function assignRefNo(id, user) {
   const ref = doc(db, 'documents', id);
+  let assigned = null;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const d = snap.data();
@@ -662,9 +685,11 @@ export async function assignRefNo(id, user) {
     patch.refNos = refNos;
     patch.workflow = { ...d.workflow, events: [...d.workflow.events, { type: 'assigned', stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, uid: user.uid, at: iso, remarks: `${field?.label || assign.field} ${number}` }] };
     history.push(historyEntry('assigned', user, `${field?.label || assign.field} ${number}`));
+    assigned = { d, text: `${field?.label || assign.field} ${number} assigned by ${user.displayName || user.email} (${step.routedTo || d.office || ''}).` };
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
     publishCheck(tx, id, { ...d, ...patch });
   });
+  if (assigned) tellPreparer(assigned.d, id, assigned.text, user);
 }
 
 // ---------- PDF and digital signatures ----------
@@ -838,8 +863,9 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     at: new Date().toISOString(), by: user.displayName || user.email, uid: user.uid, signer,
   };
   const verifyRef = doc(db, 'verifications', file.sha256);
+  let d;
   await runTransaction(db, async (tx) => {
-    const d = (await tx.get(docRef)).data();
+    d = (await tx.get(docRef)).data();
     const known = (await tx.get(verifyRef)).exists();
     const files = d.pdf?.files || [];
     if (files.length !== n) throw new Error('Someone else added a version of this PDF first. Reload the page and try again.');
@@ -859,6 +885,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
       history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
     });
   });
+  if (kind === 'signed') tellPreparer(d, id, `signed by ${signer?.name || user.displayName || user.email}${reason ? ` — ${reason}` : ''}.`, user);
   return file;
 }
 

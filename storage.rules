@@ -71,6 +71,30 @@ service firebase.storage {
             || (file == 'mark.png' && request.resource.size < 2 * 1024 * 1024));
     }
 
+    // A circular's file (letter, executive order, memo): the offices it is sent to read it. The
+    // circular is saved first, then its file is added by its sender.
+    match /circulars/{id}/{file} {
+      function circular() {
+        return firestore.get(/databases/(default)/documents/circulars/$(id)).data;
+      }
+      allow read: if isActive() && (isAdmin() || circular().by == request.auth.uid || (myOffice() != '' && myOffice() in circular().toOffices));
+      allow create: if resource == null && isActive() && circular().by == request.auth.uid
+        && request.resource.contentType.matches('application/pdf|image/(jpeg|png|webp)')
+        && request.resource.size < 25 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
+    // Files shared in a community: its members read and add them.
+    match /communities/{cid}/{file} {
+      function community() {
+        return firestore.get(/databases/(default)/documents/communities/$(cid)).data;
+      }
+      allow read: if isActive() && (request.auth.uid in community().members || isAdmin());
+      allow create: if resource == null && isActive() && request.auth.uid in community().members
+        && request.resource.size < 25 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+
     // Supporting documents uploaded to the checklist items (scanned PDFs, photos).
     match /documents/{docId}/attachments/{itemId}/{file} {
       allow read: if isActive() && canRead(docOf(docId));

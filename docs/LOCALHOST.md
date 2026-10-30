@@ -88,6 +88,12 @@ A new person can click **Create an account**. An administrator then approves the
 
 **Messages** (menu, under Account) is for messages between users. **+ New message**, type a name or email, and write; Enter sends, Shift+Enter starts a new line. Replies appear at once, and the menu shows how many conversations have something new. Only the two people in a conversation can read it, administrators included.
 
+**Notifications** (menu, and the bell at the top) has three parts. **Updates**: what happened to the documents you prepared (released, returned, referred, signed, numbered, processed, with who did it and their remarks), circulars for your office, and communities you were added to; new ones are highlighted, click one to open it, **Mark all as read** or × to remove it. **Circulars to receive**: circulars for your office not marked received yet. **Waiting in** your office: the documents to act on. The number next to Notifications counts all of them.
+
+**Circulars** (menu, under Documents) are letters, memorandums, executive orders, office orders, notices and the like sent to other offices. An **office head** (or an administrator) clicks **+ New circular**, chooses the kind, types the title, attaches the file (PDF or picture), and sends it to **All offices** or to **Chosen offices**. Everyone in those offices is notified. Someone in each office opens it and clicks **Mark received for** their office; the sender is notified, and sees under **Received** which offices have received it and who, and which have not yet.
+
+**Communities** (menu, under Account) are groups for people who work together across offices, such as a committee. An **office head** (or an administrator) clicks **+ New community**, names it and adds members from any office; the office that created it administers it: its head, the one who created it and administrators can rename it, add or remove members (**Manage**) and delete it. Members write messages and share files (the 📎 button); a member can leave it under **Members**. New members are notified.
+
 **Ask DMS** (the button in the bottom-right corner of every page) answers questions about using DMS: how to prepare, upload, route, sign or find a document. It answers from this guide, in English, Filipino, Hiligaynon or Ilocano. It cannot see your documents or change anything, and its answers can be wrong. **New chat** starts over. It runs only on the live site (it needs the Anthropic key set in Netlify; see the README).
 
 The dashboard shows:

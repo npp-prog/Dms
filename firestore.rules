@@ -45,6 +45,87 @@ service cloud.firestore {
     function unchanged(keys) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
+    // The head of the user's office (Users: Office head).
+    function isOfficeHead() {
+      return isActive() && myOffice() != '' && profile().get('head', false) == true;
+    }
+
+    // ---- Notifications to a user (updates on their documents, circulars, communities) ----
+    // Anyone active may send one to anyone, as themselves; only the user reads them, marks them
+    // read or deletes them.
+    match /users/{uid}/notifications/{nid} {
+      allow read, delete: if isActive() && request.auth.uid == uid;
+      allow create: if isActive() && request.resource.data.from == request.auth.uid
+        && request.resource.data.keys().hasOnly(['kind', 'text', 'link', 'from', 'fromName', 'at', 'read'])
+        && request.resource.data.text is string && request.resource.data.text.size() <= 500
+        && request.resource.data.read == false;
+      allow update: if isActive() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    // ---- Circulars: letters, executive orders, memos... sent by an office head to some or all
+    // offices. Each office it is sent to marks it received (only its own entry in receipts). ----
+    match /circulars/{id} {
+      allow read: if isActive() && (isAdmin() || resource.data.by == request.auth.uid
+        || (myOffice() != '' && myOffice() in resource.data.toOffices));
+      allow create: if (isOfficeHead() || isAdmin())
+        && request.resource.data.by == request.auth.uid
+        && (isAdmin() || request.resource.data.fromOffice == myOffice())
+        && request.resource.data.keys().hasOnly(['title', 'kind', 'note', 'file', 'fromOffice', 'by', 'byName', 'at', 'all', 'toOffices', 'receipts'])
+        && request.resource.data.receipts.size() == 0
+        && request.resource.data.toOffices.size() > 0;
+      allow update: if isActive()
+        && ((resource.data.by == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['file']))
+          || (myOffice() != '' && myOffice() in resource.data.toOffices
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['receipts'])
+             && request.resource.data.receipts.diff(resource.data.receipts).affectedKeys().hasOnly([myOffice()])
+             && request.resource.data.receipts[myOffice()].uid == request.auth.uid));
+      allow delete: if isAdmin() || (isActive() && resource.data.by == request.auth.uid);
+    }
+
+    // ---- Communities: groups an office creates, with members from any office. The office that
+    // created it administers it (its head, the creator, and administrators): name, members. ----
+    match /communities/{cid} {
+      function manages(c) {
+        return isAdmin() || c.createdBy == request.auth.uid || (isOfficeHead() && c.office == myOffice());
+      }
+      function isMember(c) {
+        return request.auth.uid in c.members;
+      }
+      function chatOnly() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastText', 'lastAt', 'lastBy', 'readAt'])
+          && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
+      }
+      allow read: if isActive() && (isMember(resource.data) || manages(resource.data));
+      allow create: if (isOfficeHead() || isAdmin())
+        && request.resource.data.createdBy == request.auth.uid
+        && (isAdmin() || request.resource.data.office == myOffice())
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.keys().hasOnly(['name', 'description', 'office', 'createdBy', 'members', 'names', 'createdAt', 'lastText', 'lastAt', 'lastBy', 'readAt']);
+      allow update: if isActive()
+        && request.resource.data.keys().hasOnly(['name', 'description', 'office', 'createdBy', 'members', 'names', 'createdAt', 'lastText', 'lastAt', 'lastBy', 'readAt'])
+        && unchanged(['office', 'createdBy', 'createdAt'])
+        && (manages(resource.data)
+          || (isMember(resource.data) && chatOnly())
+          // a member leaves
+          || (isMember(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names'])
+              && resource.data.members.removeAll([request.auth.uid]) == request.resource.data.members));
+      allow delete: if isActive() && manages(resource.data);
+      match /messages/{mid} {
+        function community() {
+          return get(/databases/$(database)/documents/communities/$(cid)).data;
+        }
+        allow read: if isActive() && exists(/databases/$(database)/documents/communities/$(cid))
+          && (isMember(community()) || manages(community()));
+        allow create: if isActive() && request.resource.data.from == request.auth.uid
+          && isMember(getAfter(/databases/$(database)/documents/communities/$(cid)).data)
+          && request.resource.data.keys().hasOnly(['from', 'fromName', 'text', 'file', 'at'])
+          && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+        allow delete: if isActive() && (resource.data.from == request.auth.uid || manages(community()));
+        allow update: if false;
+      }
+    }
 
     // ---- System metadata ----
     match /meta/settings {

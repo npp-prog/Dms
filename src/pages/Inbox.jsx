@@ -1,10 +1,54 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listForwarded, listInbox } from '../lib/api.js';
 import { HIDDEN_EVENTS, officeOf } from '../lib/workflow.js';
 import Select from '../components/Select.jsx';
 import { drnOf } from '../lib/naming.js';
+import { deleteNotification, listCirculars, markNotificationsRead, toReceive, watchNotifications } from '../lib/social.js';
+
+const ago = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const KIND = { document: 'Document', circular: 'Circular', community: 'Community' };
+
+// What happened to the user's documents, circulars for their office, communities: newest first.
+function Updates({ uid }) {
+  const navigate = useNavigate();
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => watchNotifications(uid, setItems, (e) => setError(e.code === 'permission-denied'
+    ? 'Updates are not switched on yet: an administrator must publish the latest firestore.rules (Firebase console → Firestore → Rules).'
+    : e.message)), [uid]);
+  const unread = (items || []).filter((n) => !n.read);
+  const open = (n) => {
+    if (!n.read) markNotificationsRead(uid, [n.id]).catch(() => {});
+    if (n.link) navigate(n.link);
+  };
+  return (
+    <>
+      <div className="inbox-head">
+        <h2 className="inbox-sub">Updates{unread.length > 0 && <span className="badge badge-blue">{unread.length} new</span>}</h2>
+        {unread.length > 0 && <button type="button" className="link small" onClick={() => markNotificationsRead(uid, unread.map((n) => n.id)).catch(() => {})}>Mark all as read</button>}
+      </div>
+      {error && <div className="alert">{error}</div>}
+      <div className="card updates">
+        {!items && !error && <div className="spinner" />}
+        {items?.length === 0 && <p className="small muted">No updates yet. When your documents move, or a circular or community message comes, it shows here.</p>}
+        <ul>
+          {(items || []).map((n) => (
+            <li key={n.id} className={n.read ? '' : 'unread'}>
+              <button type="button" className="update-main" onClick={() => open(n)}>
+                <span className="badge badge-gray">{KIND[n.kind] || 'Update'}</span>
+                <span className="update-text">{n.text}</span>
+                <span className="xs muted">{n.fromName} · {ago(n.at)}</span>
+              </button>
+              <button type="button" className="btn-icon" title="Remove" aria-label="Remove" onClick={() => deleteNotification(uid, n.id).catch(() => {})}>×</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
+}
 
 const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
@@ -26,6 +70,12 @@ export default function Inbox() {
     listInbox({ office, all, uid: user.uid, head: isHead || isAdmin }).then(setDocs).catch((e) => setError(e.message));
   }, [office, isAdmin, isHead, user.uid]);
 
+  // Circulars for the user's office not marked received yet.
+  const [circulars, setCirculars] = useState([]);
+  useEffect(() => {
+    listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office))).catch(() => {});
+  }, [profile.office, user.uid]);
+
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(profile.office ? [profile.office] : [])])].sort(), [settings.offices, profile.office]);
 
   return (
@@ -41,6 +91,26 @@ export default function Inbox() {
           </Select>
         )}
       </div>
+      <Updates uid={user.uid} />
+      {circulars.length > 0 && (
+        <>
+          <h2 className="inbox-sub">Circulars to receive</h2>
+          <div className="card updates">
+            <ul>
+              {circulars.map((c) => (
+                <li key={c.id} className="unread">
+                  <Link className="update-main" to={`/circulars/${c.id}`}>
+                    <span className="badge badge-yellow">{c.kind}</span>
+                    <span className="update-text">{c.title}</span>
+                    <span className="xs muted">{c.fromOffice || c.byName} · {ago(c.at)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+      <h2 className="inbox-sub">Waiting in {office || 'every office'}</h2>
       {error && <div className="alert">{error}</div>}
       {!docs && !error && <div className="spinner" />}
       {docs && (

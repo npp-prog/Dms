@@ -5,6 +5,7 @@ import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
 import AskDms from './AskDms.jsx';
 import { isUnread, listInbox, watchConversations } from '../lib/api.js';
+import { listCirculars, toReceive, watchCommunities, watchNotifications } from '../lib/social.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -17,7 +18,10 @@ export default function Layout() {
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
     if (!profile?.active) return;
-    listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => setWaiting(d.length)).catch(() => {});
+    Promise.all([
+      listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => d.length).catch(() => 0),
+      listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => toReceive(l, profile.office).length).catch(() => 0),
+    ]).then(([docs, circulars]) => setWaiting(docs + circulars));
   }, [location.pathname, profile?.office, profile?.active, isAdmin, isHead, user.uid]);
 
   // Conversations with a message not seen yet (live).
@@ -27,18 +31,32 @@ export default function Layout() {
     return watchConversations(user.uid, (list) => setUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setUnread(0));
   }, [user.uid, profile?.active]);
 
+  // Updates not read yet (live), and communities with a message not seen yet.
+  const [updates, setUpdates] = useState(0);
+  useEffect(() => {
+    if (!profile?.active) return undefined;
+    return watchNotifications(user.uid, (list) => setUpdates(list.filter((n) => !n.read).length), () => setUpdates(0));
+  }, [user.uid, profile?.active]);
+  const [groupUnread, setGroupUnread] = useState(0);
+  useEffect(() => {
+    if (!profile?.active) return undefined;
+    return watchCommunities(user.uid, (list) => setGroupUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setGroupUnread(0));
+  }, [user.uid, profile?.active]);
+  const notices = waiting + updates;
+
   const groups = [
     { items: [['/', 'home', 'Dashboard', true]] },
     {
       label: 'Documents',
       items: [
         ['/tracking', 'workflow', 'Tracking'],
-        ['/notifications', 'bell', 'Notifications', false, waiting],
+        ['/notifications', 'bell', 'Notifications', false, notices],
+        ['/circulars', 'send', 'Circulars'],
         ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/checklists', 'check', 'Checklists'],
       ],
     },
-    { label: 'Account', items: [['/messages', 'chat', 'Messages', false, unread], ['/profile', 'user', 'My Profile']] },
+    { label: 'Account', items: [['/messages', 'chat', 'Messages', false, unread], ['/communities', 'users', 'Communities', false, groupUnread], ['/profile', 'user', 'My Profile']] },
     isAdmin && {
       label: 'Administration',
       items: [
@@ -100,8 +118,8 @@ export default function Layout() {
           <button className="pill-btn" title="Log out" onClick={logout}>
             <Icon name="logout" /><span className="lo-txt">Log out</span>
           </button>
-          <Link to="/notifications" className="square-btn" title={waiting ? `${waiting} waiting for you` : 'Notifications'}>
-            <Icon name="bell" />{waiting > 0 && <span className="dot" />}
+          <Link to="/notifications" className="square-btn" title={notices ? `${notices} new for you` : 'Notifications'}>
+            <Icon name="bell" />{notices > 0 && <span className="dot" />}
           </Link>
           <Link to="/profile" className="me" title={`${name} · My Profile`}>
             <Avatar name={name} size="sm" />

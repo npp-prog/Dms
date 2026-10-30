@@ -8,6 +8,8 @@ import FormatView from './pages/FormatView.jsx';
 import PrepareDocument from './pages/PrepareDocument.jsx';
 import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
+import Circulars, { CircularView } from './pages/Circulars.jsx';
+import Communities from './pages/Communities.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import DocCheck from './pages/DocCheck.jsx';
@@ -56,6 +58,10 @@ export default function App() {
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="notifications" element={<Inbox />} />
+        <Route path="circulars" element={<Circulars />} />
+        <Route path="circulars/:id" element={<CircularView />} />
+        <Route path="communities" element={<Communities />} />
+        <Route path="communities/:id" element={<Communities />} />
         <Route path="inbox" element={<Navigate to="/notifications" replace />} />
         <Route path="profile" element={<Profile />} />
         <Route path="messages" element={<Messages />} />
