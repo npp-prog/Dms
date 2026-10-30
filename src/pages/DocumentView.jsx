@@ -228,6 +228,8 @@ export default function DocumentView() {
   const canConvert = !uploaded && editable && (docData.status === 'complete' || (revising && (docData.pdf?.files || []).length > 0)) && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
   // (An office signs once it has received the document.)
+  // Signing is open only at a step of the route that signs (or to a person it is referred to).
+  const signHere = !wf || (wf.state === 'in-progress' && Boolean(wf.referral || wf.steps[wf.stage]?.sign));
   // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is
   // returned to the preparer's office for revision.
   const accountingOpen = !(docData.pdf?.files || []).length
@@ -294,7 +296,7 @@ export default function DocumentView() {
           {/* PDF and digital signatures first, at the top right. */}
           {type && (docData.status !== 'draft' || wf) && (
             <PdfCard docData={docData} type={type} settings={settings} actor={actor}
-              canConvert={canConvert} canSign={canSign} onChanged={load}
+              canConvert={canConvert} canSign={canSign} signStep={signHere} onChanged={load}
               onLoaded={(p) => {
                 setPdfView(p);
                 if (shownPdf.current !== p.bytes) { shownPdf.current = p.bytes; setView('pdf'); }

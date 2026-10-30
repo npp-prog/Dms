@@ -33,7 +33,7 @@ function saveAs(bytes, name) {
 // finished document to PDF; then each signatory, while the document is in their office, signs
 // it in DMS with their certificate file, or signs it in Adobe Acrobat and uploads it back.
 // Every version is kept; the newest is the current PDF.
-export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, reason, onChanged, onLoaded, onView, placements = {}, onPlacing }) {
+export default function PdfCard({ docData, type, settings, actor, canConvert, canSign, signStep = true, reason, onChanged, onLoaded, onView, placements = {}, onPlacing }) {
   const id = useId();
   const files = docData.pdf?.files || [];
   const current = files.at(-1);
@@ -356,8 +356,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           {/* Signing first (for the signatory), then viewing and downloading as quieter links. */}
           {canSign && bytes && mode !== 'stamp' && !refEdit && (
             <div className="row gap wrap pdf-sign-actions">
-              {mode !== 'sign' && <button className="btn btn-primary btn-sm" onClick={() => setMode('sign')}>Sign with PNPKI</button>}
-              {mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}
+              {mode !== 'sign' && <button className="btn btn-primary btn-sm" disabled={!signStep} onClick={() => setMode('sign')}>Sign with PNPKI</button>}
+              {mode !== 'upload' && <button className="btn btn-ghost btn-sm" disabled={!signStep} onClick={() => setMode('upload')}>Upload signed PDF</button>}
+              {!signStep && <span className="small muted">This step of the workflow does not sign.</span>}
             </div>
           )}
           <div className="pdf-links">
@@ -365,7 +366,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <button type="button" className="link small" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
           </div>
 
-          {canSign && (mode === 'sign' || mode === 'upload') && (
+          {canSign && signStep && (mode === 'sign' || mode === 'upload') && (
             <div className="sign-panel">
               <div className="field field-wide">
                 <label className="field-label" htmlFor={`${id}-why`}>Reason (shown in the signature)</label>
