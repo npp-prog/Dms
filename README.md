@@ -76,7 +76,7 @@ Demo logins: `npp@mgocandoniaccounting.org` / `admin123` (superadmin, local demo
 ### 3. Netlify
 
 1. Push this repo to GitHub, then in Netlify choose **Add new site → Import an existing project** and pick the repo.
-2. That's all: `netlify.toml` already sets the build command (`npm run build`), the publish directory (`dist`) and the SPA redirect. **No environment variables are needed**, because the Firebase config is in `src/firebase-config.js`.
+2. That's all: `netlify.toml` already sets the build command (`npm run build`), the publish directory (`dist`) and the SPA redirect. The Firebase config is in `src/firebase-config.js`, so no environment variable is needed for DMS itself. The one exception is **Ask DMS**, the help assistant: it needs an Anthropic API key. In Netlify, open **Site configuration → Environment variables**, add `ANTHROPIC_API_KEY` with the key from console.anthropic.com (mark it secret), and redeploy. The key stays on Netlify, in the function `netlify/functions/assistant.mjs`; it never reaches the browser. Without it, Ask DMS answers that it is not set up yet.
 3. Deploy. Then add your Netlify domain under **Firebase → Authentication → Settings → Authorized domains**.
 
 After that, every push to the branch Netlify watches redeploys the site by itself.

@@ -88,6 +88,8 @@ A new person can click **Create an account**. An administrator then approves the
 
 **Messages** (menu, under Account) is for messages between users. **+ New message**, type a name or email, and write; Enter sends, Shift+Enter starts a new line. Replies appear at once, and the menu shows how many conversations have something new. Only the two people in a conversation can read it, administrators included.
 
+**Ask DMS** (the button in the bottom-right corner of every page) answers questions about using DMS: how to prepare, upload, route, sign or find a document. It answers from this guide, in English, Filipino, Hiligaynon or Ilocano. It cannot see your documents or change anything, and its answers can be wrong. **New chat** starts over. It runs only on the live site (it needs the Anthropic key set in Netlify; see the README).
+
 The dashboard shows:
 
 - the five-step flow: choose the format → encode → checklist → print → process;

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
+import AskDms from './AskDms.jsx';
 import { isUnread, listInbox, watchConversations } from '../lib/api.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
@@ -111,6 +112,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      {profile?.active && <AskDms />}
     </div>
   );
 }
