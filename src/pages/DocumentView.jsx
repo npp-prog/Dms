@@ -184,7 +184,7 @@ export default function DocumentView() {
   // An uploaded document's file is its PDF: nothing to encode, edit or convert.
   const uploaded = Boolean(docData.uploaded);
   const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canConvert = !uploaded && editable && docData.status === 'complete' && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
+  const canConvert = !uploaded && editable && (docData.status === 'complete' || (revising && (docData.pdf?.files || []).length > 0)) && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
   // (An office signs once it has received the document.)
   // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is
@@ -251,7 +251,7 @@ export default function DocumentView() {
       <div className="doc-split">
         <div className="no-print doc-side">
           {/* PDF and digital signatures first, at the top right. */}
-          {type && docData.status !== 'draft' && (
+          {type && (docData.status !== 'draft' || wf) && (
             <PdfCard docData={docData} type={type} settings={settings} actor={actor}
               canConvert={canConvert} canSign={canSign} onChanged={load}
               onLoaded={(p) => {
@@ -283,7 +283,7 @@ export default function DocumentView() {
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
               onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
           )}
-          {type && (wf || (type.processing || []).length > 0) && docData.status !== 'draft' && (
+          {type && (wf || (type.processing || []).length > 0) && (docData.status !== 'draft' || wf) && (
             <WorkflowCard doc={docData} busy={busy}
               canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] })}
               canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}

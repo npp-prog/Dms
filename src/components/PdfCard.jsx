@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, startWorkflow,
+  BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, setDocumentStatus, startWorkflow,
 } from '../lib/api.js';
 import { addNotes, checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
 import { refStampMissing } from '../lib/workflow.js';
+import { byOffice, missingFields } from '../lib/forms.js';
 import { markPixels } from '../lib/markImage.js';
 import { certId, forgetPassword, rememberedPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { documentPdf, pdfFileName } from './printables.jsx';
@@ -145,6 +146,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const uploading = (p) => setBusy(`Saving… ${Math.round(p * 100)}%`);
   // A new PDF of a signed document supersedes it: every signature is made again on the new one.
   const convert = () => signed && !window.confirm('Make a new PDF of the document as it is now? It replaces the signed PDF (kept under Versions as superseded), and everyone on the route signs again, starting with the first signatory.') ? null : run('Checking file storage…', async () => {
+    // Back in draft after a return for revision: complete it first (its required fields filled in).
+    if (docData.status === 'draft') {
+      const missing = missingFields((type.fields || []).filter((f) => !byOffice(f)), docData.data);
+      if (missing.length) throw new Error(`Fill in ${missing.map((f) => f.label).join(', ')} first (Edit), then make the new PDF.`);
+      await setDocumentStatus(docData.id, 'complete', actor, docData.history || [], {}, 'for a new PDF');
+    }
     await checkStorage(docData.id); // fails in seconds if Storage is not set up, before drawing
     const blob = await documentPdf(type, docData, settings, setBusy);
     const pdf = new Uint8Array(await blob.arrayBuffer());
@@ -230,13 +237,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <div className="alert-info small">The document was changed after it was converted.
               {canConvert && <> <button className="link" disabled={!!busy} onClick={convert}>Convert again</button></>}</div>
           )}
-          {stale && signed && (
-            <div className="alert-info small">The document was changed after it was signed. The signed PDF shows it as it was signed.
-              {canConvert && <> <button className="link" disabled={!!busy} onClick={convert}>Make a new PDF</button>: it supersedes the signed one, and the route's signatories sign again.</>}</div>
-          )}
-          {!stale && signed && canConvert && (
-            <p className="small muted">Returned for revision: <Link to={`/documents/${docData.id}/edit`}>edit the document</Link>, then make a new PDF.
-              {' '}<button className="link" disabled={!!busy} onClick={convert}>Make a new PDF now</button></p>
+          {stale && signed && <div className="alert-info small">The document was changed after it was signed. The signed PDF shows it as it was signed.</div>}
+          {canConvert && (signed || stale || docData.status === 'draft') && (
+            <div className="mark-box regen-box">
+              <div className="field-label">Make a new PDF</div>
+              <p className="small muted">{docData.status === 'draft'
+                ? 'Back with you for revision. When the changes are done, make a new PDF: it is marked complete and goes on along its route.'
+                : 'Of the document as it is now.'}{signed ? ' It supersedes the signed PDF, and everyone on the route signs again.' : ''}
+                {' '}<Link to={`/documents/${docData.id}/edit`}>Edit the document</Link></p>
+              <div><button className="btn btn-primary btn-sm" disabled={!!busy} onClick={convert}>{busy || 'Make a new PDF'}</button></div>
+            </div>
           )}
 
           {!signatures && !error && <div className="spinner" />}
