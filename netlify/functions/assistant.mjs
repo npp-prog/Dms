@@ -60,6 +60,23 @@ async function signedInUser(req) {
   }
 }
 
+// What went wrong, in words an administrator can act on (the API's own message, never the key).
+function why(e) {
+  const detail = String(e?.error?.error?.message || e?.message || '').replace(/sk-ant-[\w-]+/g, '[key]').slice(0, 300);
+  if (e instanceof Anthropic.AuthenticationError) return 'Ask DMS is not working: the Anthropic API key in Netlify (ANTHROPIC_API_KEY) was not accepted. An administrator must check it, then redeploy.';
+  if (e instanceof Anthropic.PermissionDeniedError) return `Ask DMS is not working: the API key may not use this model (${detail}).`;
+  if (e instanceof Anthropic.NotFoundError) return `Ask DMS is not working: the model is not available to this Anthropic account (${detail}).`;
+  if (e instanceof Anthropic.RateLimitError) return 'The assistant is busy. Please try again in a minute.';
+  if (e instanceof Anthropic.BadRequestError) {
+    return /credit balance/i.test(detail)
+      ? 'Ask DMS is not working: the Anthropic account has no credits left. An administrator must add credits (console.anthropic.com → Billing).'
+      : `Ask DMS could not answer: ${detail}`;
+  }
+  if (e instanceof Anthropic.APIConnectionError) return 'The assistant could not be reached. Please try again.';
+  if (e instanceof Anthropic.APIError) return `The assistant could not answer (error ${e.status}): ${detail}`;
+  return `The assistant could not answer just now (${detail || 'unknown error'}). Please try again.`;
+}
+
 export default async (req) => {
   if (req.method !== 'POST') return text(405, 'Use POST.');
   if (!process.env.ANTHROPIC_API_KEY) return text(503, 'The assistant is not set up yet: an administrator must add ANTHROPIC_API_KEY in Netlify (Site configuration → Environment variables) and redeploy.');
@@ -101,10 +118,8 @@ export default async (req) => {
         if (final.stop_reason === 'refusal') ctrl.enqueue(enc.encode('\n\nSorry, I can’t help with that. Ask me about using DMS.'));
         else if (final.stop_reason === 'max_tokens') ctrl.enqueue(enc.encode('…'));
       } catch (e) {
-        console.error('assistant', e);
-        ctrl.enqueue(enc.encode(e instanceof Anthropic.RateLimitError
-          ? '\n\nThe assistant is busy. Please try again in a minute.'
-          : '\n\nThe assistant could not answer just now. Please try again.'));
+        console.error('assistant', e?.status, e?.message);
+        ctrl.enqueue(enc.encode(`\n\n${why(e)}`));
       }
       ctrl.close();
     },
