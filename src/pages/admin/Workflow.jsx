@@ -116,7 +116,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
   const problems = [
     !route.length && 'Add at least one step.',
     route.some((s) => !s.action.trim()) && 'Every step needs an action (what the office does).',
-    route.some((s, i) => i > 0 && s.office === route[i - 1].office) && 'Two steps in a row are in the same office: merge them into one step.',
+    route.some((s, i) => i > 0 && s.office === route[i - 1].office && same([...(s.positions || [])].sort(), [...(route[i - 1].positions || [])].sort())) && 'Two steps in a row are for the same people (office and positions): merge them, or change the office or who acts.',
     route.some((s) => s.office && !offices.includes(s.office)) && 'A step names an office that is not in Settings: users of that office will not receive it.',
   ].filter(Boolean);
   const blocking = !route.length || route.some((s) => !s.action.trim());
@@ -134,6 +134,12 @@ function RouteEditor({ type, offices, actor, onSaved }) {
     }
   };
 
+  // A copy of the step right after it, opened for editing.
+  const duplicate = (i) => {
+    const copy = JSON.parse(JSON.stringify(route[i]));
+    setRoute([...route.slice(0, i + 1), copy, ...route.slice(i + 1)]);
+    setOpen(i + 1);
+  };
   const tools = (i) => (
     <div className="route-tools">
       <button type="button" className="btn-icon" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
@@ -187,6 +193,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                   <b>Step {i + 1}</b>
                   <span className="spacer" />
                   {tools(i)}
+                  <button type="button" className="btn btn-ghost btn-sm" title="Add a copy of this step after it" onClick={() => duplicate(i)}>Duplicate</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>Done</button>
                 </div>
                 <div className="route-fields">
