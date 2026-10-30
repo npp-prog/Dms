@@ -6,6 +6,7 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import Icon, { Avatar } from '../components/Icon.jsx';
 import { stateOf, trackingViews } from '../components/WorkflowTracking.jsx';
 import NotesCard from '../components/NotesCard.jsx';
+import { drnOf } from '../lib/naming.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -122,7 +123,7 @@ export default function Dashboard() {
               {docs.slice(0, 6).map((d) => (
                 <li key={d.id}>
                   <span><span className="when">{d.updatedAt?.toDate?.().toLocaleString() || ''}</span>
-                    <Link to={`/documents/${d.id}`}>{d.controlNo}</Link> — {d.title}</span>
+                    <Link to={`/documents/${d.id}`}>{d.controlNo}</Link>{drnOf(d) && <span className="drn"> · DRN {drnOf(d)}</span>} — {d.title}</span>
                   <StatusBadge status={d.status} />
                 </li>
               ))}
