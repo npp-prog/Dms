@@ -92,9 +92,11 @@ A new person can click **Create an account**. An administrator then approves the
 
 **Folders** (menu, under Documents) keeps every document you may see, prepared in DMS or uploaded, in a folder per document type (DV, OBR, PR, Travel Order…); each folder shows how many documents it holds and when one last changed. Open a folder to see its documents and search them by control no., DRN, payee or preparer. **Tiles** or **List** (top right) switches between tiles and a table, for the folders and inside a folder; DMS remembers your choice on that device. Cancelled documents are left out.
 
-**Access (office head).** Besides the preparer, the office head can let other people of the office open the office's documents (read only):
-- **A whole folder:** Folders → **Access** lists the people of the office. Under **Give access to**, choose a folder (a document type) or **All folders**; × removes one. They then see every document of the office in that folder, in Folders, their Documents and the Archive.
-- **One document:** open it; in the **Access** card click **+ Give access** and choose someone of the office; × removes them. It is recorded in the document's History.
+**Access (office head).** Besides the preparer, the office head can give other people of the office access to the office's documents, as **Viewer** (opens the document and its files) or **Editor** (does what the preparer does: edits the draft, converts it to PDF and signs it, routes and releases it from the preparer's step, cancels it, deletes a draft):
+- **A whole folder:** Folders → **Access** lists the people of the office. Under **Give access to**, choose a folder (a document type) or **All folders**; under **As**, **Viewer** or **Editor** (for all their folders); × removes a folder. They then see every document of the office in those folders, in Folders, their Documents and the Archive.
+- **One document:** open it; in the **Access** card choose **Viewer** or **Editor**, click **+ Give access** and choose someone of the office; change the role there later, or × removes them. It is recorded in the document's History.
+
+Only the office head (and administrators) change access; editors cannot.
 
 **Archive** (menu, under Documents) holds the **processed** documents: once the last office marks a document processed, it leaves All/Office/My Documents and is kept here. Everyone sees the processed documents they may open; search by control no., DV/OBR no., payee or where it is filed, and filter by year, type or office. The **Records Officer** (a position in Users; administrators too) sees the whole archive and controls it:
 

@@ -986,17 +986,22 @@ export async function forwardDocument(id, to, note, user, kind = '') {
   });
 }
 
-// ---- Access given by the office head (read only) ----
-// To one document of the office: people of the office besides its preparer.
-export async function setDocumentAccess(id, person, give, user) {
+// ---- Access given by the office head: viewer (opens it) or editor (does what its preparer does) ----
+// To one document of the office: people of the office besides its preparer. role: 'viewer',
+// 'editor', or '' (no access).
+export async function setDocumentAccess(id, person, role, user) {
   const ref = doc(db, 'documents', id);
   await runTransaction(db, async (tx) => {
     const d = (await tx.get(ref)).data();
-    const access = d.access || [];
-    if (give === access.includes(person.uid)) return;
+    const access = (d.access || []).filter((u) => u !== person.uid);
+    const editors = (d.editors || []).filter((u) => u !== person.uid);
+    const was = (d.editors || []).includes(person.uid) ? 'editor' : (d.access || []).includes(person.uid) ? 'viewer' : '';
+    if (was === role) return;
+    const name = person.displayName || person.email;
     tx.update(ref, {
-      access: give ? [...access, person.uid] : access.filter((u) => u !== person.uid),
-      history: [...(d.history || []), historyEntry(give ? 'access given' : 'access removed', user, `${give ? 'to' : 'from'} ${person.displayName || person.email}`)],
+      access: role ? [...access, person.uid] : access,
+      editors: role === 'editor' ? [...editors, person.uid] : editors,
+      history: [...(d.history || []), historyEntry(role ? 'access given' : 'access removed', user, role ? `${name}, ${role}` : name)],
     });
   });
 }
@@ -1012,12 +1017,13 @@ export async function listFolderAccess(office) {
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
 }
 
-// all: every folder; otherwise types (codes). Nothing left: the access is removed.
-export async function setFolderAccess(person, { all = false, types = [] }, user) {
+// all: every folder; otherwise types (codes); edit: editor, else viewer. Nothing left: the access
+// is removed.
+export async function setFolderAccess(person, { all = false, types = [], edit = false }, user) {
   const ref = doc(db, 'folderAccess', person.uid);
   if (!all && !types.length) return deleteDoc(ref);
   return setDoc(ref, {
-    office: person.office, all, types: all ? [] : [...new Set(types)].sort(), name: person.displayName || person.email || '',
+    office: person.office, all, types: all ? [] : [...new Set(types)].sort(), edit: Boolean(edit), name: person.displayName || person.email || '',
     by: user.uid, byName: user.displayName || user.email || '', at: new Date().toISOString(),
   });
 }

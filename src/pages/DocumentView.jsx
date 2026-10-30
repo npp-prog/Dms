@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess } from '../lib/api.js';
-import { assignPending, canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
+import { assignPending, canAct, editableByPreparer, holdsPosition, isPreparer, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -145,7 +145,7 @@ export default function DocumentView() {
 
 function DocumentPage({ docId }) {
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, isHead, isExternal, canRefer, user, profile } = useAuth();
+  const { actor, settings, isAdmin, isHead, isExternal, canRefer, user, profile, folderGrant } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -205,7 +205,7 @@ function DocumentPage({ docId }) {
       // At a step that assigns a reference no. (e.g. the DV No.): the office holding it gets it on
       // opening (not an administrator who only looks at it: they can assign it in the Workflow card).
       if (d.status !== 'cancelled' && assignPending(d)
-        && canAct(d, { uid: user.uid, office: profile.office, isAdmin: false, isHead, positions: profile.positions || [] })) {
+        && canAct(d, { uid: user.uid, office: profile.office, isAdmin: false, isHead, positions: profile.positions || [], grant: folderGrant })) {
         try {
           await assignRefNo(docId, actor);
           d = (await getDocument(docId)) || d;
@@ -229,7 +229,7 @@ function DocumentPage({ docId }) {
   if (!docData) return <div className="page"><div className="spinner" /></div>;
 
   const editable = docData.status !== 'cancelled';
-  const isOwner = docData.createdBy === user.uid;
+  const isOwner = isPreparer(docData, { uid: user.uid, office: profile.office, grant: folderGrant });
   const wf = docData.workflow;
   // Once the document has left the preparer's office, only the offices on its route move it.
   const atPreparer = !wf || (wf.state === 'in-progress' && !wf.referral && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
@@ -245,7 +245,7 @@ function DocumentPage({ docId }) {
   const uploaded = Boolean(docData.uploaded);
   const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = !uploaded && editable && (docData.status === 'complete' || (revising && (docData.pdf?.files || []).length > 0)) && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canSign = editable && docData.status === 'complete' && wf?.state !== 'done' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
+  const canSign = editable && docData.status === 'complete' && wf?.state !== 'done' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [], grant: folderGrant }) : isOwner));
   // (The office holding it signs: documents are no longer received first.)
   // Signing is open only at a step of the route that signs (or to a person it is referred to).
   const signHere = !wf || (wf.state === 'in-progress' && Boolean(wf.referral || wf.steps[wf.stage]?.sign));
@@ -345,7 +345,7 @@ function DocumentPage({ docId }) {
           {/* Supplemental documents: between the PDF and the workflow. */}
           {type && !isExternal && (
             <SupplementsCard doc={{ ...docData, id: docId }} actor={actor} busy={busy}
-              canAdd={editable && (isOwner || isAdmin || canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }))}
+              canAdd={editable && (isOwner || isAdmin || canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [], grant: folderGrant }))}
               canRemove={editable && (isOwner || isAdmin)}
               onOpen={openFile}
               onSave={(list, note) => run(() => saveSupplements(docId, list, actor, note))} />
@@ -361,7 +361,7 @@ function DocumentPage({ docId }) {
           )}
           {type && (wf || (type.processing || []).length > 0) && (docData.status !== 'draft' || wf) && (
             <WorkflowCard doc={docData} busy={busy}
-              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] })}
+              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [], grant: folderGrant })}
               canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
               onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
               onAction={(action, remarks, done) => run(async () => {
@@ -411,7 +411,7 @@ function DocumentPage({ docId }) {
               <div className="card-head">
                 <h3>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</h3>
                 <div className="row gap">
-                  {editable && docData.transaction && (isAdmin || docData.createdBy === user.uid) && (
+                  {editable && docData.transaction && (isAdmin || isOwner) && (
                     <Link className="btn btn-sm btn-ghost" to={`/documents/${docId}/edit?change=checklist`}
                       title="Picked the wrong checklist, or the requirements changed? Choose another type of transaction.">Change checklist</Link>
                   )}
@@ -426,7 +426,7 @@ function DocumentPage({ docId }) {
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
                       <ItemLinks item={c} n={ci + 1} links={docData.links?.[c.id] || []} docId={docId} parent={{ ...docData, id: docId }} actor={actor}
                         onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))}
-                        canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
+                        canEdit={editable && (isAdmin || isOwner)}
                         onChange={(list, note) => run(async () => saveDocumentLinks(docId, {
                           links: { ...(docData.links || {}), [c.id]: list },
                           checklist: list.length > (docData.links?.[c.id] || []).length && !isChecked(v)
@@ -443,13 +443,13 @@ function DocumentPage({ docId }) {
                 </>
               )}
               <ExtraItems docData={docData} docId={docId} actor={actor} start={activeChecklist.items.length + (docData.additionalDocs || []).length}
-                canEdit={editable && (isAdmin || docData.createdBy === user.uid)} busy={busy} run={run}
+                canEdit={editable && (isAdmin || isOwner)} busy={busy} run={run}
                 onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))} />
             </section>
           )}
           {!isExternal && docData.office && (isAdmin || (isHead && docData.office === profile.office)) && (
             <AccessCard doc={docData} me={user.uid} busy={busy}
-              onChange={(person, give) => run(() => setDocumentAccess(docId, person, give, actor))} />
+              onChange={(person, role) => run(() => setDocumentAccess(docId, person, role, actor))} />
           )}
           <section className="card">
             <h3>History</h3>

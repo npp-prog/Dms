@@ -5,7 +5,7 @@ import {
   signInWithRedirect, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase.js';
-import { ensureUserProfile, getSettings, setupSite, syncDirectory, syncDirectoryEntry, updateUser } from '../lib/api.js';
+import { ensureUserProfile, getFolderAccess, getSettings, setupSite, syncDirectory, syncDirectoryEntry, updateUser } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 
@@ -13,6 +13,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState({});
+  // Folders the office head gave this user (Folders → Access), viewer or editor.
+  const [folderGrant, setFolderGrant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -33,6 +35,7 @@ export function AuthProvider({ children }) {
     setProfile(p);
     if (p.active) {
       setSettings(await getSettings().catch(() => ({})));
+      setFolderGrant(p.role !== 'payee' && p.office ? await getFolderAccess(firebaseUser.uid).catch(() => null) : null);
       syncDirectoryEntry(firebaseUser.uid, p).catch(() => {});
       if (['admin', 'superadmin'].includes(p.role)) syncDirectory().catch(() => {});
     }
@@ -65,6 +68,7 @@ export function AuthProvider({ children }) {
     profile,
     settings,
     setSettings,
+    folderGrant,
     setupNotice,
     dismissSetupNotice: () => setSetupNotice([]),
     loading,

@@ -301,6 +301,13 @@ service cloud.firestore {
           && get(g).data.office == myOffice()
           && (get(g).data.all == true || resource.data.get('typeCode', '') in get(g).data.types);
       }
+      // Editor (given by the office head, of this document or its folder): does what its preparer does.
+      function actsAsPreparer() {
+        return resource.data.createdBy == request.auth.uid
+          || (myOffice() != '' && resource.data.get('office', '') == myOffice()
+              && (request.auth.uid in resource.data.get('editors', [])
+                  || (folderGranted() && get(/databases/$(database)/documents/folderAccess/$(request.auth.uid)).data.get('edit', false) == true)));
+      }
       // The workflow fields change only through the office holding the document.
       function workflowUntouched() {
         return unchanged(['workflow', 'currentOffice', 'routeOffices', 'atPreparer']);
@@ -316,7 +323,7 @@ service cloud.firestore {
       allow create: if isStaff()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.get('office', '') == myOffice()
-        && !request.resource.data.keys().hasAny(['workflow', 'currentOffice', 'atPreparer', 'routeOffices', 'sharedWith', 'archive', 'reviews', 'access']);
+        && !request.resource.data.keys().hasAny(['workflow', 'currentOffice', 'atPreparer', 'routeOffices', 'sharedWith', 'archive', 'reviews', 'access', 'editors']);
       // The preparer moves the route only one step on (release), back (return) or cancels it; and
       // marks it processed only from its last step.
       function preparerRouteOk() {
@@ -339,10 +346,11 @@ service cloud.firestore {
             // The Records Officer files a processed document in the Archive (where it is kept).
             || (isRecords() && resource.data.get('workflow', {}).get('state', '') == 'done' && appended('history')
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archive', 'updatedAt', 'history']))
-            // The head of the office that prepared it gives people of the office access to it (read
-            // only), or takes it back.
+            // The head of the office that prepared it gives people of the office access to it (viewer,
+            // or editor: also in editors), or takes it back.
             || (isHead() && resource.data.get('office', '') == myOffice() && appended('history')
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access', 'history']))
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access', 'editors', 'history'])
+                && request.resource.data.get('access', []).hasAll(request.resource.data.get('editors', [])))
             // Someone it was sent to for review writes their review (nothing else).
             || (request.auth.uid in resource.data.get('sharedWith', [])
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviews', 'updatedAt', 'history'])
@@ -351,12 +359,12 @@ service cloud.firestore {
             || (referredToMe()
                 && request.resource.data.diff(resource.data).affectedKeys()
                      .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'supplements']))
-            // The preparer edits their document; its route only while it is with their office
-            // (or before it is routed).
-            // Not once processed (it is in the Archive), and never the archive entry or reviews.
-            || (resource.data.createdBy == request.auth.uid && resource.data.status != 'cancelled'
+            // The preparer (or an editor) edits the document; its route only while it is with their
+            // office (or before it is routed).
+            // Not once processed (it is in the Archive), and never the archive entry, reviews or access.
+            || (actsAsPreparer() && resource.data.status != 'cancelled'
                 && resource.data.get('workflow', {}).get('state', '') != 'done'
-                && unchanged(['archive', 'reviews'])
+                && unchanged(['archive', 'reviews', 'access', 'editors'])
                 && (workflowUntouched()
                     || ((!('workflow' in resource.data)
                         || (resource.data.workflow.state == 'in-progress' && (holder() == '' || holder() == myOffice())))
@@ -374,7 +382,7 @@ service cloud.firestore {
       // The preparer deletes only a draft never converted to PDF nor routed (no signatures, no
       // reference no., no public record).
       allow delete: if isAdmin()
-        || (isActive() && resource.data.createdBy == request.auth.uid
+        || (isActive() && actsAsPreparer()
             && resource.data.status == 'draft' && !('workflow' in resource.data)
             && resource.data.get('pdf', {}).get('files', []).size() == 0);
     }
@@ -388,8 +396,8 @@ service cloud.firestore {
       allow read: if isActive() && (request.auth.uid == uid || isAdmin() || headOf(resource.data.office));
       allow create, update: if (isAdmin() || headOf(request.resource.data.office))
         && (resource == null || isAdmin() || headOf(resource.data.office))
-        && request.resource.data.keys().hasOnly(['office', 'all', 'types', 'name', 'by', 'byName', 'at'])
-        && request.resource.data.all is bool && request.resource.data.types is list
+        && request.resource.data.keys().hasOnly(['office', 'all', 'types', 'edit', 'name', 'by', 'byName', 'at'])
+        && request.resource.data.all is bool && request.resource.data.get('edit', false) is bool && request.resource.data.types is list
         && get(/databases/$(database)/documents/users/$(uid)).data.get('office', '') == request.resource.data.office
         && get(/databases/$(database)/documents/users/$(uid)).data.role != 'payee';
       allow delete: if isActive() && (isAdmin() || headOf(resource.data.office));
@@ -446,6 +454,10 @@ service cloud.firestore {
       }
       function handles(d) {
         return d.createdBy == request.auth.uid
+          || (myOffice() != '' && d.get('office', '') == myOffice() && request.auth.uid in d.get('editors', []))
+          || (myOffice() != '' && d.get('office', '') == myOffice() && exists(/databases/$(database)/documents/folderAccess/$(request.auth.uid))
+              && get(/databases/$(database)/documents/folderAccess/$(request.auth.uid)).data.get('edit', false) == true
+              && get(/databases/$(database)/documents/folderAccess/$(request.auth.uid)).data.office == myOffice())
           || (myOffice() != '' && d.get('currentOffice', '') == myOffice() && d.get('atPreparer', true) == false)
           || d.get('currentOffice', '') == 'person:' + request.auth.uid
           || (myOffice() != '' && profile().get('head', false) == true && d.get('office', '') == myOffice());

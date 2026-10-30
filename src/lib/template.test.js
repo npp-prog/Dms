@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, assignPending, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, refStampMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, assignPending, availableActions, buildWorkflow, canAct, chooseOffices, isPreparer, fillsMissing, referDocument, refStampMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -544,4 +544,21 @@ test('a third-party step: the preparer designates the person, who signs and rele
   doc.pdf.files.push({ kind: 'esigned', stage: 1 });
   doc = { ...doc, ...applyAction(doc, 'release', acme, '', 't3') };
   assert.equal(doc.currentOffice, 'Municipal Accounting Office');
+});
+
+test('editors given by the office head act as the preparer', () => {
+  const office = 'Municipal Engineering Office';
+  const doc = { createdBy: 'p1', office, typeCode: 'DV', editors: ['e1'], access: ['e1', 'v1'] };
+  assert.ok(isPreparer(doc, { uid: 'p1' }));
+  assert.ok(isPreparer(doc, { uid: 'e1', office }));
+  assert.ok(!isPreparer(doc, { uid: 'e1', office: 'Municipal Health Office' }));
+  assert.ok(!isPreparer(doc, { uid: 'v1', office }));
+  assert.ok(isPreparer(doc, { uid: 'f1', office, grant: { office, edit: true, all: false, types: ['DV'] } }));
+  assert.ok(!isPreparer(doc, { uid: 'f1', office, grant: { office, edit: false, all: true, types: [] } }));
+  assert.ok(!isPreparer(doc, { uid: 'f1', office, grant: { office, edit: true, all: false, types: ['PR'] } }));
+  assert.ok(isPreparer(doc, { uid: 'f1', office, grant: { office, edit: true, all: true, types: [] } }));
+  // At the preparer's step, an editor may release it.
+  const routed = { ...doc, workflow: { state: 'in-progress', stage: 0, steps: [{ office: '', action: 'Prepare' }] } };
+  assert.ok(canAct(routed, { uid: 'e1', office }));
+  assert.ok(!canAct(routed, { uid: 'v1', office }));
 });

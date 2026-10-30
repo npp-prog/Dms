@@ -154,10 +154,20 @@ export function placement(workflow, doc) {
 export const holdsPosition = (step, positions = [], isHead = false) => isHead || !step?.positions?.length
   || step.positions.some((p) => positions.includes(p));
 
+// Is this user its preparer, or an editor the office head gave it to (the document, or its folder:
+// grant = their folderAccess entry)? An editor does what the preparer does.
+export function isPreparer(doc, { uid, office = '', grant = null } = {}) {
+  if (!doc || !uid) return false;
+  if (doc.createdBy === uid) return true;
+  if (!office || doc.office !== office) return false;
+  if ((doc.editors || []).includes(uid)) return true;
+  return Boolean(grant?.edit && grant.office === office && (grant.all || (grant.types || []).includes(doc.typeCode)));
+}
+
 // May this user act on the document's current step?
 // At the preparer's step: the preparer (or their office head). At a routed step: the office, or
 // only its people in the positions the step names (e.g. the Reviewer).
-export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = [] }) {
+export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = [], grant = null }) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return false;
   if (isAdmin) return true;
@@ -165,7 +175,7 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = 
   const step = wf.steps[wf.stage];
   if (isThirdParty(step)) return Boolean(uid) && step.party?.uid === uid;
   const holder = officeOf(step, doc);
-  if (!step.routedTo) return doc.createdBy === uid || (isHead && Boolean(office) && office === holder);
+  if (!step.routedTo) return isPreparer(doc, { uid, office, grant }) || (isHead && Boolean(office) && office === holder);
   return Boolean(office) && office === holder && holdsPosition(step, positions, isHead);
 }
 

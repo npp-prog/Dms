@@ -3,7 +3,8 @@ import { listDirectory, listDocumentTypes, listFolderAccess, setFolderAccess } f
 import Select from './Select.jsx';
 
 // Folders → Access (office head): gives people of the office access to the office's documents
-// of chosen folders (document types), or all of them, read only. The preparer always has theirs.
+// of chosen folders (document types), or all of them: as viewer (opens them) or editor (does what
+// their preparer does). The preparer always has their own.
 export default function FolderAccess({ office, me, actor, codes = [] }) {
   const [people, setPeople] = useState(null);
   const [grants, setGrants] = useState({});
@@ -38,35 +39,45 @@ export default function FolderAccess({ office, me, actor, codes = [] }) {
   return (
     <section className="card folder-access">
       <h3>Access to the folders of {office}</h3>
-      <p className="small muted">People given a folder can open every document of the office in it (read only). To give access to one document only, open it and use Access.</p>
+      <p className="small muted">A viewer opens every document of the office in their folders; an editor also does what the preparer does (edits drafts, converts to PDF, routes, cancels). To give access to one document only, open it and use Access.</p>
       {error && <div className="alert">{error}</div>}
       {!people ? <div className="spinner" /> : people.length === 0 ? <p className="muted small">No one else in {office}.</p> : (
         <table className="data-table">
-          <thead><tr><th>Person</th><th>Folders</th><th>Give access to</th></tr></thead>
+          <thead><tr><th>Person</th><th>Folders</th><th>Give access to</th><th>As</th></tr></thead>
           <tbody>
             {people.map((p) => {
               const g = grants[p.uid];
               const given = g?.all ? [] : g?.types || [];
+              const edit = Boolean(g?.edit);
               return (
                 <tr key={p.uid}>
                   <td><b>{p.displayName}</b><div className="xs muted">{p.email}</div></td>
                   <td>
                     {!g && <span className="small muted">Own documents only</span>}
                     <span className="access-chips">
-                      {g?.all && <span className="chip">All folders <button type="button" title="Remove" disabled={busy === p.uid} onClick={() => save(p, { all: false, types: [] })}>×</button></span>}
+                      {g?.all && <span className="chip">All folders <button type="button" title="Remove" disabled={busy === p.uid} onClick={() => save(p, { all: false, types: [], edit })}>×</button></span>}
                       {given.map((c) => (
                         <span key={c} className="chip" title={nameOf(c)}>{c} <button type="button" title="Remove" disabled={busy === p.uid}
-                          onClick={() => save(p, { all: false, types: given.filter((x) => x !== c) })}>×</button></span>
+                          onClick={() => save(p, { all: false, types: given.filter((x) => x !== c), edit })}>×</button></span>
                       ))}
                     </span>
                   </td>
                   <td>
                     {!g?.all && (
                       <Select value="" aria-label={`Give ${p.displayName} access to`} disabled={busy === p.uid}
-                        onChange={(e) => e.target.value && save(p, e.target.value === '*' ? { all: true, types: [] } : { all: false, types: [...given, e.target.value] })}>
+                        onChange={(e) => e.target.value && save(p, e.target.value === '*' ? { all: true, types: [], edit } : { all: false, types: [...given, e.target.value], edit })}>
                         <option value="">Choose a folder…</option>
                         <option value="*">All folders</option>
                         {allCodes.filter((c) => !given.includes(c)).map((c) => <option key={c} value={c}>{c} — {nameOf(c)}</option>)}
+                      </Select>
+                    )}
+                  </td>
+                  <td>
+                    {g && (
+                      <Select value={edit ? 'editor' : 'viewer'} aria-label={`${p.displayName}'s access`} disabled={busy === p.uid}
+                        onChange={(e) => save(p, { all: g.all, types: given, edit: e.target.value === 'editor' })}>
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
                       </Select>
                     )}
                   </td>
