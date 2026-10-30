@@ -19,7 +19,8 @@
 // 'person:<uid>' while it is referred to a person;
 // document.atPreparer: it is at a step of the preparer's office (only the preparer and the office
 // head see it then, not the preparer's colleagues);
-// document.routeOffices: every office on the route (their office heads can open the document).
+// document.routeOffices: the offices on the route the document has reached so far (their office
+// heads can open the document).
 
 import { viceApproves } from './approver.js';
 
@@ -109,8 +110,12 @@ export function buildWorkflow(type, doc, offices, user, at = new Date().toISOStr
 }
 
 // currentOffice, atPreparer and routeOffices for the security rules and the Inbox.
+// routeOffices: only the offices the document has reached so far (the furthest step it was
+// released to, even if returned since), not those still ahead on its route.
 export function placement(workflow, doc) {
-  const offices = [...new Set(workflow.steps.map((s) => officeOf(s, doc)).filter(Boolean))];
+  const reached = workflow.state === 'done' ? workflow.steps.length - 1
+    : Math.max(workflow.stage, ...(workflow.events || []).filter((e) => e.type === 'released').map((e) => e.stage + 1));
+  const offices = [...new Set(workflow.steps.slice(0, reached + 1).map((s) => officeOf(s, doc)).filter(Boolean))];
   const moving = workflow.state === 'in-progress';
   if (moving && workflow.referral) return { currentOffice: `person:${workflow.referral.uid}`, atPreparer: false, routeOffices: offices };
   const current = moving ? officeOf(workflow.steps[workflow.stage], doc) : '';

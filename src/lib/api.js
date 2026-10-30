@@ -314,6 +314,10 @@ export async function setupSite(user) {
   const moving = await getDocs(query(collection(db, 'documents'), where('workflow.state', '==', 'in-progress')));
   const older = moving.docs.filter((d) => d.data().atPreparer === undefined);
   for (const d of older) await updateDoc(d.ref, { atPreparer: placement(d.data().workflow, d.data()).atPreparer });
+  // Offices still ahead on a route no longer see the document: only the offices it has reached.
+  const ahead = moving.docs.filter((d) => JSON.stringify(d.data().routeOffices || []) !== JSON.stringify(placement(d.data().workflow, d.data()).routeOffices));
+  for (const d of ahead) await updateDoc(d.ref, { routeOffices: placement(d.data().workflow, d.data()).routeOffices });
+  if (ahead.length) done.push(`limited ${ahead.length} routed document(s) to the offices they have reached`);
   if (older.length) done.push(`updated ${older.length} routed document(s) for the new office access`);
 
   const settings = await getSettings();

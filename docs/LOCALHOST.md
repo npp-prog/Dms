@@ -195,7 +195,7 @@ When you **convert a document to PDF**, DMS starts its **workflow**: from then o
 - **Release or return.** After acting on it, the office releases it to the next office, or clicks **Return to …** and says why (e.g. *OBR not signed*). The document goes back one office.
 - **Mark processed.** The last office closes the route.
 
-**Documents** shows a **Where** column for every document. An office sees the documents routed through it. A document completed before this feature has a **Start workflow** button.
+**Documents** shows a **Where** column for every document. An office sees the documents that have reached it on their route (not those still on their way to it). A document completed before this feature has a **Start workflow** button.
 
 To try it locally, sign in one after the other (password `user123`) as `user@fts.local` (Engineering), `acctg@fts.local`, `treasury@fts.local` and `mayor@fts.local`. `budget@fts.local` is the Municipal Budget Office, on the OBR route.
 
@@ -311,7 +311,7 @@ A type with no route yet follows its processing guide; the editor starts from it
 
 **Users** is where you approve new accounts and **assign each person to an office**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
 
-**Who sees what.** A user sees the documents they prepared and the documents waiting in their office to be signed and released, so a signatory sees what they sign. They don't see a colleague's documents. Tick **Office head** next to a user's office to let them see every document of the office and every document routed through it. Administrators see all documents.
+**Who sees what.** A user sees the documents they prepared and the documents waiting in their office to be signed and released, so a signatory sees what they sign. They don't see a colleague's documents. Tick **Office head** next to a user's office to let them see every document of the office and every document that has reached the office on its route (not one still on its way to it). Administrators see all documents.
 
 To try it locally: `user@fts.local` (Juan) and `ana@fts.local` (Ana, the office head) are in the Municipal Engineering Office: Ana sees Juan's documents, Juan doesn't see Ana's. `acctg@fts.local` sees a DV only while it waits in the Accounting Office; `leo@fts.local` (Health) sees none of them.
 

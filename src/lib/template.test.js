@@ -190,7 +190,8 @@ test('document workflow', () => {
   let doc = { createdBy: 'u1', office: 'Municipal Engineering Office' };
   doc = { ...doc, ...buildWorkflow(dv, doc, offices, user, 't0') };
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
-  assert.ok(doc.routeOffices.includes('Municipal Accounting Office') && doc.routeOffices.includes('Office of the Municipal Mayor'));
+  // Only the offices it has reached see it: none ahead on the route yet.
+  assert.deepEqual(doc.routeOffices, ['Municipal Engineering Office']);
   assert.deepEqual(availableActions(doc), ['release']);
   // The PDF is what travels: no release before the document is converted.
   assert.throws(() => applyAction(doc, 'release', user), /Convert the document to PDF/);
@@ -198,6 +199,7 @@ test('document workflow', () => {
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't1') };
   assert.equal(doc.currentOffice, 'Municipal Accounting Office');
   assert.equal(whereIs(doc), 'Municipal Accounting Office');
+  assert.ok(doc.routeOffices.includes('Municipal Accounting Office') && !doc.routeOffices.includes('Office of the Municipal Mayor'));
   const acct = { uid: 'a1', displayName: 'Ana', office: 'Municipal Accounting Office' };
   assert.ok(canAct(doc, acct) && !canAct(doc, user));
   assert.deepEqual(availableActions(doc), ['release', 'return']); // no receiving: it is there
@@ -205,6 +207,7 @@ test('document workflow', () => {
   doc = { ...doc, ...applyAction(doc, 'return', acct, 'OBR not attached', 't2') };
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
   assert.equal(doc.workflow.events.at(-1).remarks, 'OBR not attached');
+  assert.ok(doc.routeOffices.includes('Municipal Accounting Office'), 'returned: Accounting, which had it, still sees it');
   // to the end; the payment step needs the check details and the DV signed in Box E
   while (doc.workflow.state === 'in-progress') {
     const a = availableActions(doc)[0];
@@ -338,20 +341,20 @@ test('alternate offices on a step: the preparer chooses before releasing', () =>
   let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }, { kind: 'signed', stage: 0 }] } };
   doc = { ...doc, ...buildWorkflow(type, doc, offices, user, 't0') };
   assert.equal(doc.workflow.choose, true);
-  assert.ok(doc.routeOffices.includes('Office of the Municipal Mayor'));
+  assert.ok(!doc.routeOffices.includes('Office of the Municipal Mayor'), 'not reached yet');
   assert.throws(() => applyAction(doc, 'release', user), /Choose the office/);
   assert.throws(() => chooseOffices(doc, { 2: 'Municipal Budget Office' }, user), /choose one of its offices/);
   const { changed, ...patch } = chooseOffices(doc, { 2: 'Office of the Municipal Vice Mayor' }, user, 't1');
   doc = { ...doc, ...patch };
   assert.equal(doc.workflow.choose, false);
   assert.equal(doc.workflow.steps[2].routedTo, 'Office of the Municipal Vice Mayor');
-  assert.ok(doc.routeOffices.includes('Office of the Municipal Vice Mayor') && !doc.routeOffices.includes('Office of the Municipal Mayor'));
   assert.equal(doc.workflow.events.at(-1).remarks, 'Step 3: Office of the Municipal Vice Mayor');
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't2') };
   assert.throws(() => chooseOffices(doc, { 2: 'Office of the Municipal Mayor' }, user), /before the document is first released/);
   const acct = { uid: 'a1', displayName: 'Rosa', office: 'Municipal Accounting Office' };
   doc = { ...doc, ...applyAction(doc, 'release', acct, '', 't4') };
   assert.equal(doc.currentOffice, 'Office of the Municipal Vice Mayor');
+  assert.ok(doc.routeOffices.includes('Office of the Municipal Vice Mayor') && !doc.routeOffices.includes('Office of the Municipal Mayor'));
   // Without alternates: nothing to choose.
   assert.equal(buildWorkflow({ route: type.route.slice(0, 2) }, doc, offices, user).workflow.choose, undefined);
 });
