@@ -110,7 +110,7 @@ export default function Inbox() {
           </div>
         </>
       )}
-      <h2 className="inbox-sub">Waiting in {office || 'every office'}</h2>
+      <h2 className="inbox-sub">{office ? `Waiting in ${office}` : isAdmin ? 'Waiting in every office' : 'Waiting for you'}</h2>
       {error && <div className="alert">{error}</div>}
       {!docs && !error && <div className="spinner" />}
       {docs && (

@@ -59,7 +59,7 @@ export default function Communities() {
                   <Avatar name={c.name} size="sm" />
                   <span className="chat-list-t">
                     <span className="chat-list-top"><b>{c.name}</b><span className="xs muted">{when(c.lastAt)}</span></span>
-                    <span className="small muted chat-preview">{c.lastText ? `${c.lastBy === user.uid ? 'You' : (c.names?.[c.lastBy] || '').split(' ')[0]}: ${c.lastText}` : `${c.members.length} members · ${c.office}`}</span>
+                    <span className="small muted chat-preview">{c.lastText ? `${c.lastBy === user.uid ? 'You' : (c.names?.[c.lastBy] || '').split(' ')[0]}: ${c.lastText}` : [`${c.members.length} members`, c.office].filter(Boolean).join(' · ')}</span>
                   </span>
                   {isUnread(c, user.uid) && <span className="chat-dot" aria-label="Unread" />}
                 </button>

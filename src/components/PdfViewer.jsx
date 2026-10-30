@@ -117,7 +117,9 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
   useEffect(() => {
     if (!doc || !width) return undefined;
     let cancelled = false;
+    let task = null; // the page being drawn: stopped when the size changes again
     (async () => {
+      setError('');
       const ratio = Math.min(window.devicePixelRatio || 1, 2.5);
       for (let n = 1; n <= doc.numPages && !cancelled; n++) {
         const canvas = canvases.current[n - 1];
@@ -127,10 +129,11 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
         const vp = page.getViewport({ scale: scale * ratio });
         canvas.width = Math.floor(vp.width);
         canvas.height = Math.floor(vp.height);
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        task = page.render({ canvasContext: canvas.getContext('2d'), viewport: vp });
+        await task.promise;
       }
-    })().catch((e) => !cancelled && setError(`Could not show the PDF: ${e.message}`));
-    return () => { cancelled = true; };
+    })().catch((e) => !cancelled && e?.name !== 'RenderingCancelledException' && setError(`Could not show the PDF: ${e.message}`));
+    return () => { cancelled = true; task?.cancel(); };
   }, [doc, width, sizes]);
 
   // Tap: the mark centred where tapped, kept inside the page.

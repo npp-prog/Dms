@@ -69,7 +69,10 @@ function StepTasks({ doc, step, busy, onFill, onUpload, onOpenFile, children }) 
   const fields = doc.typeSnapshot?.fields || [];
   const keys = step.fills || [];
   const [values, setValues] = useState(() => Object.fromEntries(keys.map((k) => [k, doc.data?.[k] ?? ''])));
-  useEffect(() => setValues(Object.fromEntries(keys.map((k) => [k, doc.data?.[k] ?? '']))), [doc.data, keys.join()]);
+  // Refreshed only when the saved values themselves change (not on every reload of the document,
+  // e.g. after uploading the step's file, which would wipe what is typed but not saved yet).
+  const saved = JSON.stringify(keys.map((k) => doc.data?.[k] ?? ''));
+  useEffect(() => setValues(Object.fromEntries(keys.map((k) => [k, doc.data?.[k] ?? '']))), [saved, keys.join()]);
   const changed = keys.some((k) => String(values[k] ?? '') !== String(doc.data?.[k] ?? ''));
   const files = (doc.stepFiles || []).filter((f) => f.stage === doc.workflow.stage);
   return (

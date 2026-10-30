@@ -47,7 +47,7 @@ export default function Settings() {
             <input value={form.lguAddress} onChange={set('lguAddress')} />
             <div className="help">Printed as <code>{'{{lgu.address}}'}</code></div></div>
           <div className="field field-wide"><label className="field-label">Seal / logo image URL</label>
-            <input value={form.sealUrl} onChange={set('sealUrl')} placeholder="/municipal-seal.png" />
+            <input value={form.sealUrl} onChange={set('sealUrl')} />
             <div className="help">Printed on document headers as <code>{'{{lgu.seal}}'}</code>. Leave blank to use the municipal seal.</div></div>
         </div>
         <h3>Signatories</h3>
