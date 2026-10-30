@@ -739,7 +739,7 @@ const TO = {
   steps: [
     { id: 's1', title: 'Travelers', instructions: 'One line per person directed to travel: the name and the position.' },
     { id: 's2', title: 'Travel', instructions: 'The date or dates of travel as they should read on the order, and one line per purpose, in the order they are listed. The Travel Order No. is assigned by the Office of the Mayor.' },
-    { id: 's3', title: 'Issue', instructions: 'The date the order is given and signed. The Mayor (from Settings) approves.' },
+    { id: 's3', title: 'Issue', instructions: 'The date the order is given and signed, and who approves: the Mayor or, in their place, the Vice Mayor (names from Settings).' },
   ],
   fields: [
     { key: 'toNo', label: 'Travel Order No.', type: 'text', filledBy: 'mayor' },

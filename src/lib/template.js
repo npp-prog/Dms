@@ -1,5 +1,5 @@
 import { amountToWords } from './numberToWords.js';
-import { approverSignatories } from './approver.js';
+import { approverSignatories, viceApproves } from './approver.js';
 
 // Lightweight template engine for document formats.
 //
@@ -173,7 +173,10 @@ export function renderTemplate(template, ctx = {}) {
     sig: approverSignatories(ctx.signatories || {}, ctx.data),
   };
 
-  const withIfs = String(template || '').replace(
+  // A Travel Order saved before the Mayor/Vice Mayor choice prints "Mayor" under the name as text.
+  const source = viceApproves(ctx.data)
+    ? String(template || '').replace(/(\{\{sig\.mayor[^}]*\}\}<\/b><div>)Mayor(<\/div>)/g, '$1Vice Mayor$2') : template;
+  const withIfs = String(source || '').replace(
     /\{\{#if\s+(!?)([\w.]+)\s*(?:=\s*([^}]*?))?\s*\}\}([\s\S]*?)\{\{\/if\}\}/g,
     (_, not, key, expected, inner) => {
       const value = lookup(base, key);

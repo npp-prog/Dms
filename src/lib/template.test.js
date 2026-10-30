@@ -484,3 +484,10 @@ test('the Vice Mayor can approve in place of the Mayor', () => {
   const wf = buildWorkflow(type, { office: 'X', data: { approver: 'MUNICIPAL VICE MAYOR' } }, [], { uid: 'u', displayName: 'U' });
   assert.equal(wf.workflow.steps[0].routedTo, 'Office of the Municipal Vice Mayor');
 });
+
+test('a Travel Order saved before the choice prints Vice Mayor under the name', () => {
+  const old = '<b>{{sig.mayor|upper}}</b><div>Mayor</div>';
+  const sig = { mayor: 'Ray', viceMayor: 'Edgy' };
+  assert.equal(renderTemplate(old, { data: { approver: 'MUNICIPAL VICE MAYOR' }, signatories: sig }), '<b>EDGY</b><div>Vice Mayor</div>');
+  assert.equal(renderTemplate(old, { data: { approver: 'MUNICIPAL MAYOR' }, signatories: sig }), '<b>RAY</b><div>Mayor</div>');
+});
