@@ -4,10 +4,12 @@ import { renderTemplate } from '../lib/template.js';
 import { capsFor } from '../lib/forms.js';
 import { signatoriesFrom } from '../lib/signatories.js';
 import PrintPage from './PrintPage.jsx';
+import { officeLetterhead } from '../lib/letterhead.js';
 
 // Renders a document type's template with data. Output is sanitized because
 // templates are authored in-app by admins.
-export default function DocumentPreview({ type, data = {}, checklist = {}, controlNo = '', preparedBy = '', settings = {}, signatories }) {
+// office: the office the document is from (its letterhead: Settings > Office letterheads).
+export default function DocumentPreview({ type, data = {}, checklist = {}, controlNo = '', preparedBy = '', settings = {}, signatories, office = '' }) {
   const html = useMemo(() => DOMPurify.sanitize(renderTemplate(type?.template, {
     data: capsFor(type?.fields, data),
     caps: true,
@@ -17,13 +19,14 @@ export default function DocumentPreview({ type, data = {}, checklist = {}, contr
     fields: type?.fields,
     signatories: signatories || signatoriesFrom(settings),
     docType: { code: type?.code, name: type?.name },
+    office: officeLetterhead(settings, type, office),
     lgu: {
       name: settings.lguName || 'Municipal Government of Candoni',
       address: settings.lguAddress || '',
       province: settings.province || '',
       seal: settings.sealUrl || '/municipal-seal.png',
     },
-  })), [type, data, checklist, controlNo, preparedBy, settings, signatories]);
+  })), [type, data, checklist, controlNo, preparedBy, settings, signatories, office]);
 
   return (
     <PrintPage paperSize={type?.paperSize} orientation={type?.orientation}>

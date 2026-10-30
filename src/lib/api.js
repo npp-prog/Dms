@@ -320,6 +320,10 @@ export async function setupSite(user) {
     await saveSettings({ offices: DEFAULT_SETTINGS.offices });
     done.push('added the list of offices (Settings)');
   }
+  if (settings.lguName && !settings.officeContacts) {
+    await saveSettings({ officeContacts: DEFAULT_SETTINGS.officeContacts });
+    done.push('added the Office of the Mayor\'s letterhead (Settings)');
+  }
   const libraryVersion = settings.checklistLibraryVersion || 1;
   if ((await getDocs(query(collection(db, 'checklists'), limit(1)))).empty) {
     const library = await loadBundledChecklists();

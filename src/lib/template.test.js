@@ -74,7 +74,7 @@ test('starter types are consistent and render', () => {
     for (const f of type.fields) assert.ok(Boolean(f.filledBy) || stepIds.has(f.step), `${type.code}.${f.key} has unknown step`);
     assert.equal(buildSteps(type).length, type.steps.length);
     const columns = type.fields.flatMap((f) => (f.columns || []).map((c) => c.key));
-    const known = new Set([...keys, ...columns, 'controlNo', 'lgu', 'sig', 'today', 'preparedBy', 'docType']);
+    const known = new Set([...keys, ...columns, 'controlNo', 'lgu', 'sig', 'today', 'preparedBy', 'docType', 'office']);
     const refs = [...type.template.matchAll(/\{\{\s*(?:#if\s+|table:|sum:)?([\w]+)/g)].map((m) => m[1]);
     for (const r of refs) assert.ok(known.has(r), `${type.code} template references unknown "${r}"`);
     for (const f of type.fields) {
@@ -490,4 +490,17 @@ test('a Travel Order saved before the choice prints Vice Mayor under the name', 
   const sig = { mayor: 'Ray', viceMayor: 'Edgy' };
   assert.equal(renderTemplate(old, { data: { approver: 'MUNICIPAL VICE MAYOR' }, signatories: sig }), '<b>EDGY</b><div>Vice Mayor</div>');
   assert.equal(renderTemplate(old, { data: { approver: 'MUNICIPAL MAYOR' }, signatories: sig }), '<b>RAY</b><div>Mayor</div>');
+});
+
+test('the letterhead comes from the issuing office in Settings', async () => {
+  const { officeLetterhead } = await import('./letterhead.js');
+  const to = STARTER_TYPES.find((t) => t.code === 'TO');
+  const settings = { offices: DEFAULT_SETTINGS.offices, officeContacts: { ...DEFAULT_SETTINGS.officeContacts, 'Municipal Accounting Office': { email: 'acctg@x.ph', contact: '123' } } };
+  const office = officeLetterhead(settings, to, 'Municipal Accounting Office');
+  assert.deepEqual(office, { name: 'Office of the Municipal Mayor', letterhead: 'Office of the Mayor', email: 'mgo.candoni@gmail.com', contact: '(+63) 966 830 6543' });
+  const html = renderTemplate(to.template, { data: {}, caps: true, fields: to.fields, office });
+  assert.match(html, /<u>mgo\.candoni@gmail\.com<\/u>[\s\S]*\(\+63\) 966 830 6543[\s\S]*>Office of the Mayor</);
+  // a form of the document's own office; no email or contact: those lines are left out
+  assert.deepEqual(officeLetterhead(settings, {}, 'Municipal Accounting Office'), { name: 'Municipal Accounting Office', letterhead: 'Municipal Accounting Office', email: 'acctg@x.ph', contact: '123' });
+  assert.doesNotMatch(renderTemplate(to.template, { data: {}, fields: to.fields, office: { letterhead: 'X' } }), /Email Address|Contact No/);
 });

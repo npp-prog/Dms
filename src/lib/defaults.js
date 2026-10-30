@@ -735,7 +735,9 @@ const TO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  starterVersion: 2,
+  starterVersion: 3,
+  // The letterhead (title, email, contact no.) of the issuing office, from Settings.
+  headerOffice: 'Office of the Municipal Mayor',
   steps: [
     { id: 's1', title: 'Travelers', instructions: 'One line per person directed to travel: the name and the position.' },
     { id: 's2', title: 'Travel', instructions: 'The date or dates of travel as they should read on the order, and one line per purpose, in the order they are listed. The Travel Order No. is assigned by the Office of the Mayor.' },
@@ -769,10 +771,10 @@ const TO = {
   <div class="to-head"><img src="{{lgu.seal}}" alt="">
     <div>Republic of the Philippines</div>
     <div class="to-lgu">{{lgu.name|upper}}</div>
-    <div class="to-small">Municipal Building, Rizal St., Candoni, Negros Occidental 6110</div>
-    <div class="to-small"><i>Email Address:</i> <u>mgo.candoni@gmail.com</u></div>
-    <div class="to-small"><i>Contact No.:</i> (+63) 966 830 6543</div>
-    <div class="to-office">Office of the Mayor</div></div>
+    <div class="to-small">{{lgu.address}}</div>
+    {{#if office.email}}<div class="to-small"><i>Email Address:</i> <u>{{office.email}}</u></div>{{/if}}
+    {{#if office.contact}}<div class="to-small"><i>Contact No.:</i> {{office.contact}}</div>{{/if}}
+    <div class="to-office">{{office.letterhead}}</div></div>
   <div class="to-title">TRAVEL ORDER NO.: {{toNo}}</div>
   <div>Series of {{givenDate|year}}</div>
   <table class="to-to"><tr><td class="to-k">TO</td><td class="to-c">:</td><td><table class="to-who">{{#each travelers}}<tr><td class="to-n"><b>{{name}}</b></td><td class="to-c">-</td><td>{{position}}</td></tr>{{/each}}</table></td></tr></table>
@@ -868,7 +870,7 @@ const PAYROLL = {
 export const CHECKLIST_LIBRARY_VERSION = 2;
 
 // The parts of a document type that make up its format (what a starter update replaces).
-export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'checklist', 'bulkDownload'];
+export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'checklist', 'bulkDownload', 'headerOffice'];
 
 // Positions of people within an office (Users), named on route steps so that only the right person
 // acts: e.g. the Reviewer in Accounting, not the Encoder; the Inspection Officer in the GSO.
@@ -910,6 +912,10 @@ export const DEFAULT_SETTINGS = {
   ],
   positions: DEFAULT_POSITIONS,
   funds: DEFAULT_FUNDS,
+  // Each office's letterhead: the title printed under the LGU, its email address and contact no.
+  officeContacts: {
+    'Office of the Municipal Mayor': { letterhead: 'Office of the Mayor', email: 'mgo.candoni@gmail.com', contact: '(+63) 966 830 6543' },
+  },
   lguName: 'Municipal Government of Candoni',
   lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
   province: 'Negros Occidental',

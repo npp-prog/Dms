@@ -4,6 +4,8 @@ import { saveSettings } from '../../lib/api.js';
 import { SIGNATORY_ROLES, signatoriesFrom } from '../../lib/signatories.js';
 import { fundsOf, positionsOf } from '../../lib/defaults.js';
 
+const lines = (t) => [...new Set(t.split('\n').map((o) => o.trim()).filter(Boolean))];
+
 export default function Settings() {
   const { settings, setSettings } = useAuth();
   const [form, setForm] = useState({ lguName: '', lguAddress: '', province: '', sealUrl: '', ...settings, signatories: signatoriesFrom(settings) });
@@ -13,13 +15,15 @@ export default function Settings() {
   const [officeText, setOfficeText] = useState((settings.offices || []).join('\n'));
   const [positionText, setPositionText] = useState(positionsOf(settings).join('\n'));
   const [fundText, setFundText] = useState(fundsOf(settings).join('\n'));
+  const setContact = (office, k) => (e) => setForm({
+    ...form, officeContacts: { ...form.officeContacts, [office]: { ...form.officeContacts?.[office], [k]: e.target.value } },
+  });
 
   const submit = async (e) => {
     e.preventDefault();
     setStatus('Saving…');
     try {
       const { updatedAt, ...rest } = form;
-      const lines = (t) => [...new Set(t.split('\n').map((o) => o.trim()).filter(Boolean))];
       const clean = { ...rest, offices: lines(officeText), positions: lines(positionText), funds: lines(fundText) };
       await saveSettings(clean);
       setSettings(clean);
@@ -68,6 +72,20 @@ export default function Settings() {
           <div className="field field-wide">
             <textarea rows={10} value={officeText} onChange={(e) => setOfficeText(e.target.value)} />
           </div>
+        </div>
+        <h3>Office letterheads</h3>
+        <p className="small muted">Printed in the header of the forms an office issues (e.g. the Travel Order, from the Office of the Mayor).
+          Leave an office blank to print only its name.</p>
+        <div className="letterheads">
+          <div className="letterhead-row letterhead-head small muted"><span>Office</span><span>Title on the letterhead</span><span>Email address</span><span>Contact No.</span></div>
+          {lines(officeText).map((o) => (
+            <div key={o} className="letterhead-row">
+              <b className="small">{o}</b>
+              <input aria-label={`${o}: title on the letterhead`} value={form.officeContacts?.[o]?.letterhead || ''} onChange={setContact(o, 'letterhead')} />
+              <input aria-label={`${o}: email address`} type="email" value={form.officeContacts?.[o]?.email || ''} onChange={setContact(o, 'email')} />
+              <input aria-label={`${o}: contact no.`} value={form.officeContacts?.[o]?.contact || ''} onChange={setContact(o, 'contact')} />
+            </div>
+          ))}
         </div>
         <h3>Funds</h3>
         <p className="small muted">One fund per line: listed in the Fund field of every form and when uploading a document. Renaming a fund here

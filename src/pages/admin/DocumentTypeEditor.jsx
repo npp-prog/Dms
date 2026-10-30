@@ -173,6 +173,13 @@ export default function DocumentTypeEditor() {
               <Select value={type.orientation} onChange={(e) => patch({ orientation: e.target.value })}>
                 <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
               </Select></div>
+            <div className="field"><label className="field-label">Letterhead</label>
+              <Select value={type.headerOffice || ''} onChange={(e) => patch({ headerOffice: e.target.value })}>
+                <option value="">The office of the document</option>
+                {(settings.offices || []).map((o) => <option key={o} value={o}>{o}</option>)}
+              </Select>
+              <div className="help">Whose title, email address and contact no. the form prints (Settings → Office letterheads):
+                <code>{'{{office.letterhead}}'}</code> <code>{'{{office.email}}'}</code> <code>{'{{office.contact}}'}</code></div></div>
             </>}
             <div className="field"><label className="field-label">Bulk download</label>
               <label className="check"><input type="checkbox" checked={Boolean(type.bulkDownload)} onChange={(e) => patch({ bulkDownload: e.target.checked })} />

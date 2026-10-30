@@ -67,7 +67,7 @@ function Wizard({ typeId, docId }) {
   // ?change=checklist: opened from the document page to change the checklist.
   const [params] = useSearchParams();
   const changeChecklist = params.get('change') === 'checklist';
-  const { actor, settings, isAdmin } = useAuth();
+  const { actor, settings, isAdmin, profile } = useAuth();
   const [type, setType] = useState(null);
   const [existing, setExisting] = useState(null);
   const [data, setData] = useState({});
@@ -264,7 +264,7 @@ function Wizard({ typeId, docId }) {
             <>
               <div className="preview-label no-print">Live preview</div>
               <DocumentPreview type={type} data={data} checklist={checklist} settings={settings}
-                signatories={existing?.signatories} controlNo={existing?.controlNo || '(assigned on save)'} preparedBy={existing?.createdByName || actor.displayName} />
+                signatories={existing?.signatories} office={existing?.office || profile?.office} controlNo={existing?.controlNo || '(assigned on save)'} preparedBy={existing?.createdByName || actor.displayName} />
             </>
           )}
         </div>

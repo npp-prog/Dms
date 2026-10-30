@@ -9,7 +9,7 @@ import ChecklistSheet from './ChecklistSheet.jsx';
 
 export const documentElement = (type, d, settings) => (
   <DocumentPreview type={type} data={d.data || {}} checklist={d.checklist || {}} settings={settings}
-    signatories={d.signatories} controlNo={d.controlNo} preparedBy={d.createdByName} />
+    signatories={d.signatories} controlNo={d.controlNo} preparedBy={d.createdByName} office={d.office} />
 );
 
 export const checklistElement = (checklist, d, settings) => (

@@ -277,6 +277,7 @@ Fields can be **computed**: in a table column or a field, the formula combines o
 
 - the LGU name, address and seal;
 - the **signatories**: Mayor, Accountant, Budget Officer, Treasurer and Secretary to the Sanggunian. These are printed where the official forms pre-print a name. Each document keeps the signatories that were set when it was prepared.
+- the **office letterheads**: for each office, the title printed under the LGU (the Office of the Mayor's is *Office of the Mayor*), its email address and its contact no. A form prints the letterhead of the office it is from: the Travel Order always the Office of the Mayor's; other forms the office of the document unless **Document Types → Letterhead** names one. An email or contact no. left blank is not printed.
 
 ![Settings](images/22-admin-settings.png)
 

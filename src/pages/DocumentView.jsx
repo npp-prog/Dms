@@ -459,7 +459,7 @@ export default function DocumentView() {
                   : linkedView.bytes ? <PdfViewer bytes={linkedView.bytes} signatures={linkedView.signatures} title={`${linkedView.link.controlNo} · ${linkedView.link.typeCode}${linkedView.signatures.length ? ' · signed PDF' : ' · PDF'}`} />
                     : linkedView.type ? (
                       <DocumentPreview type={linkedView.type} data={linkedView.doc.data || {}} checklist={linkedView.doc.checklist || {}} settings={settings}
-                        signatories={linkedView.doc.signatories} controlNo={linkedView.doc.controlNo} preparedBy={linkedView.doc.createdByName} />
+                        signatories={linkedView.doc.signatories} office={linkedView.doc.office} controlNo={linkedView.doc.controlNo} preparedBy={linkedView.doc.createdByName} />
                     ) : <div className="spinner" />}
               </>
             ) : view === 'file' && fileView ? (
@@ -480,7 +480,7 @@ export default function DocumentView() {
               <ChecklistSheet checklist={activeChecklist} state={docData.checklist} data={draft || docData.data} additional={docData.additionalDocs || []} links={docData.links || {}} settings={settings} />
             ) : (
           <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
-            signatories={docData.signatories}
+            signatories={docData.signatories} office={docData.office}
             controlNo={docData.controlNo} preparedBy={docData.createdByName} />
             )}
           </div>

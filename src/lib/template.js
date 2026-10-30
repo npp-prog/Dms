@@ -6,7 +6,7 @@ import { approverSignatories, viceApproves } from './approver.js';
 //   {{field}}                   value of a field (HTML-escaped)
 //   {{field|currency}}          filters: currency, peso, acct, number, date, mdy, upper, words,
 //                               day, ord, monthyear, year (parts of a date)
-//   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, controlNo, today, preparedBy)
+//   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, office, controlNo, today, preparedBy)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
 //   {{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}
@@ -155,7 +155,7 @@ function renderTokens(template, scope, ctx) {
     const out = applyFilters(value ?? '', filters);
     // ctx.caps: encoded entries print in capitals, including formatted dates. Settings
     // (lgu, sig) and the document context (controlNo, today, preparedBy) print as they are.
-    const encoded = !/^(lgu|sig|docType)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head)
+    const encoded = !/^(lgu|sig|docType|office)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head)
       && !keptCase(ctx).has(head);
     return escapeHtml(ctx.caps && encoded ? String(out).toUpperCase() : out);
   });
@@ -171,6 +171,7 @@ export function renderTemplate(template, ctx = {}) {
     preparedBy: ctx.preparedBy || '',
     // The Vice Mayor prints in the Mayor's place when the preparer chose them as approver.
     sig: approverSignatories(ctx.signatories || {}, ctx.data),
+    office: ctx.office || {},
   };
 
   // A Travel Order saved before the Mayor/Vice Mayor choice prints "Mayor" under the name as text.

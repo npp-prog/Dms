@@ -1197,3 +1197,8 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 @media (max-width: 600px) { .ask-fab span { display: none; } .ask-fab { padding: .7rem; } .ask { right: 16px; bottom: 72px; } }
 
 .check-pdf-links { display: flex; gap: 1rem; margin: 0 0 .6rem; }
+
+/* Settings: each office's letterhead */
+.letterheads { display: grid; gap: .5rem; margin-bottom: 1rem; }
+.letterhead-row { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)); gap: .5rem; align-items: center; }
+@media (max-width: 760px) { .letterhead-row { grid-template-columns: 1fr; } .letterhead-head { display: none; } .letterhead-row b { margin-top: .5rem; } }
