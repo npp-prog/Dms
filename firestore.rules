@@ -83,7 +83,7 @@ service cloud.firestore {
       allow create: if (isOfficeHead() || isAdmin())
         && request.resource.data.by == request.auth.uid
         && (isAdmin() || request.resource.data.fromOffice == myOffice())
-        && request.resource.data.keys().hasOnly(['title', 'kind', 'note', 'file', 'fromOffice', 'by', 'byName', 'at', 'all', 'toOffices', 'receipts'])
+        && request.resource.data.keys().hasOnly(['title', 'kind', 'note', 'file', 'doc', 'fromOffice', 'by', 'byName', 'at', 'all', 'toOffices', 'receipts'])
         && request.resource.data.receipts.size() == 0
         && request.resource.data.toOffices.size() > 0;
       allow update: if isStaff()

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getFileBytes, listDirectory } from '../lib/api.js';
+import { getFileBytes, getPdfBytes, listDirectory, listDocuments } from '../lib/api.js';
 import { CIRCULAR_KINDS, deleteCircular, getCircular, listCirculars, markNotificationsRead, receiveCircular, sendCircular, watchNotifications } from '../lib/social.js';
 import Select from '../components/Select.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
@@ -91,9 +91,51 @@ export default function Circulars() {
   );
 }
 
+// A document already in DMS, to send as the circular: one with a PDF that the user may see.
+function DmsDocPicker({ value, onChange }) {
+  const { user, profile, isAdmin, isHead, isRecords } = useAuth();
+  const [docs, setDocs] = useState(null);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin || isRecords, head: isHead })
+      .then((l) => setDocs(l.filter((d) => d.status !== 'cancelled' && (d.pdf?.files || []).length)))
+      .catch(() => setDocs([]));
+  }, [user.uid, profile.office, isAdmin, isHead, isRecords]);
+  if (value) {
+    return (
+      <div className="person-chosen">
+        <span><b>{value.controlNo}</b> <span className="small muted">{[value.typeCode, value.title].filter(Boolean).join(' · ')}</span></span>
+        <button type="button" className="link small" onClick={() => onChange(null)}>Change</button>
+      </div>
+    );
+  }
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = (docs || []).filter((d) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.typeName} ${d.title}`.toLowerCase().includes(w))).slice(0, 20);
+  return (
+    <div className="person-picker">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={docs ? 'Search by control no., type or subject…' : 'Loading…'} disabled={!docs} aria-label="Document in DMS" />
+      {docs && (
+        <ul>
+          {shown.length === 0 && <li className="small muted none">No document with a PDF matches.</li>}
+          {shown.map((d) => (
+            <li key={d.id}>
+              <button type="button" onClick={() => { onChange(d); setQ(''); }}>
+                <b>{d.controlNo}</b>
+                <span className="small muted">{[d.typeCode, d.title].filter(Boolean).join(' · ')}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function NewCircular({ offices, me, onCancel, onSent }) {
   const [form, setForm] = useState({ title: '', kind: CIRCULAR_KINDS[0], note: '', all: true, toOffices: [] });
   const [file, setFile] = useState(null);
+  const [source, setSource] = useState('upload'); // 'upload' or 'dms' (a document already in DMS)
+  const [dmsDoc, setDmsDoc] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -104,7 +146,14 @@ function NewCircular({ offices, me, onCancel, onSent }) {
     setBusy(true); setError('');
     try {
       const people = await listDirectory().catch(() => []);
-      const id = await sendCircular({ ...form, file, toOffices: form.all ? others : form.toOffices }, me, people);
+      let fromDoc;
+      if (source === 'dms') {
+        if (!dmsDoc) throw new Error('Choose the document in DMS.');
+        const current = dmsDoc.pdf.files.at(-1);
+        const bytes = await getPdfBytes(current.path);
+        fromDoc = { ...dmsDoc, file: new File([bytes], `${dmsDoc.controlNo}.pdf`, { type: 'application/pdf' }) };
+      }
+      const id = await sendCircular({ ...form, file: source === 'upload' ? file : null, fromDoc, toOffices: form.all ? others : form.toOffices }, me, people);
       onSent(id);
     } catch (err) { setError(err.message); setBusy(false); }
   };
@@ -116,9 +165,21 @@ function NewCircular({ offices, me, onCancel, onSent }) {
           <Select id="cc-kind" value={form.kind} onChange={set('kind')}>{CIRCULAR_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></div>
         <div className="field field-wide"><label className="field-label" htmlFor="cc-title">Title or subject <span className="req">*</span></label>
           <input id="cc-title" value={form.title} onChange={set('title')} required maxLength={200} /></div>
-        <div className="field field-wide"><label className="field-label" htmlFor="cc-file">File (PDF or picture) <span className="req">*</span></label>
-          <input id="cc-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
-          <div className="help">The signed letter, memo or order, scanned or as issued. Up to 25 MB.</div></div>
+        <div className="field field-wide"><span className="field-label">The circular <span className="req">*</span></span>
+          <label className="check"><input type="radio" checked={source === 'upload'} onChange={() => setSource('upload')} /> Upload a file</label>
+          <label className="check"><input type="radio" checked={source === 'dms'} onChange={() => setSource('dms')} /> A document already in DMS</label>
+          {source === 'upload' ? (
+            <>
+              <input id="cc-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} required aria-label="File (PDF or picture)" />
+              <div className="help">The signed letter, memo or order, scanned or as issued (PDF or picture). Up to 25 MB.</div>
+            </>
+          ) : (
+            <>
+              <DmsDocPicker value={dmsDoc} onChange={(d) => { setDmsDoc(d); if (d && !form.title.trim()) setForm({ ...form, title: d.title || d.typeName || d.controlNo }); }} />
+              <div className="help">Its current PDF (signed, if it is) goes with the circular, so every office it is for can open it.</div>
+            </>
+          )}
+        </div>
         <div className="field field-wide"><label className="field-label" htmlFor="cc-note">Note (optional)</label>
           <textarea id="cc-note" rows={2} value={form.note} onChange={set('note')} maxLength={2000} /></div>
         <div className="field field-wide"><span className="field-label">For</span>
@@ -203,6 +264,7 @@ function CircularPage({ id }) {
               <dt>Kind</dt><dd>{c.kind}</dd>
               <dt>From</dt><dd>{c.fromOffice || '—'} · {c.byName}</dd>
               <dt>Sent</dt><dd>{when(c.at)}</dd>
+              {c.doc && <><dt>DMS document</dt><dd><Link to={`/documents/${c.doc.id}`}>{c.doc.controlNo}</Link>{c.doc.typeCode ? ` · ${c.doc.typeCode}` : ''}</dd></>}
               <dt>For</dt><dd>{c.all ? 'All offices' : c.toOffices.join(', ')}</dd>
               {c.note && <><dt>Note</dt><dd style={{ whiteSpace: 'pre-line' }}>{c.note}</dd></>}
             </dl>

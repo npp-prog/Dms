@@ -79,9 +79,12 @@ export const deleteNotification = (uid, id) => deleteDoc(doc(db, 'users', uid, '
 
 export const CIRCULAR_KINDS = ['Letter', 'Memorandum', 'Executive Order', 'Office Order', 'Circular', 'Notice', 'Invitation', 'Other'];
 
-export async function sendCircular({ title, kind, note, file, toOffices, all }, me, people = []) {
+// fromDoc: a document already in DMS ({ id, controlNo, typeCode, title, file: Blob }) instead of an
+// uploaded file: its current PDF is copied into the circular, so every office it is for opens it.
+export async function sendCircular({ title, kind, note, file: upFile, fromDoc = null, toOffices, all }, me, people = []) {
   if (!String(title).trim()) throw new Error('Type the title or subject.');
-  if (!file) throw new Error('Choose the file of the circular (PDF or picture).');
+  const file = fromDoc ? fromDoc.file : upFile;
+  if (!file) throw new Error(fromDoc === null ? 'Choose the file of the circular (PDF or picture), or a document in DMS.' : 'That document has no PDF yet.');
   if (!/^(application\/pdf|image\/(jpeg|png|webp))$/.test(file.type)) throw new Error('Upload a PDF or a picture (JPG or PNG).');
   if (file.size > 25 * 1024 * 1024) throw new Error('The file is larger than 25 MB.');
   if (!toOffices.length) throw new Error('Choose the office or offices it is for.');
@@ -90,6 +93,7 @@ export async function sendCircular({ title, kind, note, file, toOffices, all }, 
   const record = {
     title: String(title).trim().slice(0, 200), kind, note: String(note || '').trim().slice(0, 2000),
     file: { path, name: file.name, type: file.type, size: file.size },
+    ...(fromDoc ? { doc: { id: fromDoc.id, controlNo: fromDoc.controlNo, typeCode: fromDoc.typeCode || '', title: fromDoc.title || '' } } : {}),
     fromOffice: me.office || '', by: me.uid, byName: nameOf(me), at: new Date().toISOString(),
     all: Boolean(all), toOffices: [...new Set(toOffices)], receipts: {},
   };
