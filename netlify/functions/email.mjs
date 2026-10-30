@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { getStore } from '@netlify/blobs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { firebaseConfig } from '../../src/firebase-config.js';
 
@@ -46,17 +47,22 @@ export default async (req) => {
     .filter((x) => /^[A-Za-z0-9]{10,40}$/.test(x?.to || '') && /^[A-Za-z0-9]{10,40}$/.test(x?.id || ''));
 
   // Each notification, as stored, sent by this user; grouped by text so a circular to many
-  // offices goes out as one email (Bcc).
+  // offices goes out as one email (Bcc). Each is emailed once only (ids kept in Netlify Blobs).
+  const sentStore = getStore('email-sent');
   const groups = new Map();
+  const sending = [];
   await Promise.all(items.map(async ({ to, id }) => {
+    if (await sentStore.get(`${to}/${id}`)) return;
     const [n, person] = await Promise.all([read(`users/${to}/notifications/${id}`, token), read(`directory/${to}`, token)]);
     const email = str(person, 'email');
     if (!n || str(n, 'from') !== uid || !email) return;
+    sending.push(`${to}/${id}`);
     const key = `${str(n, 'text')}\n${str(n, 'link')}`;
     if (!groups.has(key)) groups.set(key, { text: str(n, 'text'), link: str(n, 'link'), kind: str(n, 'kind'), fromName: str(n, 'fromName'), to: [] });
     groups.get(key).to.push(email);
   }));
   if (!groups.size) return json(200, { sent: 0 });
+  await Promise.all(sending.map((k) => sentStore.set(k, '1')));
 
   const port = Number(process.env.SMTP_PORT || 465);
   const mail = nodemailer.createTransport({

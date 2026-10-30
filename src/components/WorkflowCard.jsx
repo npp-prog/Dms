@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, HIDDEN_EVENTS, assignPending, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { ACTION_LABELS, HIDDEN_EVENTS, approverMismatch, assignPending, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
 import PersonPicker from './PersonPicker.jsx';
 import Select from './Select.jsx';
 
@@ -14,7 +14,11 @@ const EVENT_TEXT = {
 function OfficeChoice({ doc, busy, onChoose }) {
   const wf = doc.workflow;
   const main = (s) => (s.office === 'Requesting office' ? '' : s.office);
-  const [picks, setPicks] = useState(() => Object.fromEntries(wf.steps.map((s, i) => [i, s.routedTo])));
+  // The office matching Approved by (Mayor or Vice Mayor) is suggested where the route differs.
+  const [picks, setPicks] = useState(() => {
+    const m = approverMismatch(doc);
+    return Object.fromEntries(wf.steps.map((s, i) => [i, m && m.stage === i ? m.office : s.routedTo]));
+  });
   const name = (o) => o || "Preparer's office";
   const changed = wf.steps.some((s, i) => s.alternates?.length && picks[i] !== s.routedTo);
   return (

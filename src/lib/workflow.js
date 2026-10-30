@@ -93,6 +93,23 @@ export function assignedFields(type, doc) {
   return new Set(steps.flatMap((s) => (s.assign?.field ? [s.assign.field, s.assign.dateField].filter(Boolean) : [])));
 }
 
+// A step that may go to the Mayor's or the Vice Mayor's office, routed to the other one than the
+// approver chosen on the form (Approved by): { stage, office } of the one it should go to, or null.
+export function approverMismatch(doc) {
+  const wf = doc?.workflow;
+  if (!wf || !doc.data?.approver) return null;
+  const vice = viceApproves(doc.data);
+  for (const [i, s] of wf.steps.entries()) {
+    const options = [s.office, ...(s.alternates || [])].filter(Boolean);
+    const viceOffice = options.find((o) => /vice mayor/i.test(o));
+    const mayorOffice = options.find((o) => /mayor/i.test(o) && !/vice/i.test(o));
+    if (!viceOffice || !mayorOffice) continue;
+    const want = vice ? viceOffice : mayorOffice;
+    if ((s.routedTo || s.office) !== want) return { stage: i, office: want };
+  }
+  return null;
+}
+
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
   // The Vice Mayor approves: their office is chosen already where it is an alternate.
   const steps = routeSteps(type, offices).map((s) => {
@@ -249,6 +266,10 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');
   }
   if (action === 'release' && wf.stage === 0 && wf.choose) throw new Error('Choose the office of each step with alternates before releasing it.');
+  if (action === 'release' && wf.stage === 0 && !wf.events.some((e) => e.type === 'released') && approverMismatch(doc)) {
+    const m = approverMismatch(doc);
+    throw new Error(`Approved by and the route differ: step ${m.stage + 1} should go to ${m.office}. Choose it in the Workflow card.`);
+  }
   if (action === 'return' && !String(remarks).trim()) throw new Error('Say why the document is returned.');
   const event = (type, stage) => ({ type, stage, office: officeOf(wf.steps[stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: String(remarks || '').trim() });
   let next;

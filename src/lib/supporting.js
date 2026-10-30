@@ -21,7 +21,7 @@ export async function uploadSupporting({ parent, slot, label, code = '', number 
   } catch { /* kept without the code */ }
   const name = `${fileBase({ fund: parent.data?.fund, subject: parent.data?.payee || parent.title, number, type: typeCode || 'DOC', ref: controlRef(created.controlNo) })}.pdf`;
   const stored = await uploadAttachment(parent.id, slot, new File([pdf], name, { type: 'application/pdf' }), actor,
-    (x) => onStep(`Uploading… ${Math.round(x * 100)}%`));
+    (x) => onStep(`Uploading… ${Math.round(x * 100)}%`), created.id);
   await finishSupportingDocument(created.id, stored, pdf, actor);
   return { ...stored, label, dms: { id: created.id, controlNo: created.controlNo } };
 }

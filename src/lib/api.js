@@ -483,13 +483,14 @@ export async function saveExtraItems(id, { extraItems, links }, user, history = 
 // A supporting document uploaded to a checklist item (a scanned PDF or a photo), kept at
 // documents/{docId}/attachments/{itemId}/{time}-{name}. Returns the link stored on the item.
 export const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-export async function uploadAttachment(docId, itemId, file, user, onProgress) {
+// dmsDoc: the supporting document the file is (lib/supporting.js), so its QR page can open it.
+export async function uploadAttachment(docId, itemId, file, user, onProgress, dmsDoc = '') {
   if (!ATTACHMENT_TYPES.includes(file.type)) throw new Error('Upload a PDF or a picture (JPG or PNG).');
   if (file.size > 20 * 1024 * 1024) throw new Error('The file is larger than 20 MB. Scan it at a lower resolution.');
   const name = file.name.replace(/[^\w.\- ()]+/g, '_').slice(-80) || 'file';
   const path = `documents/${docId}/attachments/${itemId}/${Date.now()}-${name}`;
   await new Promise((resolve, reject) => {
-    const task = uploadBytesResumable(storageRef(storage, path), file, { contentType: file.type });
+    const task = uploadBytesResumable(storageRef(storage, path), file, { contentType: file.type, ...(dmsDoc ? { customMetadata: { dmsDoc } } : {}) });
     task.on('state_changed', (s) => onProgress?.(s.bytesTransferred / (s.totalBytes || 1)), (e) => reject(storageError(e, 'upload', 'uploading the file')), resolve);
   });
   return { kind: 'file', path, name: file.name, type: file.type, size: file.size, by: user.displayName || user.email, at: new Date().toISOString() };
@@ -526,7 +527,7 @@ export async function finishSupportingDocument(id, link, bytes, user) {
   await runTransaction(db, async (tx) => {
     const d = (await tx.get(ref)).data();
     const known = (await tx.get(verifyRef)).exists();
-    if (!known) tx.set(verifyRef, { controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: 1, kind: 'uploaded', signer: '', signatures: 0, by: file.by, at: file.at });
+    if (!known) tx.set(verifyRef, { docId: id, controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: 1, kind: 'uploaded', signer: '', signatures: 0, by: file.by, at: file.at });
     const next = { ...d, pdf: { basis: null, basisV: null, files: [file] }, status: 'complete' };
     // Its file under the DMS name (Fund_Payee_No._Type_Control No.); the name it came with is kept.
     const uploaded = { ...(d.uploaded || {}), name: link.name, original: d.uploaded?.name || '' };
@@ -880,7 +881,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     if (files.length !== n) throw new Error('Someone else added a version of this PDF first. Reload the page and try again.');
     // Public record of this exact file, for anyone verifying a copy (the Verify page).
     if (!known) tx.set(verifyRef, {
-      controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: n + 1, kind,
+      docId: id, controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: n + 1, kind,
       signer: signer?.name || '', signatures: files.filter((f) => f.kind === 'signed').length + (kind === 'signed' ? 1 : 0),
       by: file.by, at: file.at,
     });
@@ -1050,7 +1051,7 @@ export async function getDocument(id) {
 // office (the Firestore rules allow no more), merged.
 // The documents a user may see (firestore.rules): their own and those waiting in their office;
 // for an office head, every document of the office and every one routed through it.
-export async function listDocuments({ uid, office = '', all = false, head = false, max = 300 } = {}) {
+export async function listDocuments({ uid, office = '', all = false, head = false, max = 1000 } = {}) {
   const docs = collection(db, 'documents');
   const queries = all
     ? [query(docs, orderBy('updatedAt', 'desc'), limit(max))]

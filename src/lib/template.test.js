@@ -504,3 +504,20 @@ test('the letterhead comes from the issuing office in Settings', async () => {
   assert.deepEqual(officeLetterhead(settings, {}, 'Municipal Accounting Office'), { name: 'Municipal Accounting Office', letterhead: 'Municipal Accounting Office', email: 'acctg@x.ph', contact: '123' });
   assert.doesNotMatch(renderTemplate(to.template, { data: {}, fields: to.fields, office: { letterhead: 'X' } }), /Email Address|Contact No/);
 });
+
+test('Approved by and the route must agree (Mayor or Vice Mayor)', async () => {
+  const { approverMismatch } = await import('./workflow.js');
+  const route = [{ office: '', action: 'Prepare' }, { office: 'Office of the Municipal Mayor', action: 'Approve', alternates: ['Office of the Municipal Vice Mayor'] }];
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', data: { approver: 'MUNICIPAL VICE MAYOR' }, pdf: { files: [{ kind: 'generated' }] } };
+  doc = { ...doc, ...buildWorkflow({ route }, doc, DEFAULT_SETTINGS.offices, juan, 't0') };
+  assert.equal(approverMismatch(doc), null, 'preselected the Vice Mayor');
+  doc.data = { approver: 'MUNICIPAL MAYOR' }; // changed back on the form
+  assert.deepEqual(approverMismatch(doc), { stage: 1, office: 'Office of the Municipal Mayor' });
+  doc = { ...doc, ...chooseOffices(doc, { 1: 'Office of the Municipal Vice Mayor' }, juan, 't1') };
+  assert.throws(() => applyAction(doc, 'release', juan), /Approved by and the route differ/);
+  const { changed, ...patch } = chooseOffices(doc, { 1: 'Office of the Municipal Mayor' }, juan, 't2');
+  doc = { ...doc, ...patch };
+  assert.equal(approverMismatch(doc), null);
+  assert.equal({ ...doc, ...applyAction(doc, 'release', juan, '', 't3') }.currentOffice, 'Office of the Municipal Mayor');
+});

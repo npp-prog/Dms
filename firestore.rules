@@ -60,6 +60,8 @@ service cloud.firestore {
       allow create: if isActive() && request.resource.data.from == request.auth.uid
         && request.resource.data.keys().hasOnly(['kind', 'text', 'link', 'from', 'fromName', 'at', 'read'])
         && request.resource.data.kind in ['document', 'circular', 'community']
+        // signed with the sender's own name (as in their profile), never someone else's
+        && request.resource.data.fromName in [profile().get('displayName', ''), profile().get('email', '')]
         && request.resource.data.link is string && request.resource.data.link.matches('^/[A-Za-z0-9/_-]*$')
         && request.resource.data.text is string && request.resource.data.text.size() <= 500
         && request.resource.data.read == false;
@@ -374,8 +376,16 @@ service cloud.firestore {
     match /verifications/{hash} {
       allow get: if true;
       allow list: if false;
+      // Only for the PDF just added to a document, in the same write (its fingerprint is that file's).
+      function docAdded() {
+        return getAfter(/databases/$(database)/documents/documents/$(request.resource.data.docId)).data;
+      }
       allow create: if isActive() && hash.matches('^[0-9a-f]{64}$')
-        && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'version', 'kind', 'signer', 'signatures', 'by', 'at']);
+        && request.resource.data.keys().hasOnly(['docId', 'controlNo', 'typeCode', 'typeName', 'version', 'kind', 'signer', 'signatures', 'by', 'at'])
+        && request.resource.data.docId is string
+        && docAdded().pdf.files[docAdded().pdf.files.size() - 1].sha256 == hash
+        && request.resource.data.controlNo == docAdded().controlNo
+        && request.resource.data.version == docAdded().pdf.files.size();
       allow update, delete: if false;
     }
 

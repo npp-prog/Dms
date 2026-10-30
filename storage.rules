@@ -97,7 +97,11 @@ service firebase.storage {
 
     // Supporting documents uploaded to the checklist items (scanned PDFs, photos).
     match /documents/{docId}/attachments/{itemId}/{file} {
-      allow read: if isActive() && canRead(docOf(docId));
+      // A supporting document's file (metadata dmsDoc: its id): also anyone, signed in or not, once
+      // its public record (what its QR code opens) names it.
+      allow read: if (isActive() && canRead(docOf(docId)))
+        || (resource.metadata != null && resource.metadata.get('dmsDoc', '') != ''
+            && firestore.get(/databases/(default)/documents/checks/$(resource.metadata.dmsDoc)).data.get('pdf', '') == 'documents/' + docId + '/attachments/' + itemId + '/' + file);
       allow create: if resource == null && isActive() && canAdd(docOf(docId))
         && request.resource.contentType.matches('application/pdf|image/(jpeg|png|webp)')
         && request.resource.size < 20 * 1024 * 1024;
