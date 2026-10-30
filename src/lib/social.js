@@ -3,7 +3,7 @@ import {
   updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable } from 'firebase/storage';
-import { db, storage } from '../firebase.js';
+import { auth, db, storage } from '../firebase.js';
 
 const nameOf = (u) => u?.displayName || u?.email || '';
 const safeName = (name) => String(name || '').replace(/[^\w.\- ()]+/g, '_').slice(-80) || 'file';
@@ -21,11 +21,23 @@ function upload(path, file) {
 // users/{uid}/notifications/{id}: { kind: 'document' | 'circular' | 'community', text, link, from,
 // fromName, at, read }. Anyone sends one as themselves; only the user reads them (firestore.rules).
 
+// Each notification is also emailed to its recipient (netlify/functions/email.mjs, once an
+// administrator has set up the mailbox in Netlify). Never fails the action.
+function emailNotices(items) {
+  if (!items.length || !auth?.currentUser || import.meta.env?.VITE_USE_EMULATOR === 'true') return;
+  auth.currentUser.getIdToken()
+    .then((token) => fetch('/.netlify/functions/email', {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ items }), keepalive: true,
+    }))
+    .catch(() => {});
+}
+
 export async function notify(to, { kind, text, link = '' }, me) {
   if (!to || !me?.uid || to === me.uid) return;
-  await addDoc(collection(db, 'users', to, 'notifications'), {
+  const ref = await addDoc(collection(db, 'users', to, 'notifications'), {
     kind, text: String(text).slice(0, 500), link, from: me.uid, fromName: nameOf(me), at: new Date().toISOString(), read: false,
   });
+  emailNotices([{ to, id: ref.id }]);
 }
 
 // The same notice to many people (in batches: Firestore takes 500 writes at a time).
@@ -34,12 +46,16 @@ export async function notifyMany(uids, notice, me) {
   const at = new Date().toISOString();
   for (let i = 0; i < list.length; i += 450) {
     const batch = writeBatch(db);
+    const items = [];
     for (const to of list.slice(i, i + 450)) {
-      batch.set(doc(collection(db, 'users', to, 'notifications')), {
+      const ref = doc(collection(db, 'users', to, 'notifications'));
+      items.push({ to, id: ref.id });
+      batch.set(ref, {
         kind: notice.kind, text: String(notice.text).slice(0, 500), link: notice.link || '', from: me.uid, fromName: nameOf(me), at, read: false,
       });
     }
     await batch.commit();
+    emailNotices(items);
   }
 }
 

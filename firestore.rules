@@ -52,9 +52,11 @@ service cloud.firestore {
 
     // ---- Notifications to a user (updates on their documents, circulars, communities) ----
     // Anyone active may send one to anyone, as themselves; only the user reads them, marks them
-    // read or deletes them.
+    // read or deletes them. Each is also emailed to them (netlify/functions/email.mjs).
     match /users/{uid}/notifications/{nid} {
       allow read, delete: if isActive() && request.auth.uid == uid;
+      // its sender may read it back (to email it: netlify/functions/email.mjs)
+      allow get: if isActive() && resource.data.from == request.auth.uid;
       allow create: if isActive() && request.resource.data.from == request.auth.uid
         && request.resource.data.keys().hasOnly(['kind', 'text', 'link', 'from', 'fromName', 'at', 'read'])
         && request.resource.data.text is string && request.resource.data.text.size() <= 500
