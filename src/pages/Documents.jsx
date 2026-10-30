@@ -20,6 +20,7 @@ export default function Documents() {
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ q: '', status: '', type: '', office: '' });
+  const [zipOpen, setZipOpen] = useState(false);
 
   useEffect(() => {
     listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead }).then(setDocs).catch((e) => setError(e.message));
@@ -49,10 +50,11 @@ export default function Documents() {
           )}
         </div>
         <div className="row gap wrap">
-          {isAdmin && docs && <ZipExport docs={shown} />}
-          <Link to="/new" className="btn btn-primary">+ New document</Link>
+          {isAdmin && docs && !zipOpen && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setZipOpen(true)}>Download ZIP</button>}
+          <Link to="/new" className="btn btn-primary btn-sm">+ New document</Link>
         </div>
       </div>
+      {isAdmin && docs && zipOpen && <ZipExport docs={shown} onClose={() => setZipOpen(false)} />}
       <div className="filters">
         <input className="search" placeholder="Search control no., DV/OBR no., payee…" value={filters.q}
           onChange={(e) => setFilters({ ...filters, q: e.target.value })} />

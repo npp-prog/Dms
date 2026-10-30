@@ -9,9 +9,8 @@ const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 // All Documents (admins and the Records Officer): download, as one ZIP, the current PDF of every
 // document uploaded or prepared in a date range (and matching the page's filters), in a folder
 // per document type, with an index of all of them (index.csv).
-export default function ZipExport({ docs }) {
+export default function ZipExport({ docs, onClose }) {
   const now = new Date();
-  const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(iso(new Date(now.getFullYear(), now.getMonth(), 1)));
   const [to, setTo] = useState(iso(now));
   const [busy, setBusy] = useState('');
@@ -65,21 +64,24 @@ export default function ZipExport({ docs }) {
     }
   };
 
-  if (!open) return <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>Download ZIP</button>;
   return (
-    <div className="card zip-export">
-      <div className="card-head"><h3>Download documents (ZIP)</h3>
-        <button type="button" className="btn-icon" title="Close" onClick={() => setOpen(false)}>×</button></div>
-      <p className="small muted">The current PDF of every document uploaded or prepared in these dates, among those listed below (the search
-        and filters apply), in a folder per type, with an index (index.csv).</p>
-      <div className="row gap wrap zip-dates">
+    <section className="card zip-export">
+      <div className="card-head">
+        <h3>Download documents (ZIP)</h3>
+        <button type="button" className="btn-icon" title="Close" onClick={onClose}>×</button>
+      </div>
+      <p className="small muted">The current PDF of each document uploaded or prepared between these dates, in a folder per type, with a list
+        of them all (index.csv). The search and filters on the list below apply.</p>
+      <div className="zip-dates">
         <label className="field"><span className="field-label">From</span><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="field"><span className="field-label">To</span><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        <div className="small zip-count"><b>{inRange.length}</b> document{inRange.length === 1 ? '' : 's'} · <b>{withPdf.length}</b> with a PDF</div>
-        <button type="button" className="btn btn-primary" disabled={!!busy || !inRange.length || (from && to && from > to)} onClick={download}>{busy || 'Download ZIP'}</button>
       </div>
       {from && to && from > to && <div className="alert small">The From date is after the To date.</div>}
+      <div className="zip-foot">
+        <span className="small muted"><b>{inRange.length}</b> document{inRange.length === 1 ? '' : 's'} · <b>{withPdf.length}</b> with a PDF</span>
+        <button type="button" className="btn btn-primary btn-sm" disabled={!!busy || !inRange.length || (from && to && from > to)} onClick={download}>{busy || 'Download ZIP'}</button>
+      </div>
       {msg && <div className={`alert small ${msg.ok ? 'alert-ok' : ''}`}>{msg.text}</div>}
-    </div>
+    </section>
   );
 }
