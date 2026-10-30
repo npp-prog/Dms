@@ -66,8 +66,7 @@ export default function DocumentTypes() {
       <div className="page-head">
         <div>
           <h1>Document Types</h1>
-          <p className="muted">Define each document&rsquo;s fields, guided steps, checklist of requirements and printable format, or make it
-            upload only (no format) for documents that are uploaded as files.</p>
+          <p className="muted">Define each document&rsquo;s fields, guided steps, checklist of requirements and printable format.</p>
         </div>
         <div className="row gap wrap">
           {missingStarters.length > 0 && (
@@ -93,7 +92,7 @@ export default function DocumentTypes() {
               {types.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.code}</b></td>
-                  <td className="type-name"><Link to={`/admin/types/${t.id}`}>{t.name}</Link>{t.uploadOnly && <span className="badge badge-blue">Upload only</span>}</td>
+                  <td className="type-name"><Link to={`/admin/types/${t.id}`}>{t.name}</Link></td>
                   <td>{t.category}</td>
                   <td>{t.uploadOnly ? '—' : (t.fields || []).length}</td>
                   <td>{t.uploadOnly ? '—' : (t.steps || []).length}</td>

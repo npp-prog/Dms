@@ -103,7 +103,7 @@ function Wizard({ typeId, docId }) {
         } else {
           const t = await getDocumentType(typeId);
           if (!t || t.active === false) throw new Error('Document type not found or inactive.');
-          if (t.uploadOnly) throw new Error(`${t.code} is upload only: it has no format to prepare. Upload it in Documents → Upload.`);
+          if (t.uploadOnly) throw new Error(`${t.code} has no format to prepare. Upload it from New document.`);
           setType(t);
           setData(initialData(t));
         }

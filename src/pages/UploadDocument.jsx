@@ -85,7 +85,7 @@ export default function UploadDocument() {
           <label className="field-label" htmlFor={`${id}-t`}>Document type</label>
           <Select id={`${id}-t`} value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!types}>
             <option value="">Other document (no workflow)</option>
-            {(types || []).map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}{t.uploadOnly ? ' (upload only)' : ''}</option>)}
+            {(types || []).map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
           </Select>
           <span className="small muted">{type.id
             ? 'It follows the workflow set for this type in Administration → Workflow.'
