@@ -1,11 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, createSupportingDocument, finishSupportingDocument, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
 import { canAct, editableByPreparer, holdsPosition, isReceived, officeOf } from '../lib/workflow.js';
-import { addQrStamps, readSignatures } from '../lib/signing.js';
-import { qrAppearance, verifyUrl } from '../lib/qr.js';
-import { imageToPdf } from '../lib/imagePdf.js';
+import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
@@ -16,10 +14,11 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 import WorkflowCard from '../components/WorkflowCard.jsx';
 import ReviewCard from '../components/ReviewCard.jsx';
+import SupplementsCard from '../components/SupplementsCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
 import SendPanel from '../components/SendPanel.jsx';
 import { pdfFileName } from '../components/printables.jsx';
-import { controlRef, fileBase } from '../lib/naming.js';
+import { uploadSupporting } from '../lib/supporting.js';
 import PdfViewer from '../components/PdfViewer.jsx';
 
 function downloadBytes(bytes, name, type) {
@@ -42,20 +41,8 @@ function ItemLinks({ item, n, links, canEdit, docId, parent, actor, onChange, on
     if (!file) return;
     setError(''); setUpload('Uploading… 0%');
     try {
-      if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Upload a PDF or a picture (JPG or PNG).');
-      // It is also a DMS document of its own (All Documents, with a control no. and the QR code).
-      setUpload('Preparing the PDF…');
-      let pdf = file.type === 'application/pdf' ? new Uint8Array(await file.arrayBuffer()) : await imageToPdf(file);
       const code = itemTypeCode(item);
-      const created = await createSupportingDocument(parent, item, { typeCode: /^[A-Z]{2,8}$/.test(code) ? code : '', fileName: file.name }, actor);
-      try {
-        if (!readSignatures(pdf).length) pdf = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
-      } catch { /* kept without the code */ }
-      // Named like every DMS file: Fund_Payee_Checklist No._Type_Control No. (its own control no.).
-      const name = `${fileBase({ fund: parent.data?.fund, subject: parent.data?.payee || parent.title, number: n, type: /^[A-Z]{2,8}$/.test(code) ? code : 'DOC', ref: controlRef(created.controlNo) })}.pdf`;
-      const stored = await uploadAttachment(docId, item.id, new File([pdf], name, { type: 'application/pdf' }), actor, (x) => setUpload(`Uploading… ${Math.round(x * 100)}%`));
-      await finishSupportingDocument(created.id, stored, pdf, actor);
-      const l = { ...stored, dms: { id: created.id, controlNo: created.controlNo } };
+      const l = await uploadSupporting({ parent, slot: item.id, label: item.label, code, number: n, file, actor, onStep: setUpload });
       await onChange([...links, l], linkText(l));
     } catch (e) {
       setError(e.message);
@@ -276,6 +263,14 @@ export default function DocumentView() {
               }}
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
+          {/* Supplemental documents: between the PDF and the workflow. */}
+          {type && (
+            <SupplementsCard doc={{ ...docData, id: docId }} actor={actor} busy={busy}
+              canAdd={editable && (isOwner || isAdmin || canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }))}
+              canRemove={editable && (isOwner || isAdmin)}
+              onOpen={openFile}
+              onSave={(list, note) => run(() => saveSupplements(docId, list, actor, note))} />
+          )}
           {/* Optional initial review of the draft by anyone, before it is converted to PDF. */}
           <ReviewCard doc={docData} me={user.uid} busy={busy} canSend={editable && !uploaded && (isOwner || isAdmin)}
             onSend={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor, 'review'); done(); })}
@@ -380,9 +375,14 @@ export default function DocumentView() {
         </div>
         {type ? (
           <div className="doc-main" ref={viewer}>
-            {((activeChecklist && activeChecklist.items.length > 0) || pdfView) && (
+            {((activeChecklist && activeChecklist.items.length > 0) || pdfView || (docData.supplements || []).length > 0) && (
               <div className="tabs view-toggle no-print">
                 {pdfView && <button className={view === 'pdf' ? 'active' : ''} onClick={() => setView('pdf')}>{hasSignature ? 'Signed PDF' : 'PDF'}</button>}
+                {(docData.supplements || []).map((l, i) => (
+                  <button key={`supp:${i}`} title={`${l.label || 'Supplemental document'}: ${l.dms?.controlNo || l.name}`}
+                    className={view === 'file' && linkKey === `supp:${i}` ? 'active' : ''}
+                    onClick={() => openFile(l, `supp:${i}`)}>{l.label && l.label !== 'Supplemental document' ? l.label : `Supplemental ${i + 1}`}</button>
+                ))}
                 {!uploaded && <button className={view === 'document' ? 'active' : ''} onClick={() => setView('document')}>{docData.typeCode}</button>}
                 {activeChecklist && activeChecklist.items.length > 0 && (
                   <button className={view === 'checklist' ? 'active' : ''} onClick={() => setView('checklist')}>Checklist{docData.transaction ? ` ${docData.transaction.code}` : ''}</button>

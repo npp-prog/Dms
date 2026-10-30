@@ -441,6 +441,16 @@ export async function finishSupportingDocument(id, link, bytes, user) {
   });
 }
 
+// Supplemental documents of a document (not on its checklist): the list on the document, each a
+// supporting DMS document of its own (lib/supporting.js). Removing one keeps that document.
+export async function saveSupplements(id, supplements, user, note) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    tx.update(ref, { supplements, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('supplemental', user, note)] });
+  });
+}
+
 export async function getFileBytes(path) {
   try {
     return new Uint8Array(await getBytes(storageRef(storage, path)));

@@ -188,7 +188,7 @@ service cloud.firestore {
             || ((heldByMyOffice() || (isHead() && holder() == myOffice()))
                 && holdsStepPosition()
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards'])
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards', 'supplements'])
                 && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())
                 && request.resource.data.get('refNos', {}).diff(resource.data.get('refNos', {})).affectedKeys().hasOnly(assignedKeys())));
       allow delete: if isAdmin()

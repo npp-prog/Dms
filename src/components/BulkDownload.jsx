@@ -75,6 +75,11 @@ export default function BulkDownload({ docData, type, settings }) {
         }
       });
 
+      // Supplemental documents, under their own DMS names.
+      for (const l of docData.supplements || []) {
+        jobs.push({ label: l.name, run: async () => ({ file: l.name, blob: new Blob([await getFileBytes(l.path)], { type: 'application/pdf' }) }) });
+      }
+
       // Files uploaded at workflow steps (e.g. the DV signed by the payee in Box E).
       for (const f of docData.stepFiles || []) {
         const ext = (f.name.match(/\.([a-z0-9]{1,5})$/i)?.[1] || (f.type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase();
