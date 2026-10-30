@@ -5,6 +5,8 @@
 // Every form prints on A4
 // portrait, scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
 
+import { withApprover } from './approver.js';
+
 export const FUNDS = ['General Fund', 'Special Education Fund', 'Trust Fund', '20% Development Fund', 'LDRRMF'];
 
 // Official form header: seal, LGU, address, form title.
@@ -733,7 +735,7 @@ const TO = {
   orientation: 'portrait',
   active: true,
   checklistSource: 'own',
-  starterVersion: 1,
+  starterVersion: 2,
   steps: [
     { id: 's1', title: 'Travelers', instructions: 'One line per person directed to travel: the name and the position.' },
     { id: 's2', title: 'Travel', instructions: 'The date or dates of travel as they should read on the order, and one line per purpose, in the order they are listed. The Travel Order No. is assigned by the Office of the Mayor.' },
@@ -778,7 +780,7 @@ const TO = {
   <table class="to-list">{{#each purposes}}<tr><td class="to-no">{{@no}}.</td><td>{{purpose}}</td></tr>{{/each}}</table>
   <p class="to-gap">This travel order is issued for the good public service.</p>
   <p>Given and signed this {{givenDate|day}}<sup>{{givenDate|ord}}</sup> day of {{givenDate|monthyear}} at Candoni, {{lgu.province}}.</p>
-  <table class="to-sign"><tr><td class="to-appr">Approved:</td><td class="to-signer"><div class="to-space"></div><b>{{sig.mayor|upper}}</b><div>Mayor</div></td></tr></table>
+  <table class="to-sign"><tr><td class="to-appr">Approved:</td><td class="to-signer"><div class="to-space"></div><b>{{sig.mayor|upper}}</b><div>{{#if approver=Municipal Vice Mayor}}Vice Mayor{{/if}}{{#if !approver}}Mayor{{/if}}{{#if approver=Municipal Mayor}}Mayor{{/if}}</div></td></tr></table>
   <table class="to-fill" data-grow><tr class="blank"><td></td></tr></table>
   <div class="to-foot">#CandoniSHINE &nbsp;|&nbsp; Experience Rural Tranquility</div>
 </div>`,
@@ -921,7 +923,8 @@ export const DEFAULT_SETTINGS = {
   },
 };
 
-export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, TO, PR, PO, JO];
+// Every format that prints the Mayor lets the preparer choose the Mayor or the Vice Mayor.
+export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, TO, PR, PO, JO].map(withApprover);
 
 export const FIELD_TYPES = [
   { value: 'text', label: 'Text' },

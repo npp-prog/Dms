@@ -21,6 +21,8 @@
 // head see it then, not the preparer's colleagues);
 // document.routeOffices: every office on the route (their office heads can open the document).
 
+import { viceApproves } from './approver.js';
+
 // Steps done by the preparer's own office (or by people it deals with directly).
 const PREPARER = /requesting|claimant|supervisor|payee|custodian|traveler|supplier|end[- ]?user/i;
 
@@ -91,7 +93,11 @@ export function assignedFields(type, doc) {
 }
 
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
-  const steps = routeSteps(type, offices);
+  // The Vice Mayor approves: their office is chosen already where it is an alternate.
+  const steps = routeSteps(type, offices).map((s) => {
+    const vice = viceApproves(doc?.data) && s.alternates?.find((o) => /vice mayor/i.test(o));
+    return vice ? { ...s, routedTo: vice } : s;
+  });
   if (!steps.length) return null;
   const workflow = {
     state: 'in-progress', stage: 0, received: true, steps,
@@ -324,3 +330,4 @@ export function editableByPreparer(doc) {
 export const isReceived = (wf) => Boolean(wf && (wf.referral ? wf.referral.received : wf.received));
 
 export const ACTION_LABELS = { receive: 'Receive', release: 'Release', return: 'Return', complete: 'Mark processed', back: 'Send back' };
+

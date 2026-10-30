@@ -464,3 +464,23 @@ test('Travel Order: date parts and entries printed as typed', () => {
   assert.match(html, /this 28<sup>th<\/sup> day of August 2023 at Candoni, Negros Occidental\./);
   assert.match(html, /ENGR\. RAY R\. RUIZ/);
 });
+
+test('the Vice Mayor can approve in place of the Mayor', () => {
+  const to = STARTER_TYPES.find((t) => t.code === 'TO');
+  const field = to.fields.find((f) => f.key === 'approver');
+  assert.deepEqual(field.options, ['Municipal Mayor', 'Municipal Vice Mayor']);
+  assert.equal(field.step, 's3');
+  // every starter format that prints the Mayor has the choice; the DV keeps its own field
+  for (const t of STARTER_TYPES) if (t.template.includes('sig.mayor')) assert.ok(t.fields.some((f) => f.key === 'approver'), t.code);
+  assert.equal(STARTER_TYPES.find((t) => t.code === 'DV').fields.filter((f) => f.key === 'approver').length, 1);
+  const signatories = { mayor: 'Ray R. Ruiz', mayorPosition: 'Municipal Mayor', viceMayor: 'Ana B. Cruz', viceMayorPosition: 'Municipal Vice Mayor' };
+  const render = (approver) => renderTemplate(to.template, { data: { approver }, caps: true, fields: to.fields, signatories });
+  assert.match(render('MUNICIPAL MAYOR'), /RAY R\. RUIZ<\/b><div>Mayor<\/div>/);
+  assert.match(render('MUNICIPAL VICE MAYOR'), /ANA B\. CRUZ<\/b><div>Vice Mayor<\/div>/);
+  const pr = STARTER_TYPES.find((t) => t.code === 'PR');
+  assert.match(renderTemplate(pr.template, { data: { approver: 'Municipal Vice Mayor' }, fields: pr.fields, signatories }), /ANA B\. CRUZ[\s\S]*Municipal Vice Mayor/);
+  // on the route, the Vice Mayor's office is chosen where it is an alternate of the Mayor's
+  const type = { route: [{ office: 'Office of the Municipal Mayor', alternates: ['Office of the Municipal Vice Mayor'] }] };
+  const wf = buildWorkflow(type, { office: 'X', data: { approver: 'MUNICIPAL VICE MAYOR' } }, [], { uid: 'u', displayName: 'U' });
+  assert.equal(wf.workflow.steps[0].routedTo, 'Office of the Municipal Vice Mayor');
+});

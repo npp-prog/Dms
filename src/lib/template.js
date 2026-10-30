@@ -1,4 +1,5 @@
 import { amountToWords } from './numberToWords.js';
+import { approverSignatories } from './approver.js';
 
 // Lightweight template engine for document formats.
 //
@@ -168,7 +169,8 @@ export function renderTemplate(template, ctx = {}) {
     lgu: ctx.lgu || {},
     docType: ctx.docType || {},
     preparedBy: ctx.preparedBy || '',
-    sig: ctx.signatories || {},
+    // The Vice Mayor prints in the Mayor's place when the preparer chose them as approver.
+    sig: approverSignatories(ctx.signatories || {}, ctx.data),
   };
 
   const withIfs = String(template || '').replace(

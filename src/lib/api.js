@@ -9,6 +9,7 @@ import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './n
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
 import { checkRecord } from './publicRecord.js';
 import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
+import { withApprover } from './approver.js';
 
 // ---------- Users ----------
 
@@ -174,14 +175,14 @@ export function saveSettings(settings) {
 
 export async function listDocumentTypes({ activeOnly = false } = {}) {
   const snap = await getDocs(collection(db, 'documentTypes'));
-  const types = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const types = snap.docs.map((d) => withApprover({ id: d.id, ...d.data() }));
   types.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
   return activeOnly ? types.filter((t) => t.active !== false) : types;
 }
 
 export async function getDocumentType(id) {
   const snap = await getDoc(doc(db, 'documentTypes', id));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  return snap.exists() ? withApprover({ id: snap.id, ...snap.data() }) : null;
 }
 
 export async function saveDocumentType(id, data, user) {
@@ -1031,7 +1032,7 @@ export function snapshotType(type) {
 
 // Prefer the frozen format stored on the document; fall back to the live type.
 export async function getTypeForDocument(document) {
-  if (document.typeSnapshot?.template !== undefined || !document.typeId) return { id: document.typeId, ...document.typeSnapshot };
+  if (document.typeSnapshot?.template !== undefined || !document.typeId) return withApprover({ id: document.typeId, ...document.typeSnapshot });
   return getDocumentType(document.typeId);
 }
 
