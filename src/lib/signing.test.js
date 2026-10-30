@@ -210,7 +210,7 @@ test('public record: only what confirms the document, no amounts or data fields'
   assert.deepEqual(Object.keys(r).sort(), [...CHECK_KEYS].sort());
   assert.equal(r.now, 'Municipal Accounting Office');
   assert.deepEqual(r.steps.map((s) => [s.office, s.done, s.current]), [['Municipal Engineering Office', true, false], ['Municipal Accounting Office', false, true]]);
-  assert.deepEqual(r.signatures, [{ name: 'JUAN', at: 't1', reason: 'Box A', pnpki: true }]);
+  assert.deepEqual(r.signatures, [{ name: 'JUAN', at: 't1', reason: 'Box A', pnpki: true, esign: false }]);
   assert.deepEqual(r.versions.map((v) => v.sha256), ['aa', 'bb']);
   assert.deepEqual(r.refNos, ['Disbursement No. GF-2026-10-0001']);
   assert.ok(!JSON.stringify(r).includes('10000'));
@@ -232,4 +232,18 @@ test('reference no. stamped on its own, then signed; or with the signature', asy
   assert.equal(check.ok, true, check.error);
   assert.equal((Buffer.from(v2).toString('latin1').match(/\/Subtype \/FreeText/g) || []).length, 2);
   wellFormed(v2);
+});
+
+test('e-signature: the signature mark with "e-signature", name and date, locked on the PDF', async () => {
+  const v0 = unsignedPdf();
+  const image = { width: 2, height: 1, rgb: new Uint8Array([0, 0, 0, 255, 255, 255]), alpha: new Uint8Array([255, 0]) };
+  const out = await addNotes(v0, [], { name: 'JUAN SUPPLIER', mark: { page: 0, rect: [300, 100, 450, 142], image, lines: ['e-signature', 'JUAN SUPPLIER', '2026.10.30 10:00'] } });
+  assert.ok(Buffer.from(out.subarray(0, v0.length)).equals(Buffer.from(v0)), 'added after the original bytes');
+  const text = Buffer.from(out).toString('latin1');
+  assert.match(text, /\/Subtype \/Stamp \/Name \/DMSESignature .*\/Contents \(e-signature JUAN SUPPLIER 2026\.10\.30 10:00\)/);
+  assert.match(text, /\/Subtype \/Image \/Width 2 \/Height 1/);
+  assert.equal(readSignatures(out).length, 0, 'not a digital signature');
+  // It can still be signed digitally afterwards (e.g. by the Mayor).
+  const v2 = await signPdf(out, makeP12('MAYOR', PNPKI), 'secret');
+  assert.equal(checkSignedVersion(out, v2).ok, true);
 });

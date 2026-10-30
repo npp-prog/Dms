@@ -207,7 +207,8 @@ export function signatureMissing(doc) {
   const files = liveFiles(doc.pdf?.files);
   // Since the last new PDF (converted, or uploaded as the document itself).
   const current = files.slice(Math.max(...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1))) + 1);
-  return !current.some((f) => f.kind === 'signed' && !f.referral && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
+  // A PNPKI signature or an e-signature (signature mark, for a signatory without a certificate).
+  return !current.some((f) => (f.kind === 'signed' || f.kind === 'esigned') && !f.referral && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
 }
 
 // The reference no. this step assigned (e.g. the DV No.) and is still to put on the face of the PDF

@@ -135,7 +135,7 @@ export default function DocCheck({ standalone = false }) {
                 {rec.signatures.map((s, i) => (
                   <li key={i} className="sig-ok">
                     <span className="sig-mark">✓</span>
-                    <div><b>{s.name}</b> {s.pnpki && <span className="badge badge-green">DICT PNPKI</span>}
+                    <div><b>{s.name}</b> {s.pnpki && <span className="badge badge-green">DICT PNPKI</span>}{s.esign && <span className="badge badge-yellow">e-signature</span>}
                       <div className="small muted">{[when(s.at), s.reason].filter(Boolean).join(' · ')}</div></div>
                   </li>
                 ))}

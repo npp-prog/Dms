@@ -882,20 +882,20 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     // Public record of this exact file, for anyone verifying a copy (the Verify page).
     if (!known) tx.set(verifyRef, {
       docId: id, controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: n + 1, kind,
-      signer: signer?.name || '', signatures: files.filter((f) => f.kind === 'signed').length + (kind === 'signed' ? 1 : 0),
+      signer: signer?.name || '', signatures: files.filter((f) => f.kind === 'signed' || f.kind === 'esigned').length + (kind === 'signed' || kind === 'esigned' ? 1 : 0),
       by: file.by, at: file.at,
     });
-    const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : '';
+    const note = kind === 'signed' ? `${signer?.name || ''}${method === 'upload' ? ' — uploaded' : ''}` : kind === 'esigned' ? `${signer?.name || ''} — e-signature` : '';
     const pdf = { basis: basis ?? d.pdf?.basis ?? null, basisV: basis ? BASIS_VERSION : d.pdf?.basisV ?? null, files: [...files, file] };
     publishCheck(tx, id, { ...d, pdf });
     tx.update(docRef, {
       // basisV: how the basis was computed (bases computed another way are not compared).
       pdf,
       updatedAt: serverTimestamp(),
-      history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
+      history: [...(d.history || []), historyEntry(kind === 'signed' || kind === 'esigned' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
     });
   });
-  if (kind === 'signed') tellPreparer(d, id, `signed by ${signer?.name || user.displayName || user.email}${reason ? ` — ${reason}` : ''}.`, user);
+  if (kind === 'signed' || kind === 'esigned') tellPreparer(d, id, `${kind === 'esigned' ? 'e-signed' : 'signed'} by ${signer?.name || user.displayName || user.email}${reason ? ` — ${reason}` : ''}.`, user);
   return file;
 }
 

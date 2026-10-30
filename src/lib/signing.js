@@ -481,7 +481,9 @@ export async function addQrStamps(pdfBytes, appearance) {
 
 // Text put on the PDF without a signature (e.g. the reference no. an office assigns at a step that
 // does not sign), as locked FreeText annotations in an update after the original bytes.
-export async function addNotes(pdfBytes, notes, { name = '', at = new Date() } = {}) {
+// mark: { page, rect, image, lines } an e-signature (no certificate): the signature mark and its
+// lines (e-signature, name, date) as a locked stamp, in the same update.
+export async function addNotes(pdfBytes, notes, { name = '', at = new Date(), mark = null } = {}) {
   if (!globalThis.Buffer) globalThis.Buffer = Buffer;
   fixBufferLastIndexOf(globalThis.Buffer);
   const B = globalThis.Buffer;
@@ -498,10 +500,12 @@ export async function addNotes(pdfBytes, notes, { name = '', at = new Date() } =
   const idOf = (ref) => Number(String(ref).trim().split(/\s+/)[0]);
   const kids = obj(getPagesDictionaryRef(info)).match(/\/Kids\s*\[([^\]]*)\]/)?.[1].match(/\d+\s+\d+\s+R/g) || [];
   const pages = notes.map((n) => kids[n.page]);
-  if (pages.some((r) => !r)) throw cannot('page not found');
-  if (pages.some((r) => /\/Annots\s+\d+\s+\d+\s+R/.test(obj(r)))) throw cannot('page annotations in a separate object');
+  const markPage = mark ? kids[mark.page] : null;
+  if (pages.some((r) => !r) || (mark && !markPage)) throw cannot('page not found');
+  if ([...pages, ...(markPage ? [markPage] : [])].some((r) => /\/Annots\s+\d+\s+\d+\s+R/.test(obj(r)))) throw cannot('page annotations in a separate object');
   let next = info.xref.maxIndex + 1;
   const ids = notes.map(() => ({ form: next++, annot: next++ }));
+  const markIds = mark ? { img: next++, smask: mark.image.alpha ? next++ : null, form: next++, annot: next++ } : null;
   const chunks = [B.from('\n')];
   let pos = pdf.length + 1;
   const offsets = [];
@@ -513,9 +517,24 @@ export async function addNotes(pdfBytes, notes, { name = '', at = new Date() } =
     for (const part of parts) { chunks.push(part); pos += part.length; }
   };
   notes.forEach((n, i) => putNote(put, n, ids[i], pages[i], name, at));
-  for (const ref of [...new Set(pages)]) {
+  if (mark) {
+    const { image, rect } = mark;
+    const w = rect[2] - rect[0];
+    const h = rect[3] - rect[1];
+    const rgb = await deflate(image.rgb);
+    put(markIds.img, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode${markIds.smask ? ` /SMask ${markIds.smask} 0 R` : ''} /Length ${rgb.length} >>`, rgb);
+    if (markIds.smask) {
+      const alpha = await deflate(image.alpha);
+      put(markIds.smask, `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${alpha.length} >>`, alpha);
+    }
+    const body = B.from(appearance({ w, h, image, lines: mark.lines || [] }), 'latin1');
+    put(markIds.form, `<< /Type /XObject /Subtype /Form /BBox [0 0 ${num(w)} ${num(h)}] /Resources << /XObject << /Im1 ${markIds.img} 0 R >> /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length ${body.length} >>`, body);
+    // Printed, read-only and locked (4 + 64 + 128).
+    put(markIds.annot, `<< /Type /Annot /Subtype /Stamp /Name /DMSESignature /Rect [${rect.map(num).join(' ')}] /Contents (${pdfText((mark.lines || []).join(' '))}) /T (${pdfText(name)}) /M (${pdfDate(at)}) /F 196 /P ${markPage} /AP << /N ${markIds.form} 0 R >> >>`);
+  }
+  for (const ref of [...new Set([...pages, ...(markPage ? [markPage] : [])])]) {
     const dict = obj(ref);
-    const add = ids.filter((_, i) => pages[i] === ref).map((x) => `${x.annot} 0 R`).join(' ');
+    const add = [...ids.filter((_, i) => pages[i] === ref).map((x) => x.annot), ...(markPage === ref ? [markIds.annot] : [])].map((n) => `${n} 0 R`).join(' ');
     const annots = /\/Annots\s*\[/.test(dict)
       ? dict.replace(/\/Annots\s*\[([^\]]*)\]/, (_, refs) => `/Annots [${refs.trim()} ${add}]`)
       : `${dict}\n/Annots [${add}]`;

@@ -70,7 +70,7 @@ export default function Verify({ standalone = false }) {
             <h3>DMS record</h3>
             {result.record ? (
               <p>This exact file is <b>{result.record.typeName} {result.record.controlNo}</b>, version {result.record.version}
-                {result.record.kind === 'signed' ? <>, signed by <b>{result.record.signer}</b></> : ' (converted, before signing)'} on {when(result.record.at)}.</p>
+                {result.record.kind === 'esigned' ? <>, e-signed by <b>{result.record.signer}</b> (signature mark, no certificate)</> : result.record.kind === 'signed' ? <>, signed by <b>{result.record.signer}</b></> : ' (converted, before signing)'} on {when(result.record.at)}.</p>
             ) : result.record === null ? (
               <p className="muted">DMS has no record of this exact file. It may be a copy made outside DMS, or the file was changed (even
                 re-saved). The signatures below are still checked on their own.</p>

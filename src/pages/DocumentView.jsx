@@ -235,7 +235,7 @@ function DocumentPage({ docId }) {
   // A signed PDF is the record of what was signed: the document can no longer be edited.
   // Signatures on the current PDF (a new PDF supersedes signed ones).
   const pdfFiles = liveFiles(docData.pdf?.files);
-  const hasSignature = pdfFiles.slice(Math.max(0, ...pdfFiles.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)))).some((f) => f.kind === 'signed');
+  const hasSignature = pdfFiles.slice(Math.max(0, ...pdfFiles.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)))).some((f) => f.kind === 'signed' || f.kind === 'esigned');
   // Back with the preparer's office (returned for revision, or not yet released): the preparer
   // may change the document and convert it again, even if it was signed. The new PDF supersedes
   // the signed one, and every signature on the route is made again on it.

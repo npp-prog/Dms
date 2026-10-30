@@ -26,8 +26,8 @@ export function checkRecord(d, at = new Date().toISOString()) {
       current: moving && i === wf.stage,
     })),
     // signatures taken back (to change a reference no. already on the PDF) are left out
-    signatures: liveFiles(files).filter((f) => f.kind === 'signed').map((f) => ({
-      name: f.signer?.name || f.by || '', at: f.signer?.signedAt || f.at || '', reason: f.reason || '', pnpki: Boolean(f.signer?.pnpki),
+    signatures: liveFiles(files).filter((f) => f.kind === 'signed' || f.kind === 'esigned').map((f) => ({
+      name: f.signer?.name || f.by || '', at: f.signer?.signedAt || f.at || '', reason: f.reason || '', pnpki: Boolean(f.signer?.pnpki), esign: f.kind === 'esigned',
     })),
     // every PDF DMS issued for it, by fingerprint: a copy can be checked against them
     versions: files.map((f, i) => ({ n: i + 1, sha256: f.sha256 || '', kind: f.kind, at: f.at || '' })),

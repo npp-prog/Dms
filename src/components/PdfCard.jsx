@@ -39,7 +39,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const current = files.at(-1);
   // Versions before the newest converted (or uploaded) PDF are superseded by it.
   const lastNew = Math.max(0, ...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)));
-  const signedFiles = liveFiles(files).filter((f) => f.i >= lastNew && f.kind === 'signed');
+  const signedFiles = liveFiles(files).filter((f) => f.i >= lastNew && (f.kind === 'signed' || f.kind === 'esigned'));
   const withdrawn = withdrawnFiles(files);
   const [bytes, setBytes] = useState(null);
   const made = useRef({}); // path -> bytes of versions made in this page
@@ -94,7 +94,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch((e) => { setSaved(null); setError(e.message); });
   }, [mode, saved, actor.uid]);
   useEffect(() => {
-    if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch((e) => { setMark(null); setError(e.message); });
+    if ((mode === 'sign' || mode === 'esign') && mark === undefined) getSavedMark(actor.uid).then(setMark).catch((e) => { setMark(null); setError(e.message); });
   }, [mode, mark, actor.uid]);
   const [markUrl, setMarkUrl] = useState('');
   useEffect(() => {
@@ -103,7 +103,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     setMarkUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [mark]);
-  const placingMark = mode === 'sign' && Boolean(mark) && useMark;
+  // An e-signature (no PNPKI certificate) is the signature mark itself: always placed.
+  const esign = mode === 'esign';
+  const placingMark = (mode === 'sign' && Boolean(mark) && useMark) || (esign && Boolean(mark));
   // Reference nos. this office assigned at its step (e.g. the DV No.): shown on its signature.
   const wf = docData.workflow;
   const myRefs = Object.values(docData.refNos || {})
@@ -117,12 +119,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   }, [mode, saved, actor.uid]);
   const useRemembered = Boolean(remembered) && !typeIt;
   const noteLines = useMemo(() => wrapNote(noteText), [noteText]);
-  const placingText = mode === 'sign' && addText && noteLines.length > 0;
+  const placingText = (mode === 'sign' || esign) && addText && noteLines.length > 0;
   // The reference no. this office assigned (e.g. the DV No.): it goes on the face of the PDF, where
   // they tap, with their signature or stamped on its own; the step is released only once it is.
   const pendingRef = canSign ? refStampMissing(docData) : null;
   const refLines = pendingRef ? [`${pendingRef.label} ${pendingRef.value}`, ...(pendingRef.date ? [`Date: ${new Date(`${pendingRef.date}T00:00:00`).toLocaleDateString('en-PH', { dateStyle: 'medium' })}`] : [])] : [];
-  const placingRef = Boolean(pendingRef) && (mode === 'sign' || mode === 'stamp');
+  const placingRef = Boolean(pendingRef) && (mode === 'sign' || esign || mode === 'stamp');
   const active = [placingMark && 'mark', placingText && 'text', placingRef && 'ref'].filter(Boolean);
   const tapFor = active.includes(target) ? target : active[0];
   const refNote = () => ({ page: placements.ref.page, rect: placements.ref.rect, lines: refLines, size: NOTE_SIZES[refSize] });
@@ -130,17 +132,17 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   useEffect(() => {
     if (!active.length) { onPlacing?.(null); return; }
     const [w, h] = MARK_SIZES[size];
-    const name = saved ? saved.name : 'Your name';
+    const name = esign ? actor.displayName || actor.email : saved ? saved.name : 'Your name';
     const box = noteBox(noteLines, NOTE_SIZES[noteSize]);
     onPlacing?.({
       target: tapFor,
       items: {
-        mark: placingMark ? { w, h, preview: markUrl, label: ['Digitally signed by', name, ...myRefs, stampDate()].join('\n'), hint: 'Tap the page where your signature mark goes (e.g. the Signature line of your box).' } : null,
+        mark: placingMark ? { w, h, preview: markUrl, label: [esign ? 'e-signature' : 'Digitally signed by', name, ...myRefs, stampDate()].join('\n'), hint: 'Tap the page where your signature mark goes (e.g. the Signature line of your box).' } : null,
         text: placingText ? { ...box, label: noteLines.join('\n'), size: NOTE_SIZES[noteSize], hint: 'Tap the page where your text goes.' } : null,
         ref: placingRef ? { ...noteBox(refLines, NOTE_SIZES[refSize]), label: refLines.join('\n'), size: NOTE_SIZES[refSize], hint: `Tap the page where the ${pendingRef.label} goes.` } : null,
       },
     });
-  }, [active.join(), tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize, refLines.join('\n'), refSize]);
+  }, [active.join(), tapFor, size, markUrl, saved, esign, myRefs.join(), noteLines.join('\n'), noteSize, refLines.join('\n'), refSize]);
 
   // The assigned no. is suggested by DMS; the office may change it before it is on the PDF.
   const saveRef = (e) => {
@@ -161,6 +163,31 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
     made.current[(await addPdfVersion(docData.id, base, actor, { kind: 'restored', restores: undoBase, onProgress: uploading, reason: `To change the ${placedRef.label.replace(/\.$/, '')}` })).path] = base;
     onView?.();
     setNotice(`The ${placedRef.label.replace(/\.$/, '')} is off the PDF. Click Edit to change it, then put it on again.`);
+    onChanged();
+  });
+
+  // An e-signature, for a signatory without a PNPKI certificate: their signature mark with the words
+  // e-signature, their name and the date, locked on the PDF. It is not a digital signature: it
+  // shows who signed in DMS (recorded with the version) but carries no certificate.
+  const eSign = () => run('Signing…', async () => {
+    if (!mark) throw new Error('Add your signature mark in My Profile first.');
+    if (!placement) throw new Error('Tap the PDF where your signature mark goes.');
+    if (placingText && !placements.text) throw new Error('Tap the PDF where your text goes, or untick "Add text on the PDF".');
+    if (placingRef && !placements.ref) throw new Error(`Tap the PDF where the ${pendingRef.label} goes.`);
+    const name = actor.displayName || actor.email;
+    const at = new Date();
+    const notes = [
+      ...(placingText ? [{ page: placements.text.page, rect: placements.text.rect, lines: noteLines, size: NOTE_SIZES[noteSize] }] : []),
+      ...(placingRef ? [refNote()] : []),
+    ];
+    const out = await addNotes(bytes, notes, { name, at, mark: { page: placement.page, rect: placement.rect, image: await markPixels(mark), lines: ['e-signature', name, ...myRefs, stampDate(at)] } });
+    made.current[(await addPdfVersion(docData.id, out, actor, {
+      kind: 'esigned', method: 'dms', onProgress: uploading, reason: why.trim() || 'e-signature', note: placingText ? noteLines.join(' ') : '',
+      refStage: placingRef ? wf.stage : null, signer: { name, esign: true, pnpki: false, signedAt: at.toISOString() },
+    })).path] = out;
+    setMode(''); setAddText(false); setNoteText('');
+    onView?.();
+    setNotice(`E-signed by ${name}.`);
     onChanged();
   });
 
@@ -373,6 +400,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           {canSign && bytes && mode !== 'stamp' && !refEdit && (
             <div className="row gap wrap pdf-sign-actions">
               {mode !== 'sign' && <button className="btn btn-primary btn-sm" disabled={!signStep} onClick={() => setMode('sign')}>Sign with PNPKI</button>}
+              {mode !== 'esign' && <button className="btn btn-ghost btn-sm" disabled={!signStep} onClick={() => setMode('esign')}
+                title="No PNPKI certificate: sign with your signature mark, marked e-signature">E-signature</button>}
               {mode !== 'upload' && <button className="btn btn-ghost btn-sm" disabled={!signStep} onClick={() => setMode('upload')}>Upload signed PDF</button>}
               {!signStep && <span className="small muted">This step of the workflow does not sign.</span>}
             </div>
@@ -382,13 +411,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <button type="button" className="link small" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
           </div>
 
-          {canSign && signStep && (mode === 'sign' || mode === 'upload') && (
+          {canSign && signStep && (mode === 'sign' || esign || mode === 'upload') && (
             <div className="sign-panel">
               <div className="field field-wide">
                 <label className="field-label" htmlFor={`${id}-why`}>Reason (shown in the signature)</label>
                 <input id={`${id}-why`} value={why} onChange={(e) => setWhy(e.target.value)} />
               </div>
-              {mode === 'sign' && saved && (
+              {((mode === 'sign' && saved) || (esign && mark)) && (
                 <div className="mark-box note-box">
                   <label className="check"><input type="checkbox" checked={addText} onChange={(e) => { setAddText(e.target.checked); if (e.target.checked) setTarget('text'); }} /> Add text on the PDF</label>
                   {addText && (
@@ -406,12 +435,12 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                           ? `Placed on page ${placements.text.page + 1}.${tapFor === 'text' ? ' Tap the PDF again to move it.' : ''}`
                           : 'Tap the PDF where the text goes: any part of the page, apart from your signature mark.'}</p>
                       )}
-                      <p className="xs muted">Added with your digital signature: it is part of what you sign, and cannot be changed afterwards.</p>
+                      <p className="xs muted">{esign ? 'Added with your e-signature, locked on the PDF.' : 'Added with your digital signature: it is part of what you sign, and cannot be changed afterwards.'}</p>
                     </>
                   )}
                 </div>
               )}
-              {mode === 'sign' && active.length > 1 && (
+              {(mode === 'sign' || esign) && active.length > 1 && (
                 <div className="row gap wrap small place-target">
                   Tapping the PDF places:
                   {active.map((k) => (
@@ -420,7 +449,34 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
                   ))}
                 </div>
               )}
-              {mode === 'sign' ? (
+              {esign ? (
+                mark === undefined ? <div className="spinner" /> : !mark ? (
+                  <div className="alert-info small">An e-signature is your signature mark on the PDF. Add it once in <Link to="/profile">My Profile</Link>
+                    {' '}(a picture of your signature), then come back here.</div>
+                ) : (
+                  <>
+                    <div className="mark-box">
+                      <div className="field-label">E-signature</div>
+                      <div className="row gap wrap mark-row"><img className="mark-preview" src={markUrl} alt="Your signature mark" /></div>
+                      <div className="row gap wrap small">
+                        Size:
+                        {Object.keys(MARK_SIZES).map((k) => (
+                          <button key={k} type="button" className={`chip${size === k ? ' active' : ''}`} onClick={() => setSize(k)}>{MARK_LABELS[k]}</button>
+                        ))}
+                      </div>
+                      <p className={`small ${placement ? 'muted' : 'mark-todo'}`}>{placement
+                        ? `Placed on page ${placement.page + 1}.${tapFor === 'mark' ? ' Tap the PDF again to move it.' : ''}`
+                        : 'Tap the PDF where your signature goes, e.g. the Signature line of your box.'}</p>
+                      <p className="xs muted">Your signature mark goes on the PDF with the words <b>e-signature</b>, your name and the date. It is not a
+                        PNPKI digital signature: DMS records that you signed, but the PDF carries no certificate.</p>
+                    </div>
+                    <div className="row gap">
+                      <button className="btn btn-primary" disabled={!!busy || !placement || (placingText && !placements.text) || (placingRef && !placements.ref) || (addText && !noteLines.length)} onClick={eSign}>{busy || 'Sign with e-signature'}</button>
+                      <button className="btn btn-ghost" onClick={() => setMode('')}>Cancel</button>
+                    </div>
+                  </>
+                )
+              ) : mode === 'sign' ? (
                 saved === undefined || mark === undefined ? <div className="spinner" /> : !saved ? (
                   <div className="alert-info small">To sign in DMS, register your PNPKI certificate once in <Link to="/profile">My Profile</Link>.
                     Or use <b>Upload signed PDF</b> to sign it in Adobe Acrobat.</div>
@@ -498,7 +554,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
               {files.map((f, i) => (
                 <li key={f.path} className={i < lastNew || withdrawn.has(i) ? 'superseded' : ''}>
                   {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : f.kind === 'stamped' ? `${f.reason || 'Reference no.'} put on it`
-                    : f.kind === 'restored' ? `Back to version ${f.restores + 1}${f.reason ? ` (${f.reason.toLowerCase()})` : ''}` : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
+                    : f.kind === 'restored' ? `Back to version ${f.restores + 1}${f.reason ? ` (${f.reason.toLowerCase()})` : ''}`
+                    : f.kind === 'esigned' ? `E-signed by ${f.signer?.name || f.by}` : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
                   {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : withdrawn.has(i) ? ' · taken back' : i < lastNew ? ' · superseded' : ''}
                 </li>
               ))}
