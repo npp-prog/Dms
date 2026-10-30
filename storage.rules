@@ -39,8 +39,12 @@ service firebase.storage {
       return myOffice() != '' && d.get('currentOffice', '').matches('person:.*')
         && d.workflow.get('referral', {}).get('fromOffice', '') == myOffice();
     }
+    // The Records Officer (a position) reads every document's files.
+    function isRecords() {
+      return 'Records Officer' in profile().get('positions', []);
+    }
     function canRead(d) {
-      return isAdmin() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', [])
+      return isAdmin() || isRecords() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', [])
         || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
             || myOffice() in d.get('routeOffices', [])));
     }

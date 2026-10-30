@@ -72,6 +72,8 @@ export function AuthProvider({ children }) {
     isSuper: profile?.active && profile.role === 'superadmin',
     // The office head sees every document of the office (Users > Office head).
     isHead: Boolean(profile?.active && profile.office && profile.head),
+    // The Records Officer (a position, Users) sees and downloads every document.
+    isRecords: Boolean(profile?.active && (profile.positions || []).includes('Records Officer')),
     // May refer a document they hold to any active user outside its route (Users > May route to
     // any person); admins always may.
     canRefer: Boolean(profile?.active && (['admin', 'superadmin'].includes(profile.role) || profile.canRefer)),

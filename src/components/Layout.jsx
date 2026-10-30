@@ -8,7 +8,7 @@ import { listInbox } from '../lib/api.js';
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
 export default function Layout() {
-  const { user, profile, settings, isAdmin, isSuper, isHead, logout } = useAuth();
+  const { user, profile, settings, isAdmin, isSuper, isHead, isRecords, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setOpen(false), [location.pathname]);
@@ -24,7 +24,7 @@ export default function Layout() {
     {
       label: 'Documents',
       items: [
-        ['/documents', 'documents', isAdmin ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
+        ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/inbox', 'inbox', 'Inbox', false, waiting],
         ['/tracking', 'workflow', 'Tracking'],
         ['/checklists', 'check', 'Checklists'],

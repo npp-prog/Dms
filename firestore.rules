@@ -29,6 +29,10 @@ service cloud.firestore {
     function isSuper() {
       return isActive() && profile().role == 'superadmin';
     }
+    // The Records Officer (a position, Users) sees every document, to keep and download the records.
+    function isRecords() {
+      return isActive() && 'Records Officer' in profile().get('positions', []);
+    }
     function isOwnerEmail() {
       return signedIn()
         && request.auth.token.email_verified == true
@@ -155,7 +159,7 @@ service cloud.firestore {
         return unchanged(['workflow', 'currentOffice', 'routeOffices', 'atPreparer']);
       }
       allow read: if isActive()
-        && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees() || referredToMe() || referredByMyOffice()
+        && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees() || referredToMe() || referredByMyOffice() || isRecords()
             // forwarded to this user
             || request.auth.uid in resource.data.get('sharedWith', []));
       allow create: if isActive()

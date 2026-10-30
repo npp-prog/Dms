@@ -6,13 +6,16 @@ import { STATUSES } from '../lib/defaults.js';
 import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Select from '../components/Select.jsx';
+import ZipExport from '../components/ZipExport.jsx';
 
 function fmt(ts) {
   return ts?.toDate ? ts.toDate().toLocaleString() : '';
 }
 
 export default function Documents() {
-  const { user, profile, isAdmin, isHead, settings } = useAuth();
+  const { user, profile, isAdmin: admin, isHead, isRecords, settings } = useAuth();
+  // The Records Officer sees every document, like an administrator.
+  const isAdmin = admin || isRecords;
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ q: '', status: '', type: '', office: '' });
@@ -45,6 +48,7 @@ export default function Documents() {
           )}
         </div>
         <div className="row gap wrap">
+          {isAdmin && docs && <ZipExport docs={shown} />}
           <Link to="/new" className="btn btn-primary">+ New document</Link>
         </div>
       </div>
