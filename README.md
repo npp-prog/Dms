@@ -84,7 +84,7 @@ After that, every push to the branch Netlify watches redeploys the site by itsel
 ### 4. First run
 
 1. Open the site and sign in with **Continue with Google** using `npp@mgocandoniaccounting.org`. That account becomes the **superadmin** right away. If you register with email and password instead, open the verification link that is emailed to you, then click **Check again**.
-2. On that first sign-in DMS sets itself up: it installs the 10 starter formats (**DV, OBR, PR, PO**, FURS, Payroll, PCV, LR, IT, JO), the 210 checklists, and the LGU settings with the signatories. Only empty parts are filled; nothing you have edited is overwritten. Review them under **Document Types**, **Checklists** and **Settings**.
+2. On that first sign-in DMS sets itself up: it installs the 11 starter formats (**DV, OBR, PR, PO**, FURS, Payroll, PCV, LR, IT, Travel Order, JO), the 210 checklists, and the LGU settings with the signatories. Only empty parts are filled; nothing you have edited is overwritten. Review them under **Document Types**, **Checklists** and **Settings**.
 3. Other staff register themselves (Google or email). Approve them under **Users**.
 
 When a later version of DMS revises a starter format (for example the DV, redrawn after the Municipal Government of Candoni's 2026 DV) or the checklist library, the next admin sign-in brings the update in by itself: formats nobody has edited and checklists nobody has changed in the editor are replaced, and the dashboard says what was updated. A format you have edited keeps your version; **Document Types** shows **Update format** next to it if you want the new one. Documents already prepared keep the format they were prepared with.

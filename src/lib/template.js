@@ -3,7 +3,8 @@ import { amountToWords } from './numberToWords.js';
 // Lightweight template engine for document formats.
 //
 //   {{field}}                   value of a field (HTML-escaped)
-//   {{field|currency}}          filters: currency, peso, acct, number, date, mdy, upper, words
+//   {{field|currency}}          filters: currency, peso, acct, number, date, mdy, upper, words,
+//                               day, ord, monthyear, year (parts of a date)
 //   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, controlNo, today, preparedBy)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
@@ -43,6 +44,11 @@ export function formatDate(value) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function datePart(value, part) {
+  const d = /^\d{4}-\d{2}-\d{2}/.test(String(value || '')) ? new Date(`${String(value).slice(0, 10)}T00:00:00`) : null;
+  return d && !Number.isNaN(d.getTime()) ? part(d) : '';
+}
+
 const FILTERS = {
   currency: (v) => formatCurrency(v),
   // Accounting format, as in the spreadsheet forms: a dash for nothing or zero.
@@ -56,6 +62,12 @@ const FILTERS = {
     return m ? `${m[2]}/${m[3]}/${m[1]}` : String(v ?? '');
   },
   upper: (v) => String(v ?? '').toUpperCase(),
+  // Parts of a date, for wording such as "this 28th day of August 2023": day (28), ord (th),
+  // monthyear (August 2023), year (2023).
+  day: (v) => datePart(v, (d) => String(d.getDate())),
+  ord: (v) => datePart(v, (d) => { const n = d.getDate(); return n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'; }),
+  monthyear: (v) => datePart(v, (d) => d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })),
+  year: (v) => datePart(v, (d) => String(d.getFullYear())),
   words: (v) => (v === '' || v == null ? '' : amountToWords(toNumber(v))),
 };
 
@@ -88,7 +100,7 @@ export function renderTable(field, rows, caps = false) {
     .map((row) => `<tr class="blank">${columns
       .map((c) => {
         const text = formatCell(row?.[c.key], c.type);
-        return `<td${align(c)}>${escapeHtml(caps ? String(text).toUpperCase() : text)}</td>`;
+        return `<td${align(c)}>${escapeHtml(caps && !c.keepCase ? String(text).toUpperCase() : text)}</td>`;
       })
       .join('')}</tr>`)
     .join('');
@@ -106,6 +118,15 @@ export function renderTable(field, rows, caps = false) {
     : '';
   // data-grow: when printed, the empty rows stretch so the form fills the page.
   return `<table class="pt" data-grow><thead><tr>${head}</tr></thead><tbody>${body}${nothing}${filler}${totals}</tbody></table>`;
+}
+
+// Fields and table columns printed as typed, not in capitals (keepCase).
+function keptCase(ctx) {
+  if (!ctx.keptCase) {
+    ctx.keptCase = new Set((ctx.fields || []).flatMap((f) => [
+      ...(f.keepCase ? [f.key] : []), ...(f.columns || []).filter((c) => c.keepCase).map((c) => c.key)]));
+  }
+  return ctx.keptCase;
 }
 
 function renderTokens(template, scope, ctx) {
@@ -133,7 +154,8 @@ function renderTokens(template, scope, ctx) {
     const out = applyFilters(value ?? '', filters);
     // ctx.caps: encoded entries print in capitals, including formatted dates. Settings
     // (lgu, sig) and the document context (controlNo, today, preparedBy) print as they are.
-    const encoded = !/^(lgu|sig|docType)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head);
+    const encoded = !/^(lgu|sig|docType)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head)
+      && !keptCase(ctx).has(head);
     return escapeHtml(ctx.caps && encoded ? String(out).toUpperCase() : out);
   });
 }

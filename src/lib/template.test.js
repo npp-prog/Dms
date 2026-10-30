@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { renderTemplate, generateDefaultTemplate } from './template.js';
 import { amountToWords } from './numberToWords.js';
 import { readFileSync } from 'node:fs';
-import { buildSteps, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
+import { buildSteps, capsFor, computeFields, computeRow, evaluate, missingChecklist, missingFields, slugKey } from './forms.js';
 import {
   acceptsDocument, carryOver, itemTypeCode, systemFor, checklistProgress, effectiveChecklist, groupItems, headerValue, missingRequired, searchChecklists,
 } from './checklists.js';
@@ -446,4 +446,21 @@ test('a step that assigns a reference no. puts it on the PDF before releasing', 
   assert.equal(refStampMissing(doc), null);
   doc = { ...doc, ...applyAction(doc, 'release', rosa, '', 't3') };
   assert.equal(refStampMissing(doc), null, 'the next step assigns nothing');
+});
+
+test('Travel Order: date parts and entries printed as typed', () => {
+  const to = STARTER_TYPES.find((t) => t.code === 'TO');
+  const data = capsFor(to.fields, {
+    toNo: '2023-0825', travelDates: 'August 29-31, 2023', givenDate: '2023-08-28',
+    travelers: [{ name: 'karl king r. esmeralda', position: 'Tourism Operations Officer II' }],
+    purposes: [{ purpose: 'To attend the training.' }],
+  });
+  const html = renderTemplate(to.template, { data, caps: true, fields: to.fields, lgu: { province: 'Negros Occidental' }, signatories: { mayor: 'Engr. Ray R. Ruiz' } });
+  assert.match(html, /TRAVEL ORDER NO\.: 2023-0825/);
+  assert.match(html, /Series of 2023/);
+  assert.match(html, /<b>KARL KING R\. ESMERALDA<\/b>.*Tourism Operations Officer II/);
+  assert.match(html, /on August 29-31, 2023/);
+  assert.match(html, /1\.<\/td><td>To attend the training\./);
+  assert.match(html, /this 28<sup>th<\/sup> day of August 2023 at Candoni, Negros Occidental\./);
+  assert.match(html, /ENGR\. RAY R\. RUIZ/);
 });

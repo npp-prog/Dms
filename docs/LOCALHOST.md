@@ -99,7 +99,7 @@ The dashboard shows:
 
 ### Document formats
 
-There is no separate *Document Formats* menu: **Prepare Document** lists every form (DV, OBR, FURS, Payroll, PCV, LR, Itinerary of Travel, PR, PO and JO). Administrators can preview a format, with its guided steps, processing guide and blank printable form, under **Document Types → Preview**.
+There is no separate *Document Formats* menu: **Prepare Document** lists every form (DV, OBR, FURS, Payroll, PCV, LR, Itinerary of Travel, Travel Order, PR, PO and JO). Administrators can preview a format, with its guided steps, processing guide and blank printable form, under **Document Types → Preview**.
 
 ### Checklists
 
@@ -119,6 +119,10 @@ The printout follows the Accounting Office's Word checklist: A4, Times New Roman
 ### Upload a document instead
 
 **+ New document** (Dashboard or All Documents) opens a page where you choose the type of document, then **Prepare** (encode it in DMS) or **Upload** (a file you already have). Upload is for a document that already exists as a file: a scanned or signed form, a letter, a PDF from another system. Choose its type (or *Other document*), type the payee or subject (and fund and notes if you like), and choose the file: a PDF, or a photo or scan (JPG or PNG), which DMS turns into a PDF. It gets a control number like a prepared document, its file is its PDF (a PDF signed elsewhere keeps its signatures, which DMS checks), and it follows the workflow of its type at once: signed, forwarded and linked like any other. *Other document* is kept with a control number and not routed.
+
+**Travel Order.** The Office of the Mayor's Travel Order prints as issued: the letterhead, the Travel Order No., the travelers (name and position), the date/s and the numbered purposes, the date given and signed, and the Mayor's approval. The preparer encodes the travelers, the date/s, the purposes and the date; the Office of the Mayor assigns the Travel Order No. on receiving it and puts it on the PDF, and the Mayor signs. On a site set up before it existed, an administrator adds it once: **Administration → Document Types → Load starter formats (TO)**.
+
+**Printed as typed.** Entries print in capitals. In **Document Types**, tick **As typed** on a field or a table column to print it as typed instead (the Travel Order's position and purposes use this).
 
 **Upload-only document types.** A document that is never prepared in DMS can still have its own type and workflow. In **Administration → Document Types → + New document type**, set **Documents of this type are** to **Uploaded only: no format**, and give it a code and name. It needs no fields, steps or template, it is not listed in Prepare Document, and users choose it in **Upload document**. Set its route in **Administration → Workflow** like any other type.
 

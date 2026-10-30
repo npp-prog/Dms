@@ -63,6 +63,22 @@ export function toCaps(value) {
   return value;
 }
 
+// Entries in capitals, except fields and table columns marked keepCase (printed as typed, e.g.
+// a position or the purpose of a travel order).
+export function capsFor(fields = [], data = {}) {
+  const byKey = Object.fromEntries((fields || []).map((f) => [f.key, f]));
+  return Object.fromEntries(Object.entries(data || {}).map(([k, v]) => {
+    const f = byKey[k];
+    if (f?.keepCase) return [k, v];
+    if (f?.type === 'table' && Array.isArray(v)) {
+      const keep = new Set((f.columns || []).filter((c) => c.keepCase).map((c) => c.key));
+      return [k, v.map((row) => (row && typeof row === 'object'
+        ? Object.fromEntries(Object.entries(row).map(([ck, cv]) => [ck, keep.has(ck) ? cv : toCaps(cv)])) : toCaps(row)))];
+    }
+    return [k, toCaps(v)];
+  }));
+}
+
 export function initialData(type) {
   const data = {};
   for (const f of type?.fields || []) {

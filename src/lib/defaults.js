@@ -1,5 +1,6 @@
 // Starter document types, modeled on the Municipal Government of Candoni's
-// Appendix Forms (GAM for LGUs): DV, OBR, FURS, PR, PO, JO, PCV, LR, IT and Payroll.
+// Appendix Forms (GAM for LGUs): DV, OBR, FURS, PR, PO, JO, PCV, LR, IT and Payroll, and the
+// Office of the Mayor's Travel Order.
 // Admins load them from Admin > Document Types > "Load starter formats" and can edit freely.
 // Every form prints on A4
 // portrait, scaled to fit one page, except the DV, which prints on Folio (8.5 x 13 in).
@@ -720,6 +721,69 @@ const IT = {
   <div class="pf-foot">Control No. {{controlNo}} · Prepared in DMS by {{preparedBy}}</div>`,
 };
 
+// ---------------------------------------------------------------- Travel Order
+// The Office of the Mayor's Travel Order, as issued: letterhead, the order no. (assigned by the
+// Mayor's Office on the PDF), the travelers, the purposes, and the Mayor's approval.
+const TO = {
+  code: 'TO',
+  name: 'Travel Order',
+  category: 'Travel',
+  description: 'Directs an official or employee to travel on official business and authorizes the expenses of the travel. Supports the cash advance for local travel and its liquidation.',
+  paperSize: 'A4',
+  orientation: 'portrait',
+  active: true,
+  checklistSource: 'own',
+  starterVersion: 1,
+  steps: [
+    { id: 's1', title: 'Travelers', instructions: 'One line per person directed to travel: the name and the position.' },
+    { id: 's2', title: 'Travel', instructions: 'The date or dates of travel as they should read on the order, and one line per purpose, in the order they are listed. The Travel Order No. is assigned by the Office of the Mayor.' },
+    { id: 's3', title: 'Issue', instructions: 'The date the order is given and signed. The Mayor (from Settings) approves.' },
+  ],
+  fields: [
+    { key: 'toNo', label: 'Travel Order No.', type: 'text', filledBy: 'mayor' },
+    {
+      key: 'travelers', label: 'Travelers', type: 'table', required: true, step: 's1',
+      columns: [
+        { key: 'name', label: 'Name', type: 'text' },
+        { key: 'position', label: 'Position', type: 'text', keepCase: true },
+      ],
+    },
+    { key: 'travelDates', label: 'Date/s of travel', type: 'text', required: true, keepCase: true, step: 's2',
+      help: 'Printed after "You are hereby directed to travel with the following Purpose/s on". Write the month, the day or days and the year.' },
+    {
+      key: 'purposes', label: 'Purpose/s', type: 'table', required: true, step: 's2',
+      help: 'Printed as a numbered list, as typed. Add a line to authorize the claim of actual expenses if it applies.',
+      columns: [{ key: 'purpose', label: 'Purpose', type: 'textarea', keepCase: true }],
+    },
+    { key: 'givenDate', label: 'Given and signed on', type: 'date', required: true, keepCase: true, step: 's3' },
+  ],
+  checklist: [],
+  processing: [
+    { id: 'p1', office: 'Requesting Office', action: 'Prepare the Travel Order', details: 'Encode the travelers, the date/s and the purposes of the travel, with the invitation or other basis of the travel.' },
+    { id: 'p2', office: 'Office of the Municipal Mayor', action: 'Number and approve', sign: true, assign: { field: 'toNo', dateField: '', pattern: '{YYYY}-{####}' }, details: 'Assigns the Travel Order No. and puts it on the PDF. The Mayor approves and signs the order.' },
+    { id: 'p3', office: 'Requesting Office', action: 'Use for the travel', details: 'Attach the approved Travel Order to the Itinerary of Travel and to the DV for the cash advance for local travel, and to its liquidation.' },
+  ],
+  template: `<div class="to">
+  <div class="to-head"><img src="{{lgu.seal}}" alt="">
+    <div>Republic of the Philippines</div>
+    <div class="to-lgu">{{lgu.name|upper}}</div>
+    <div class="to-small">Municipal Building, Rizal St., Candoni, Negros Occidental 6110</div>
+    <div class="to-small"><i>Email Address:</i> <u>mgo.candoni@gmail.com</u></div>
+    <div class="to-small"><i>Contact No.:</i> (+63) 966 830 6543</div>
+    <div class="to-office">Office of the Mayor</div></div>
+  <div class="to-title">TRAVEL ORDER NO.: {{toNo}}</div>
+  <div>Series of {{givenDate|year}}</div>
+  <table class="to-to"><tr><td class="to-k">TO</td><td class="to-c">:</td><td><table class="to-who">{{#each travelers}}<tr><td class="to-n"><b>{{name}}</b></td><td class="to-c">-</td><td>{{position}}</td></tr>{{/each}}</table></td></tr></table>
+  <p>You are hereby directed to travel with the following Purpose/s on {{travelDates}}</p>
+  <table class="to-list">{{#each purposes}}<tr><td class="to-no">{{@no}}.</td><td>{{purpose}}</td></tr>{{/each}}</table>
+  <p class="to-gap">This travel order is issued for the good public service.</p>
+  <p>Given and signed this {{givenDate|day}}<sup>{{givenDate|ord}}</sup> day of {{givenDate|monthyear}} at Candoni, {{lgu.province}}.</p>
+  <table class="to-sign"><tr><td class="to-appr">Approved:</td><td class="to-signer"><div class="to-space"></div><b>{{sig.mayor|upper}}</b><div>Mayor</div></td></tr></table>
+  <table class="to-fill" data-grow><tr class="blank"><td></td></tr></table>
+  <div class="to-foot">#CandoniSHINE &nbsp;|&nbsp; Experience Rural Tranquility</div>
+</div>`,
+};
+
 // ---------------------------------------------------------------- Payroll
 const PAYROLL = {
   code: 'PAYROLL',
@@ -857,7 +921,7 @@ export const DEFAULT_SETTINGS = {
   },
 };
 
-export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, PR, PO, JO];
+export const STARTER_TYPES = [DV, OBR, FURS, PAYROLL, PCV, LR, IT, TO, PR, PO, JO];
 
 export const FIELD_TYPES = [
   { value: 'text', label: 'Text' },

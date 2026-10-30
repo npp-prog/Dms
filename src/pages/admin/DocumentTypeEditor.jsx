@@ -54,6 +54,8 @@ function ColumnsEditor({ columns = [], onChange }) {
           </Select>
           <input placeholder="Computed (a*b)" value={c.compute || ''} onChange={(e) => set(i, { compute: e.target.value })} />
           <label className="check"><input type="checkbox" checked={Boolean(c.total)} onChange={(e) => set(i, { total: e.target.checked })} /> Total</label>
+          <label className="check" title="Printed as typed instead of in capitals">
+            <input type="checkbox" checked={Boolean(c.keepCase)} onChange={(e) => set(i, { keepCase: e.target.checked })} /> As typed</label>
           <RowActions list={columns} i={i} onChange={onChange} />
         </div>
       ))}
@@ -223,6 +225,8 @@ export default function DocumentTypeEditor() {
                 <label className="check"><input type="checkbox" checked={Boolean(f.required)} onChange={(e) => setItem('fields', i, { required: e.target.checked })} /> Required</label>
                 <label className="check" title="Not shown to the end user; filled in by the Accounting Office (admins) on the saved document">
                   <input type="checkbox" checked={f.filledBy === 'accounting'} onChange={(e) => setItem('fields', i, { filledBy: e.target.checked ? 'accounting' : '' })} /> Filled in by Accounting</label>
+                <label className="check" title="Printed as typed instead of in capitals">
+                  <input type="checkbox" checked={Boolean(f.keepCase)} onChange={(e) => setItem('fields', i, { keepCase: e.target.checked })} /> As typed</label>
                 <RowActions list={type.fields} i={i} onChange={setList('fields')} />
               </div>
               <div className="editor-row compact">

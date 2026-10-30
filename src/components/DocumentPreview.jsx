@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { renderTemplate } from '../lib/template.js';
-import { toCaps } from '../lib/forms.js';
+import { capsFor } from '../lib/forms.js';
 import { signatoriesFrom } from '../lib/signatories.js';
 import PrintPage from './PrintPage.jsx';
 
@@ -9,7 +9,7 @@ import PrintPage from './PrintPage.jsx';
 // templates are authored in-app by admins.
 export default function DocumentPreview({ type, data = {}, checklist = {}, controlNo = '', preparedBy = '', settings = {}, signatories }) {
   const html = useMemo(() => DOMPurify.sanitize(renderTemplate(type?.template, {
-    data: toCaps(data),
+    data: capsFor(type?.fields, data),
     caps: true,
     checklist,
     controlNo,
