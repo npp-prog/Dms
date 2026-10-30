@@ -133,12 +133,18 @@ function Conversation({ me, partner, convo, onBack, onSent }) {
         {days.map((g) => (
           <div key={g.day}>
             <div className="chat-day xs muted">{g.day}</div>
-            {g.items.map((m) => (
-              <div key={m.id} className={`chat-msg ${m.from === me.uid ? 'mine' : 'theirs'}`}>
-                <div className="chat-bubble">{m.text}</div>
-                <div className="xs muted chat-time">{new Date(m.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div>
-              </div>
-            ))}
+            {g.items.map((m, i) => {
+              // One run: the same person, within 5 minutes. The time shows under its last message.
+              const run = (a, b) => a && b && a.from === b.from && Math.abs(new Date(b.at) - new Date(a.at)) < 5 * 60e3;
+              const first = !run(g.items[i - 1], m);
+              const last = !run(m, g.items[i + 1]);
+              return (
+                <div key={m.id} className={`chat-msg ${m.from === me.uid ? 'mine' : 'theirs'}${first ? ' first' : ''}${last ? ' last' : ''}`}>
+                  <div className="chat-bubble">{m.text}</div>
+                  {last && <div className="xs muted chat-time">{new Date(m.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div>}
+                </div>
+              );
+            })}
           </div>
         ))}
         <div ref={end} />

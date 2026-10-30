@@ -1131,11 +1131,17 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .chat-back { display: none; }
 .chat-body { flex: 1; overflow-y: auto; padding: 1rem; background: var(--side-bg); }
 .chat-day { text-align: center; margin: .6rem 0; }
-.chat-msg { display: flex; flex-direction: column; margin: .25rem 0; max-width: 75%; }
+.chat-msg { display: flex; flex-direction: column; align-items: flex-start; margin: 2px 0; max-width: 70%; }
 .chat-msg.mine { margin-left: auto; align-items: flex-end; }
-.chat-bubble { padding: .5rem .75rem; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92rem; background: #fff; border: 1px solid var(--line); }
-.chat-msg.mine .chat-bubble { background: var(--primary); color: #fff; border-color: var(--primary); }
-.chat-time { margin-top: .1rem; }
+.chat-msg.last { margin-bottom: .6rem; }
+.chat-bubble { display: inline-block; max-width: 100%; padding: .45rem .8rem; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92rem; line-height: 1.35; background: #e9ebee; color: var(--text); }
+.chat-msg.mine .chat-bubble { background: var(--primary); color: #fff; }
+/* a run of messages from one person: the corners on their side tighten, like a chat app */
+.chat-msg.theirs:not(.first) .chat-bubble { border-top-left-radius: 5px; }
+.chat-msg.theirs:not(.last) .chat-bubble { border-bottom-left-radius: 5px; }
+.chat-msg.mine:not(.first) .chat-bubble { border-top-right-radius: 5px; }
+.chat-msg.mine:not(.last) .chat-bubble { border-bottom-right-radius: 5px; }
+.chat-time { margin: .15rem .4rem 0; }
 .chat-send { display: flex; gap: .5rem; align-items: flex-end; padding: .7rem; border-top: 1px solid var(--line); }
 .chat-send textarea { flex: 1; resize: none; min-height: 40px; max-height: 140px; }
 @media (max-width: 760px) {

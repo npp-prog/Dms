@@ -72,7 +72,7 @@ export default function AskDms() {
           <div className="ask-body">
             {msgs.length === 0 && <p className="small muted ask-hello">Ask how to do something in DMS: preparing, uploading, routing, signing or finding a document.</p>}
             {msgs.map((m, i) => (
-              <div key={i} className={`chat-msg ${m.role === 'user' ? 'mine' : 'theirs'}`}>
+              <div key={i} className={`chat-msg first last ${m.role === 'user' ? 'mine' : 'theirs'}`}>
                 <div className="chat-bubble">{m.content ? rich(m.content) : <span className="ask-typing" aria-label="Thinking"><i /><i /><i /></span>}</div>
               </div>
             ))}
