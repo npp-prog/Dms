@@ -238,7 +238,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
               {canConvert && <> <button className="link" disabled={!!busy} onClick={convert}>Convert again</button></>}</div>
           )}
           {stale && signed && <div className="alert-info small">The document was changed after it was signed. The signed PDF shows it as it was signed.</div>}
-          {canConvert && (signed || stale || docData.status === 'draft') && (
+          {canConvert && (stale || docData.status === 'draft' || (signed && wf?.events?.some((e) => e.type === 'returned'))) && (
             <div className="mark-box regen-box">
               <div className="field-label">Make a new PDF</div>
               <p className="small muted">{docData.status === 'draft'
@@ -304,11 +304,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             </div>
           )}
 
-          <div className="row gap wrap">
-            <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => onView?.()}>View PDF</button>
-            <button className="btn btn-ghost btn-sm" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
-            {canSign && bytes && mode !== 'sign' && <button className="btn btn-primary btn-sm" onClick={() => setMode('sign')}>Sign with PNPKI</button>}
-            {canSign && bytes && mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}
+          {/* Signing first (for the signatory), then viewing and downloading as quieter links. */}
+          {canSign && bytes && (
+            <div className="row gap wrap pdf-sign-actions">
+              {mode !== 'sign' && <button className="btn btn-primary btn-sm" onClick={() => setMode('sign')}>Sign with PNPKI</button>}
+              {mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}
+            </div>
+          )}
+          <div className="pdf-links">
+            <button type="button" className="link small" disabled={!bytes} onClick={() => onView?.()}>View PDF</button>
+            <button type="button" className="link small" disabled={!bytes} onClick={() => saveAs(bytes, pdfFileName(type, docData))}>Download PDF</button>
           </div>
 
           {canSign && (mode === 'sign' || mode === 'upload') && (
