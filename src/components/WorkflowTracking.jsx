@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
 import Select from './Select.jsx';
+import { drnOf } from '../lib/naming.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Offices chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
@@ -56,7 +57,7 @@ export default function WorkflowTracking() {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const shown = rows.filter(pick)
     .filter(({ d }) => !at || (d.workflow.state === 'in-progress' && officeOf(d.workflow.steps[d.workflow.stage], d) === at))
-    .filter(({ d }) => words.every((w) => `${d.controlNo} ${d.typeCode} ${d.title} ${d.createdByName} ${d.office}`.toLowerCase().includes(w)));
+    .filter(({ d }) => words.every((w) => `${d.controlNo} ${drnOf(d)} ${d.typeCode} ${d.title} ${d.createdByName} ${d.office}`.toLowerCase().includes(w)));
 
   return (
     <>
@@ -69,7 +70,7 @@ export default function WorkflowTracking() {
       </div>
 
       <div className="filters">
-        <input className="search" placeholder="Search control no., payee, office…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="search" placeholder="Search control no., DRN, payee, office…" value={q} onChange={(e) => setQ(e.target.value)} />
         <Select value={at} onChange={(e) => setAt(e.target.value)} aria-label="Now at">
           <option value="">Now at: any office</option>
           {offices.map((o) => <option key={o}>{o}</option>)}
@@ -81,9 +82,9 @@ export default function WorkflowTracking() {
       {docs && (
         <div className="card table-card">
           <table className="data-table wf-table">
-            <thead><tr><th>Control No.</th><th>Payee / Subject</th><th>Route</th><th>Now at</th><th>Last action</th></tr></thead>
+            <thead><tr><th>Control No.</th><th title="Document Reference No.: the number assigned along the route (e.g. the DV No.)">DRN</th><th>Payee / Subject</th><th>Route</th><th>Now at</th><th>Last action</th></tr></thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={5} className="muted">No documents here. A document is routed when it is marked complete.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={6} className="muted">No documents here. A document is routed when it is marked complete.</td></tr>}
               {shown.map(({ d, state }) => {
                 const wf = d.workflow;
                 const last = wf.events.at(-1);
@@ -91,6 +92,7 @@ export default function WorkflowTracking() {
                 return (
                   <tr key={d.id}>
                     <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link><div className="small muted">{d.typeCode}</div></td>
+                    <td className="small">{drnOf(d) || '—'}</td>
                     <td>{d.title}<div className="small muted">{d.office || d.createdByName}</div></td>
                     <td>
                       <div className="wf-mini" title={wf.steps.map((s, i) => `${i + 1}. ${officeOf(s, d) || 'Requesting office'}`).join('\n')}>

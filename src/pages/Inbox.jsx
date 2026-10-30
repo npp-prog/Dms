@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listForwarded, listInbox } from '../lib/api.js';
 import { officeOf } from '../lib/workflow.js';
 import Select from '../components/Select.jsx';
+import { drnOf } from '../lib/naming.js';
 
 const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
@@ -48,15 +49,16 @@ export default function Inbox() {
       {docs && (
         <div className="card table-card">
           <table className="data-table">
-            <thead><tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th><th>From</th>{!office && <th>Now at</th>}<th>Step</th><th>Status</th><th>Since</th></tr></thead>
+            <thead><tr><th>Control No.</th><th title="Document Reference No.: the number assigned along the route (e.g. the DV No.)">DRN</th><th>Type</th><th>Payee / Subject</th><th>From</th>{!office && <th>Now at</th>}<th>Step</th><th>Status</th><th>Since</th></tr></thead>
             <tbody>
-              {docs.length === 0 && <tr><td colSpan={8} className="muted">Nothing waiting. {office ? 'Documents routed to your office appear here.' : ''}</td></tr>}
+              {docs.length === 0 && <tr><td colSpan={9} className="muted">Nothing waiting. {office ? 'Documents routed to your office appear here.' : ''}</td></tr>}
               {docs.map((d) => {
                 const wf = d.workflow;
                 const step = wf.steps[wf.stage];
                 return (
                   <tr key={d.id}>
                     <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
+                    <td className="small">{drnOf(d) || '—'}</td>
                     <td>{d.typeCode}</td>
                     <td>{d.title}</td>
                     <td className="small">{d.office || d.createdByName}</td>
@@ -81,13 +83,14 @@ export default function Inbox() {
           <h2 className="inbox-sub">Forwarded to you</h2>
           <div className="card table-card">
             <table className="data-table">
-              <thead><tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th><th>From</th><th>Note</th><th>When</th></tr></thead>
+              <thead><tr><th>Control No.</th><th title="Document Reference No.: the number assigned along the route (e.g. the DV No.)">DRN</th><th>Type</th><th>Payee / Subject</th><th>From</th><th>Note</th><th>When</th></tr></thead>
               <tbody>
                 {forwarded.map((d) => {
                   const f = [...(d.forwards || [])].reverse().find((x) => x.to === user.uid) || {};
                   return (
                     <tr key={d.id}>
                       <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
+                    <td className="small">{drnOf(d) || '—'}</td>
                       <td>{d.typeCode}</td>
                       <td>{d.title}</td>
                       <td className="small">{f.by}</td>

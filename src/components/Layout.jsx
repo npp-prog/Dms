@@ -24,9 +24,9 @@ export default function Layout() {
     {
       label: 'Documents',
       items: [
-        ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
-        ['/inbox', 'inbox', 'Inbox', false, waiting],
         ['/tracking', 'workflow', 'Tracking'],
+        ['/inbox', 'inbox', 'Inbox', false, waiting],
+        ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/checklists', 'check', 'Checklists'],
       ],
     },

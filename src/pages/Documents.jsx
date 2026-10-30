@@ -7,6 +7,7 @@ import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Select from '../components/Select.jsx';
 import ZipExport from '../components/ZipExport.jsx';
+import { drnOf } from '../lib/naming.js';
 
 function fmt(ts) {
   return ts?.toDate ? ts.toDate().toLocaleString() : '';
@@ -77,13 +78,14 @@ export default function Documents() {
         <div className="card table-card">
           <table className="data-table">
             <thead>
-              <tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Office</th>}<th>Prepared by</th><th>Status</th><th>Where</th><th>Updated</th></tr>
+              <tr><th>Control No.</th><th title="Document Reference No.: the number assigned along the route (e.g. the DV No.)">DRN</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Office</th>}<th>Prepared by</th><th>Status</th><th>Where</th><th>Updated</th></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={9} className="muted">No documents found.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={10} className="muted">No documents found.</td></tr>}
               {shown.map((d) => (
                 <tr key={d.id}>
                   <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
+                    <td className="small">{drnOf(d) || '—'}</td>
                   <td>{d.typeCode}</td>
                   <td>{d.title}</td>
                   {isAdmin && <td className="small">{d.office || '—'}</td>}

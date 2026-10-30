@@ -86,3 +86,6 @@ export function refNumber(pattern, { fund = '', date = new Date() } = {}) {
     format: (n) => prefix.replace('#', String(n).padStart(width, '0')),
   };
 }
+
+// The Document Reference No. (DRN): the number(s) assigned along the route, e.g. the DV No.
+export const drnOf = (d) => Object.values(d?.refNos || {}).filter((r) => !r.of && r.value).map((r) => r.value).join(', ');
