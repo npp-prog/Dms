@@ -86,8 +86,8 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isActive() && resource.data.by == request.auth.uid);
     }
 
-    // ---- Communities: groups an office creates, with members from any office. The office that
-    // created it administers it (its head, the creator, and administrators): name, members. ----
+    // ---- Communities: groups any user creates for their office, with members from any office. The
+    // office administers it (the creator, the office head, administrators): name, members. ----
     match /communities/{cid} {
       function manages(c) {
         return isAdmin() || c.createdBy == request.auth.uid || (isOfficeHead() && c.office == myOffice());
@@ -100,7 +100,8 @@ service cloud.firestore {
           && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
       }
       allow read: if isActive() && (isMember(resource.data) || manages(resource.data));
-      allow create: if (isOfficeHead() || isAdmin())
+      // Any active user creates one, for their office.
+      allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
         && (isAdmin() || request.resource.data.office == myOffice())
         && request.auth.uid in request.resource.data.members

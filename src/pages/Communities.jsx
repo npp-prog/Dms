@@ -17,9 +17,8 @@ const when = (iso) => {
     : d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
 };
 
-// Communities: groups an office creates (e.g. a committee), with members from any office. The
-// office that created it administers it: its head, the creator and administrators add and remove
-// members. Members talk and share files.
+// Communities: groups any user creates (e.g. a committee), with members from any office. The
+// creator, the head of their office and administrators add and remove members. Members talk and share files.
 export default function Communities() {
   const { id: openId = '' } = useParams();
   const navigate = useNavigate();
@@ -27,7 +26,6 @@ export default function Communities() {
   const [list, setList] = useState(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
-  const canCreate = isHead || isAdmin;
   const who = { uid: user.uid, office: profile.office, isHead, isAdmin };
 
   useEffect(() => watchCommunities(user.uid, setList, (e) => setError(e.code === 'permission-denied'
@@ -46,13 +44,13 @@ export default function Communities() {
         onCreated={(id) => { setCreating(false); navigate(`/communities/${id}`); }} />}
       <div className="chat-layout card">
         <aside className={`chat-list${open ? ' has-open' : ''}`}>
-          {canCreate && !creating && (
+          {!creating && (
             <div className="chat-list-head">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>+ New community</button>
             </div>
           )}
           {list === null && !error && <div className="spinner" />}
-          {list?.length === 0 && <p className="small muted chat-empty">{canCreate ? 'No communities yet. Create one for your office.' : 'You are not in a community yet. An office head adds you to one.'}</p>}
+          {list?.length === 0 && <p className="small muted chat-empty">No communities yet. Create one, or someone adds you to theirs.</p>}
           <ul>
             {(list || []).map((c) => (
               <li key={c.id}>
