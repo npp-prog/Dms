@@ -986,6 +986,42 @@ export async function forwardDocument(id, to, note, user, kind = '') {
   });
 }
 
+// ---- Access given by the office head (read only) ----
+// To one document of the office: people of the office besides its preparer.
+export async function setDocumentAccess(id, person, give, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const access = d.access || [];
+    if (give === access.includes(person.uid)) return;
+    tx.update(ref, {
+      access: give ? [...access, person.uid] : access.filter((u) => u !== person.uid),
+      history: [...(d.history || []), historyEntry(give ? 'access given' : 'access removed', user, `${give ? 'to' : 'from'} ${person.displayName || person.email}`)],
+    });
+  });
+}
+
+// To folders (document types) of the office's documents, or all of them: folderAccess/{uid}.
+export async function getFolderAccess(uid) {
+  const s = await getDoc(doc(db, 'folderAccess', uid));
+  return s.exists() ? { uid, ...s.data() } : null;
+}
+
+export async function listFolderAccess(office) {
+  const snap = await getDocs(query(collection(db, 'folderAccess'), where('office', '==', office)));
+  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+// all: every folder; otherwise types (codes). Nothing left: the access is removed.
+export async function setFolderAccess(person, { all = false, types = [] }, user) {
+  const ref = doc(db, 'folderAccess', person.uid);
+  if (!all && !types.length) return deleteDoc(ref);
+  return setDoc(ref, {
+    office: person.office, all, types: all ? [] : [...new Set(types)].sort(), name: person.displayName || person.email || '',
+    by: user.uid, byName: user.displayName || user.email || '', at: new Date().toISOString(),
+  });
+}
+
 // A reviewer's comments on a draft sent to them for review.
 export async function reviewDocument(id, comment, user) {
   const ref = doc(db, 'documents', id);
@@ -1062,8 +1098,14 @@ export async function getDocument(id) {
 // office (the Firestore rules allow no more), merged.
 // The documents a user may see (firestore.rules): their own and those waiting in their office;
 // for an office head, every document of the office and every one routed through it.
-export async function listDocuments({ uid, office = '', all = false, head = false, max = 1000 } = {}) {
+// granted: also the office's documents the office head gave this user access to (one by one, or
+// by folder: Folders → Access).
+export async function listDocuments({ uid, office = '', all = false, head = false, granted = false, max = 1000 } = {}) {
   const docs = collection(db, 'documents');
+  const grant = granted && !all && !head && office ? await getFolderAccess(uid).catch(() => null) : null;
+  const folderQueries = grant?.office !== office ? []
+    : grant.all ? [query(docs, where('office', '==', office), limit(max))]
+      : (grant.types || []).map((t) => query(docs, where('office', '==', office), where('typeCode', '==', t), limit(max)));
   const queries = all
     ? [query(docs, orderBy('updatedAt', 'desc'), limit(max))]
     : [
@@ -1077,6 +1119,8 @@ export async function listDocuments({ uid, office = '', all = false, head = fals
       ...(office && !head ? [
         query(docs, where('currentOffice', '==', office), where('atPreparer', '==', false), limit(max)),
       ] : []),
+      ...(granted ? [query(docs, where('access', 'array-contains', uid), limit(max))] : []),
+      ...folderQueries,
     ];
   const byId = new Map();
   for (const snap of await Promise.all(queries.map((q) => getDocs(q)))) {

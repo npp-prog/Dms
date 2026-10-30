@@ -24,7 +24,7 @@ export default function Documents() {
   const [zipOpen, setZipOpen] = useState(false);
 
   useEffect(() => {
-    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead }).then(setDocs).catch((e) => setError(e.message));
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin, head: isHead, granted: true }).then(setDocs).catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, isHead]);
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(docs || []).map((d) => d.office).filter(Boolean)])].sort(), [settings.offices, docs]);
 

@@ -1282,3 +1282,15 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .doc-tile-foot { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .25rem; }
 
 .square-btn .bell-count { position: absolute; top: 3px; right: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #2563eb; color: #fff; font-size: .66rem; font-weight: 700; line-height: 17px; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px #fff; }
+
+/* Access (office head): folders and documents given to people of the office */
+.folder-access { margin-bottom: 1rem; }
+.folder-access .data-table td { vertical-align: middle; }
+.access-chips { display: inline-flex; flex-wrap: wrap; gap: .35rem; }
+.access-chips .chip button { border: 0; background: none; padding: 0 0 0 .2rem; cursor: pointer; color: var(--muted); font: inherit; }
+.access-chips .chip button:hover { color: var(--ink); }
+.access-list { list-style: none; margin: 0; padding: 0; }
+.access-list li { display: flex; align-items: center; justify-content: space-between; padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.access-list li:last-child { border-bottom: 0; }
+.access-add { display: grid; gap: .4rem; justify-items: start; }
+.access-add .person-picker { width: 100%; }

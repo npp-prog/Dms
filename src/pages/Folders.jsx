@@ -6,6 +6,7 @@ import { drnOf } from '../lib/naming.js';
 import { whereIs } from '../lib/workflow.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Icon from '../components/Icon.jsx';
+import FolderAccess from '../components/FolderAccess.jsx';
 
 const day = (ts) => {
   const d = ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null;
@@ -32,14 +33,16 @@ function ViewSwitch({ view, onChange }) {
 // type (DV, OBR, PR…), shown as tiles or as a list.
 export default function Folders() {
   const { code = '' } = useParams();
-  const { user, profile, isAdmin, isHead, isRecords } = useAuth();
+  const { user, profile, actor, isAdmin, isHead, isRecords } = useAuth();
+  const [access, setAccess] = useState(false);
+  const canGrant = isHead && Boolean(profile.office);
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [view, setView] = useView();
   const [q, setQ] = useState('');
 
   useEffect(() => {
-    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin || isRecords, head: isHead })
+    listDocuments({ uid: user.uid, office: profile.office, all: isAdmin || isRecords, head: isHead, granted: true })
       .then((l) => setDocs(l.filter((d) => d.status !== 'cancelled')))
       .catch((e) => setError(e.message));
   }, [user.uid, profile.office, isAdmin, isHead, isRecords]);
@@ -68,8 +71,12 @@ export default function Folders() {
           {code && <div className="crumbs"><Link to="/folders">Folders</Link> / {code}</div>}
           <h1>{code ? folder?.name || code : 'Folders'}</h1>
         </div>
-        <ViewSwitch view={view} onChange={setView} />
+        <div className="row gap">
+          {canGrant && <button type="button" className={`btn btn-sm${access ? ' btn-primary' : ''}`} aria-pressed={access} onClick={() => setAccess((a) => !a)}>Access</button>}
+          <ViewSwitch view={view} onChange={setView} />
+        </div>
       </div>
+      {canGrant && access && <FolderAccess office={profile.office} me={user.uid} actor={actor} codes={folders.map((f) => f.code)} />}
       {error && <div className="alert">{error}</div>}
       {!docs && !error && <div className="spinner" />}
 

@@ -23,7 +23,7 @@ export default function Archive() {
   const [filters, setFilters] = useState({ q: '', type: '', office: '', year: '' });
   const [filing, setFiling] = useState(null); // { id, location, note }
 
-  const load = () => (keeper ? listArchive() : listDocuments({ uid: user.uid, office: profile.office, head: isHead }).then((l) => l.filter(isArchived)))
+  const load = () => (keeper ? listArchive() : listDocuments({ uid: user.uid, office: profile.office, head: isHead, granted: true }).then((l) => l.filter(isArchived)))
     .then(setDocs).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [keeper, user.uid, profile.office, isHead]);
 

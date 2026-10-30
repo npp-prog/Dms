@@ -43,8 +43,15 @@ service firebase.storage {
     function isRecords() {
       return 'Records Officer' in profile().get('positions', []);
     }
+    // The office head gave this user access to the document's folder (document type), or all.
+    function folderGranted(d) {
+      let g = /databases/(default)/documents/folderAccess/$(request.auth.uid);
+      return myOffice() != '' && d.get('office', '') == myOffice() && firestore.exists(g)
+        && firestore.get(g).data.office == myOffice()
+        && (firestore.get(g).data.all == true || d.get('typeCode', '') in firestore.get(g).data.types);
+    }
     function canRead(d) {
-      return isAdmin() || isRecords() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', []) || request.auth.uid in d.get('referred', [])
+      return isAdmin() || request.auth.uid in d.get('access', []) || folderGranted(d) || isRecords() || d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d) || referredByMyOffice(d) || request.auth.uid in d.get('sharedWith', []) || request.auth.uid in d.get('referred', [])
         || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
             || myOffice() in d.get('routeOffices', [])));
     }

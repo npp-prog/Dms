@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess } from '../lib/api.js';
 import { assignPending, canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
@@ -17,6 +17,7 @@ import ReviewCard from '../components/ReviewCard.jsx';
 import SupplementsCard from '../components/SupplementsCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
 import SendPanel from '../components/SendPanel.jsx';
+import AccessCard from '../components/AccessCard.jsx';
 import { pdfFileName } from '../components/printables.jsx';
 import { uploadSupporting } from '../lib/supporting.js';
 import PdfViewer from '../components/PdfViewer.jsx';
@@ -445,6 +446,10 @@ function DocumentPage({ docId }) {
                 canEdit={editable && (isAdmin || docData.createdBy === user.uid)} busy={busy} run={run}
                 onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))} />
             </section>
+          )}
+          {!isExternal && docData.office && (isAdmin || (isHead && docData.office === profile.office)) && (
+            <AccessCard doc={docData} me={user.uid} busy={busy}
+              onChange={(person, give) => run(() => setDocumentAccess(docId, person, give, actor))} />
           )}
           <section className="card">
             <h3>History</h3>
