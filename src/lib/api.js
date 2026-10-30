@@ -67,16 +67,20 @@ export async function syncDirectoryEntry(uid, profile) {
 export async function syncDirectory(users) {
   const all = users || await listUsers();
   const cur = Object.fromEntries((await getDocs(collection(db, 'directory'))).docs.map((d) => [d.id, d.data()]));
-  const batch = writeBatch(db);
-  let n = 0;
+  const writes = [];
   for (const u of all) {
     const uid = u.id || u.uid;
     if (u.active) {
       const entry = { displayName: u.displayName || '', office: u.office || '', email: u.email || '' };
-      if (!cur[uid] || Object.keys(entry).some((k) => cur[uid][k] !== entry[k])) { batch.set(doc(db, 'directory', uid), entry); n++; }
-    } else if (cur[uid]) { batch.delete(doc(db, 'directory', uid)); n++; }
+      if (!cur[uid] || Object.keys(entry).some((k) => cur[uid][k] !== entry[k])) writes.push((b) => b.set(doc(db, 'directory', uid), entry));
+    } else if (cur[uid]) writes.push((b) => b.delete(doc(db, 'directory', uid)));
   }
-  if (n) await batch.commit();
+  // In batches of 15: each entry's check reads its user's profile, and a batch may read only 20.
+  for (let i = 0; i < writes.length; i += 15) {
+    const batch = writeBatch(db);
+    writes.slice(i, i + 15).forEach((w) => w(batch));
+    await batch.commit();
+  }
 }
 
 export async function listDirectory() {

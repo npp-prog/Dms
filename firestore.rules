@@ -59,6 +59,8 @@ service cloud.firestore {
       allow get: if isActive() && resource.data.from == request.auth.uid;
       allow create: if isActive() && request.resource.data.from == request.auth.uid
         && request.resource.data.keys().hasOnly(['kind', 'text', 'link', 'from', 'fromName', 'at', 'read'])
+        && request.resource.data.kind in ['document', 'circular', 'community']
+        && request.resource.data.link is string && request.resource.data.link.matches('^/[A-Za-z0-9/_-]*$')
         && request.resource.data.text is string && request.resource.data.text.size() <= 500
         && request.resource.data.read == false;
       allow update: if isActive() && request.auth.uid == uid
@@ -80,6 +82,7 @@ service cloud.firestore {
         && ((resource.data.by == request.auth.uid
              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['file']))
           || (myOffice() != '' && myOffice() in resource.data.toOffices
+             && !(myOffice() in resource.data.receipts)
              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['receipts'])
              && request.resource.data.receipts.diff(resource.data.receipts).affectedKeys().hasOnly([myOffice()])
              && request.resource.data.receipts[myOffice()].uid == request.auth.uid));
@@ -97,6 +100,7 @@ service cloud.firestore {
       }
       function chatOnly() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastText', 'lastAt', 'lastBy', 'readAt'])
+          && request.resource.data.get('readAt', {}).diff(resource.data.get('readAt', {})).affectedKeys().hasOnly([request.auth.uid])
           && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
       }
       allow read: if isActive() && (isMember(resource.data) || manages(resource.data));
@@ -113,7 +117,8 @@ service cloud.firestore {
           || (isMember(resource.data) && chatOnly())
           // a member leaves
           || (isMember(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names'])
-              && resource.data.members.removeAll([request.auth.uid]) == request.resource.data.members));
+              && resource.data.members.removeAll([request.auth.uid]) == request.resource.data.members
+              && request.resource.data.get('names', {}).diff(resource.data.get('names', {})).affectedKeys().hasOnly([request.auth.uid])));
       allow delete: if isActive() && manages(resource.data);
       match /messages/{mid} {
         function community() {
@@ -187,6 +192,8 @@ service cloud.firestore {
 
       allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.email == request.auth.token.email
+        // Only what registration writes: no positions (e.g. Records Officer) or routing rights.
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'office', 'requestedOffice', 'role', 'active', 'createdAt'])
         // The office is assigned by an admin, never chosen by the user.
         && request.resource.data.get('office', '') == ''
         && request.resource.data.get('head', false) == false && (
@@ -283,28 +290,51 @@ service cloud.firestore {
         && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees() || referredToMe() || referredByMyOffice() || isRecords()
             // forwarded to this user
             || request.auth.uid in resource.data.get('sharedWith', []));
+      // A new document is not routed, shared or archived yet.
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.get('office', '') == myOffice();
+        && request.resource.data.get('office', '') == myOffice()
+        && !request.resource.data.keys().hasAny(['workflow', 'currentOffice', 'atPreparer', 'routeOffices', 'sharedWith', 'archive', 'reviews']);
+      // The preparer moves the route only one step on (release), back (return) or cancels it; and
+      // marks it processed only from its last step.
+      function preparerRouteOk() {
+        return !('workflow' in request.resource.data)
+          || (request.resource.data.workflow.state in ['in-progress', 'cancelled']
+              && request.resource.data.workflow.stage <= resource.data.get('workflow', {}).get('stage', 0) + 1)
+          || (request.resource.data.workflow.state == 'done' && 'workflow' in resource.data
+              && resource.data.workflow.stage == resource.data.workflow.steps.size() - 1);
+      }
+      // History, reviews: entries are only added, never changed or removed.
+      function appended(key) {
+        let before = resource.data.get(key, []);
+        let after = request.resource.data.get(key, []);
+        return after.size() >= before.size() && after[0:before.size()] == before;
+      }
       allow update: if isActive()
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
         && referralAllowed()
         && (isAdmin()
             // The Records Officer files a processed document in the Archive (where it is kept).
-            || (isRecords() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archive', 'updatedAt', 'history']))
+            || (isRecords() && resource.data.get('workflow', {}).get('state', '') == 'done' && appended('history')
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archive', 'updatedAt', 'history']))
             // Someone it was sent to for review writes their review (nothing else).
             || (request.auth.uid in resource.data.get('sharedWith', [])
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviews', 'updatedAt', 'history']))
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviews', 'updatedAt', 'history'])
+                && appended('reviews') && appended('history'))
             // The person it is referred to receives it, signs its PDF and sends it back.
             || (referredToMe()
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history']))
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'supplements']))
             // The preparer edits their document; its route only while it is with their office
             // (or before it is routed).
+            // Not once processed (it is in the Archive), and never the archive entry or reviews.
             || (resource.data.createdBy == request.auth.uid && resource.data.status != 'cancelled'
-                && (workflowUntouched() || !('workflow' in resource.data)
-                    || (resource.data.workflow.state == 'in-progress'
-                        && (holder() == '' || holder() == myOffice()))))
+                && resource.data.get('workflow', {}).get('state', '') != 'done'
+                && unchanged(['archive', 'reviews'])
+                && (workflowUntouched()
+                    || ((!('workflow' in resource.data)
+                        || (resource.data.workflow.state == 'in-progress' && (holder() == '' || holder() == myOffice())))
+                      && preparerRouteOk())))
             // The office holding a routed document receives, releases or returns it, and signs its PDF.
             // (Its office head too, also at the preparer's step.) On receiving, it may assign a
             // reference no.: only the field (and date) its own route step assigns change.
@@ -314,9 +344,12 @@ service cloud.firestore {
                      .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards', 'supplements'])
                 && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())
                 && request.resource.data.get('refNos', {}).diff(resource.data.get('refNos', {})).affectedKeys().hasOnly(assignedKeys())));
+      // The preparer deletes only a draft never converted to PDF nor routed (no signatures, no
+      // reference no., no public record).
       allow delete: if isAdmin()
         || (isActive() && resource.data.createdBy == request.auth.uid
-            && resource.data.status == 'draft');
+            && resource.data.status == 'draft' && !('workflow' in resource.data)
+            && resource.data.get('pdf', {}).get('files', []).size() == 0);
     }
 
     // ---- Directory: names and offices of active users (to forward a document to someone) ----
@@ -359,7 +392,7 @@ service cloud.firestore {
       }
       function handles(d) {
         return d.createdBy == request.auth.uid
-          || (myOffice() != '' && d.get('currentOffice', '') == myOffice())
+          || (myOffice() != '' && d.get('currentOffice', '') == myOffice() && d.get('atPreparer', true) == false)
           || d.get('currentOffice', '') == 'person:' + request.auth.uid
           || (myOffice() != '' && profile().get('head', false) == true && d.get('office', '') == myOffice());
       }
@@ -368,6 +401,11 @@ service cloud.firestore {
       allow create, update: if isActive()
         && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'pdf', 'updatedAt'])
         && request.resource.data.controlNo == docAfter().controlNo
+        // What it says matches the document: its status, and its current PDF (no earlier,
+        // private version made public).
+        && request.resource.data.get('status', '') == docAfter().get('status', '')
+        && (request.resource.data.get('pdf', '') == ''
+            || request.resource.data.pdf == docAfter().pdf.files[docAfter().pdf.files.size() - 1].path)
         && (isAdmin() || handles(docBefore()) || handles(docAfter()));
       allow delete: if isAdmin();
     }

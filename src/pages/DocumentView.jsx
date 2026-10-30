@@ -302,7 +302,7 @@ function DocumentPage({ docId }) {
               Cancel document
             </button>
           )}
-          {(isAdmin || (isOwner && docData.status === 'draft')) && <button className="btn btn-danger" disabled={busy} onClick={remove}>Delete</button>}
+          {(isAdmin || (isOwner && docData.status === 'draft' && !wf && !(docData.pdf?.files || []).length)) && <button className="btn btn-danger" disabled={busy} onClick={remove}>Delete</button>}
         </div>
       </div>
 
