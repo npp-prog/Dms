@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import {
-  backupStatus, buildBackup, driveCall, fileInArchive, getArchiveSettings, getDriveBackup, isArchived, listArchive, listBackups, logBackup,
+  backupStatus, buildBackup, driveCall, fileInArchive, getArchiveSettings, isArchived, listArchive, listBackups, logBackup,
   processedAt, saveArchiveSettings, saveBackup, toBackUp,
 } from '../lib/archive.js';
 import { drnOf } from '../lib/naming.js';
@@ -123,7 +123,7 @@ function DriveBackup() {
   const [s, setS] = useState(null);
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState(() => DRIVE_RESULT[new URLSearchParams(window.location.search).get('drive')] || null);
-  const load = () => getDriveBackup().then(setS).catch(() => setS({}));
+  const load = () => driveCall('drive-backup-now', { action: 'status' }).then(setS).catch((e) => setS({ unavailable: e.message }));
   useEffect(() => { load(); }, []);
   const act = async (label, fn) => {
     setBusy(label); setMsg(null);
@@ -133,10 +133,18 @@ function DriveBackup() {
   const disconnect = () => window.confirm('Stop backing up to this Google account? The files already there stay in its Drive.')
     && act('Disconnecting…', () => driveCall('drive-auth', { action: 'disconnect' }));
   const now = () => act('Backing up…', async () => {
-    const r = await driveCall('drive-backup-now');
+    const r = await driveCall('drive-backup-now', { action: 'run' });
     setMsg(r.skipped ? { ok: false, text: r.skipped } : { ok: true, text: `Backed up ${r.documents} document(s), ${r.files} new file(s)${r.caughtUp ? '. Everything is backed up.' : '. More to go: it goes on every 10 minutes.'}` });
   });
   if (!s) return null;
+  if (s.unavailable || s.configured === false) {
+    return (
+      <section className="card archive-backup">
+        <div className="card-head"><h3>Google Drive</h3><span className="badge badge-gray">Not set up</span></div>
+        <p className="small muted">{s.unavailable || 'The automatic backup to Google Drive is not set up yet: an administrator adds the Google OAuth client in Netlify (README).'}</p>
+      </section>
+    );
+  }
   return (
     <section className="card archive-backup">
       <div className="card-head">
@@ -147,7 +155,9 @@ function DriveBackup() {
         <>
           <p className="small">Backed up automatically every 10 minutes to <b>{s.email}</b>, folder <b>DMS Archive</b> (by year and type, a folder per document
             with its PDFs, attachments and record).</p>
+          <p className="small muted">Connected by {s.by} on {when(s.at)}. It reads the archive as {s.by}: if they stop being the Records Officer, connect it again.</p>
           <p className="small muted">{s.lastRunAt ? `Last run ${when(s.lastRunAt)}` : 'Not run yet'}{s.documents ? ` · ${s.documents} document backup(s), ${s.files || 0} file(s) so far` : ''}{s.lastRunAt && s.caughtUp === false ? ' · still catching up' : ''}.</p>
+          {s.lastMissing?.length > 0 && <p className="small muted">Files that could not be read last time: {s.lastMissing.join('; ')}.</p>}
           {s.lastError && <div className="alert small">Last run failed: {s.lastError}</div>}
           <div className="row gap wrap">
             <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={now}>{busy === 'Backing up…' ? busy : 'Back up now'}</button>

@@ -33,15 +33,13 @@ export async function fileInArchive(id, { location, note }, user) {
 }
 
 // meta/archive: { devices: [{ id, name, note }], everyDays }
-// The automatic Google Drive backup (netlify/functions/drive-*.mjs): its state, and the calls
-// the Records Officer makes (connect, disconnect, back up now) with their Firebase ID token.
-export async function getDriveBackup() {
-  const snap = await getDoc(doc(db, 'meta', 'driveBackup'));
-  return snap.exists() ? snap.data() : {};
-}
+// The automatic Google Drive backup (netlify/functions/drive-*.mjs): the calls the Records
+// Officer makes (status, connect, disconnect, back up now) with their Firebase ID token.
 export async function driveCall(fn, body = {}) {
   const { auth } = await import('../firebase.js');
   const token = await auth.currentUser.getIdToken();
+  // Connecting: the backup reads the archive as this Records Officer (their DMS sign-in).
+  if (body.action === 'start') body = { ...body, firebaseRefreshToken: auth.currentUser.refreshToken };
   const r = await fetch(`/.netlify/functions/${fn}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({ error: 'The Google Drive backup is not available here (it runs on the live site).' }));
   if (!r.ok || j.error) throw new Error(j.error || `Error ${r.status}`);
