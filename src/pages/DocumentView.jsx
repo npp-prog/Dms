@@ -144,7 +144,7 @@ export default function DocumentView() {
 
 function DocumentPage({ docId }) {
   const navigate = useNavigate();
-  const { actor, settings, isAdmin, isHead, canRefer, user, profile } = useAuth();
+  const { actor, settings, isAdmin, isHead, isExternal, canRefer, user, profile } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
@@ -264,7 +264,8 @@ function DocumentPage({ docId }) {
     run(async () => { await deleteDocument(docId); navigate('/documents'); });
   };
 
-  const activeChecklist = type && !docData.uploaded ? effectiveChecklist(type, docData.transaction) : null;
+  // A supplier or payee sees the document and its PDF only (not its checklist or attachments).
+  const activeChecklist = type && !docData.uploaded && !isExternal ? effectiveChecklist(type, docData.transaction) : null;
   // Tabs after the checklist: the documents linked or uploaded to its items, numbered as on it.
   const linkTabs = (activeChecklist?.items || []).flatMap((item, i) => (docData.links?.[item.id] || [])
     .map((l, j) => ({ link: l, key: `${item.id}:${j}`, n: i + 1 }))
@@ -284,7 +285,7 @@ function DocumentPage({ docId }) {
       )}
       <div className="page-head no-print">
         <div>
-          <div className="crumbs"><Link to="/documents">Documents</Link> / {docData.controlNo}</div>
+          <div className="crumbs">{isExternal ? <Link to="/notifications">Documents for you</Link> : <Link to="/documents">Documents</Link>} / {docData.controlNo}</div>
           <h1>{docData.typeName} <StatusBadge status={docData.status} /></h1>
           <p className="muted">{docData.title} · {docData.uploaded ? 'Uploaded' : 'Prepared'} by {docData.createdByName}</p>
           {docData.supports && (
@@ -294,7 +295,7 @@ function DocumentPage({ docId }) {
         </div>
         <div className="row gap wrap">
           {view !== 'pdf' && <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>}
-          {type && (type.bulkDownload || docData.typeCode === 'DV') && <BulkDownload docData={docData} type={type} settings={settings} />}
+          {type && !isExternal && (type.bulkDownload || docData.typeCode === 'DV') && <BulkDownload docData={docData} type={type} settings={settings} />}
           {canChange && <Link className="btn btn-ghost" to={`/documents/${docId}/edit`}>Edit</Link>}
           {canCancel && (
             <button className="btn btn-ghost" disabled={busy}
@@ -341,7 +342,7 @@ function DocumentPage({ docId }) {
               reason={wf?.state === 'in-progress' ? `${wf.steps[wf.stage].action} (${officeOf(wf.steps[wf.stage], docData) || 'Requesting office'})` : ''} />
           )}
           {/* Supplemental documents: between the PDF and the workflow. */}
-          {type && (
+          {type && !isExternal && (
             <SupplementsCard doc={{ ...docData, id: docId }} actor={actor} busy={busy}
               canAdd={editable && (isOwner || isAdmin || canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }))}
               canRemove={editable && (isOwner || isAdmin)}
@@ -349,9 +350,9 @@ function DocumentPage({ docId }) {
               onSave={(list, note) => run(() => saveSupplements(docId, list, actor, note))} />
           )}
           {/* Optional initial review of the draft by anyone, before it is converted to PDF. */}
-          <ReviewCard doc={docData} me={user.uid} busy={busy} canSend={editable && !uploaded && (isOwner || isAdmin)}
+          {!isExternal && <ReviewCard doc={docData} me={user.uid} busy={busy} canSend={editable && !uploaded && (isOwner || isAdmin)}
             onSend={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor, 'review'); done(); })}
-            onReview={(comment, done) => run(async () => { await reviewDocument(docId, comment, actor); done(); })} />
+            onReview={(comment, done) => run(async () => { await reviewDocument(docId, comment, actor); done(); })} />}
           {isAdmin && editable && type && draft && !uploaded && accountingOpen && (
             <AccountingPanel type={type} doc={docData} data={draft} onChange={setDraft} busy={busy}
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
@@ -456,10 +457,10 @@ function DocumentPage({ docId }) {
         </div>
         {type ? (
           <div className="doc-main" ref={viewer}>
-            {((activeChecklist && activeChecklist.items.length > 0) || pdfView || (docData.supplements || []).length > 0) && (
+            {((activeChecklist && activeChecklist.items.length > 0) || pdfView || (!isExternal && (docData.supplements || []).length > 0)) && (
               <div className="tabs view-toggle no-print">
                 {pdfView && <button className={view === 'pdf' ? 'active' : ''} onClick={() => setView('pdf')}>{hasSignature ? 'Signed PDF' : 'PDF'}</button>}
-                {(docData.supplements || []).map((l, i) => (
+                {(isExternal ? [] : docData.supplements || []).map((l, i) => (
                   <button key={`supp:${i}`} title={`${l.label || 'Supplemental document'}: ${l.dms?.controlNo || l.name}`}
                     className={view === 'file' && linkKey === `supp:${i}` ? 'active' : ''}
                     onClick={() => openFile(l, `supp:${i}`)}>{l.label && l.label !== 'Supplemental document' ? l.label : `Supplemental ${i + 1}`}</button>

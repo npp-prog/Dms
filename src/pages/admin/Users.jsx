@@ -25,7 +25,7 @@ export default function Users() {
     try { await updateUser(u.id, patch); await load(); } catch (e) { setError(e.message); }
   };
 
-  const canManage = (u) => u.id !== me.uid && (isSuper || u.role === 'user');
+  const canManage = (u) => u.id !== me.uid && (isSuper || u.role === 'user' || u.role === 'payee');
   const shown = (users || []).filter((u) => filter === 'all' || (filter === 'pending' ? !u.active : u.active));
 
   return (
@@ -80,13 +80,15 @@ export default function Users() {
                     ) : u.canRefer && <div className="small"><span className="badge badge-blue">Routes to any person</span></div>)}
                   </td>
                   <td>
-                    {isSuper && u.id !== me.uid ? (
-                      <Select value={u.role} onChange={(e) => change(u, { role: e.target.value })}>
+                    {canManage(u) ? (
+                      // Supplier / Payee: not LGU personnel; only signs the documents referred to them.
+                      <Select value={u.role} onChange={(e) => change(u, { role: e.target.value, ...(e.target.value === 'payee' ? { office: '', head: false, positions: [], canRefer: false } : {}) })}>
                         <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                        <option value="superadmin">Superadmin</option>
+                        <option value="payee">Supplier / Payee</option>
+                        {isSuper && <option value="admin">Admin</option>}
+                        {isSuper && <option value="superadmin">Superadmin</option>}
                       </Select>
-                    ) : u.role}
+                    ) : ({ payee: 'Supplier / Payee' }[u.role] || u.role)}
                   </td>
                   <td><span className={`badge ${u.active ? 'badge-green' : 'badge-yellow'}`}>{u.active ? 'Active' : 'Pending / inactive'}</span></td>
                   <td>

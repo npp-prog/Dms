@@ -51,12 +51,12 @@ export async function listUsers() {
 }
 
 // ---------- Directory (names and offices, to forward a document to someone) ----------
-// directory/{uid}: { displayName, office, email }. Each active user keeps their own entry up to
+// directory/{uid}: { displayName, office, email, external (a supplier or payee) }. Each active user keeps their own entry up to
 // date when they sign in; every active user can read it (to forward or refer a document to
 // someone by name or email; no roles).
 export async function syncDirectoryEntry(uid, profile) {
   if (!profile?.active) return;
-  const entry = { displayName: profile.displayName || '', office: profile.office || '', email: profile.email || '' };
+  const entry = { displayName: profile.displayName || '', office: profile.office || '', email: profile.email || '', external: profile.role === 'payee' };
   const ref = doc(db, 'directory', uid);
   const cur = await getDoc(ref).catch(() => null);
   if (!cur?.exists() || Object.keys(entry).some((k) => cur.data()[k] !== entry[k])) await setDoc(ref, entry);
@@ -71,7 +71,7 @@ export async function syncDirectory(users) {
   for (const u of all) {
     const uid = u.id || u.uid;
     if (u.active) {
-      const entry = { displayName: u.displayName || '', office: u.office || '', email: u.email || '' };
+      const entry = { displayName: u.displayName || '', office: u.office || '', email: u.email || '', external: u.role === 'payee' };
       if (!cur[uid] || Object.keys(entry).some((k) => cur[uid][k] !== entry[k])) writes.push((b) => b.set(doc(db, 'directory', uid), entry));
     } else if (cur[uid]) writes.push((b) => b.delete(doc(db, 'directory', uid)));
   }

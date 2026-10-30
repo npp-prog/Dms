@@ -11,7 +11,7 @@ const ago = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: '
 const KIND = { document: 'Document', circular: 'Circular', community: 'Community' };
 
 // What happened to the user's documents, circulars for their office, communities: newest first.
-function Updates({ uid }) {
+function Updates({ uid, external = false }) {
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ function Updates({ uid }) {
       {error && <div className="alert">{error}</div>}
       <div className="card updates">
         {!items && !error && <div className="spinner" />}
-        {items?.length === 0 && <p className="small muted">No updates yet. When your documents move, or a circular or community message comes, it shows here.</p>}
+        {items?.length === 0 && <p className="small muted">{external ? 'No updates yet.' : 'No updates yet. When your documents move, or a circular or community message comes, it shows here.'}</p>}
         <ul>
           {(items || []).map((n) => (
             <li key={n.id} className={n.read ? '' : 'unread'}>
@@ -54,7 +54,7 @@ const since = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('en-PH', { dateSt
 
 // Documents waiting in the user's office along their workflow. Admins can see every office.
 export default function Inbox() {
-  const { user, profile, isAdmin, isHead, settings } = useAuth();
+  const { user, profile, isAdmin, isHead, isExternal, settings } = useAuth();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   // Documents someone forwarded to this user.
@@ -73,7 +73,7 @@ export default function Inbox() {
   // Circulars for the user's office not marked received yet.
   const [circulars, setCirculars] = useState([]);
   useEffect(() => {
-    listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office))).catch(() => {});
+    if (!isExternal) listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office))).catch(() => {});
   }, [profile.office, user.uid]);
 
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(profile.office ? [profile.office] : [])])].sort(), [settings.offices, profile.office]);
@@ -82,7 +82,7 @@ export default function Inbox() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Notifications</h1>
+          <h1>{isExternal ? 'Documents for you' : 'Notifications'}</h1>
         </div>
         {isAdmin && (
           <Select value={office} onChange={(e) => setOffice(e.target.value)} aria-label="Office">
@@ -91,7 +91,7 @@ export default function Inbox() {
           </Select>
         )}
       </div>
-      <Updates uid={user.uid} />
+      <Updates uid={user.uid} external={isExternal} />
       {circulars.length > 0 && (
         <>
           <h2 className="inbox-sub">Circulars to receive</h2>

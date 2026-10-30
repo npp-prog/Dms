@@ -50,7 +50,7 @@ function ReferPanel({ me, busy, onRefer, onCancel }) {
     <div className="refer-panel">
       <div className="field">
         <span className="field-label">Refer to a person (outside the route)</span>
-        <PersonPicker value={person} onChange={setPerson} exclude={[me]} />
+        <PersonPicker value={person} onChange={setPerson} exclude={[me]} external />
       </div>
       <label className="field">
         <span className="field-label">What should they do? (optional)</span>

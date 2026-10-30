@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { listDirectory } from '../lib/api.js';
 
 // Choose an active DMS user by name or email (from the directory of active users).
-export default function PersonPicker({ value, onChange, exclude = [], placeholder = 'Type a name or email…' }) {
+// external: suppliers and payees are listed too (to refer a document to them); elsewhere (messages,
+// communities, review) only LGU personnel.
+export default function PersonPicker({ value, onChange, exclude = [], external = false, placeholder = 'Type a name or email…' }) {
   const [people, setPeople] = useState(null);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
@@ -19,7 +21,7 @@ export default function PersonPicker({ value, onChange, exclude = [], placeholde
   }
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const matches = words.length
-    ? (people || []).filter((p) => !exclude.includes(p.uid)
+    ? (people || []).filter((p) => !exclude.includes(p.uid) && (external || !p.external)
       && words.every((w) => `${p.displayName} ${p.email || ''} ${p.office}`.toLowerCase().includes(w))).slice(0, 8)
     : [];
   return (
@@ -33,7 +35,7 @@ export default function PersonPicker({ value, onChange, exclude = [], placeholde
             <li key={p.uid}>
               <button type="button" onClick={() => { onChange(p); setQ(''); }}>
                 <b>{p.displayName || p.email}</b>
-                <span className="small muted">{[p.email, p.office].filter(Boolean).join(' · ')}</span>
+                <span className="small muted">{[p.email, p.external ? 'Supplier / Payee' : p.office].filter(Boolean).join(' · ')}</span>
               </button>
             </li>
           ))}

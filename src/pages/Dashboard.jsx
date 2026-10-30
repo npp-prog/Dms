@@ -9,7 +9,7 @@ import NotesCard from '../components/NotesCard.jsx';
 import { drnOf } from '../lib/naming.js';
 import { backupStatus, getArchiveSettings, listBackups } from '../lib/archive.js';
 
-const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
+const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Supplier / Payee' };
 
 function greeting() {
   const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }));

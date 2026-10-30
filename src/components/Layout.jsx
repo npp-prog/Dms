@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
@@ -7,10 +7,14 @@ import AskDms from './AskDms.jsx';
 import { isUnread, listInbox, watchConversations } from '../lib/api.js';
 import { listCirculars, toReceive, watchCommunities, watchNotifications } from '../lib/social.js';
 
-const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
+const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Supplier / Payee' };
+
+// A supplier or payee may open only these: the documents referred to them, and their profile
+// (certificate and signature mark).
+const EXTERNAL_PAGES = /^\/(notifications|profile|documents\/[^/]+)\/?$/;
 
 export default function Layout() {
-  const { user, profile, settings, isAdmin, isSuper, isHead, isRecords, logout } = useAuth();
+  const { user, profile, settings, isAdmin, isSuper, isHead, isRecords, isExternal, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setOpen(false), [location.pathname]);
@@ -20,13 +24,13 @@ export default function Layout() {
   useEffect(() => {
     if (!profile?.active) return;
     listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => setWaiting(d.length)).catch(() => {});
-    listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office).map((c) => c.id))).catch(() => {});
+    if (!isExternal) listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office).map((c) => c.id))).catch(() => {});
   }, [location.pathname, profile?.office, profile?.active, isAdmin, isHead, user.uid]);
 
   // Conversations with a message not seen yet (live).
   const [unread, setUnread] = useState(0);
   useEffect(() => {
-    if (!profile?.active) return undefined;
+    if (!profile?.active || isExternal) return undefined;
     return watchConversations(user.uid, (list) => setUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setUnread(0));
   }, [user.uid, profile?.active]);
 
@@ -38,14 +42,16 @@ export default function Layout() {
   }, [user.uid, profile?.active]);
   const [groupUnread, setGroupUnread] = useState(0);
   useEffect(() => {
-    if (!profile?.active) return undefined;
+    if (!profile?.active || isExternal) return undefined;
     return watchCommunities(user.uid, (list) => setGroupUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setGroupUnread(0));
   }, [user.uid, profile?.active]);
   // A circular to receive that also has an unread update counts once.
   const notices = waiting + unreadUpdates.length
     + circulars.filter((id) => !unreadUpdates.some((n) => n.link === `/circulars/${id}`)).length;
 
-  const groups = [
+  const groups = isExternal ? [
+    { items: [['/notifications', 'bell', 'Documents for you', false, notices], ['/profile', 'user', 'My Profile']] },
+  ] : [
     { items: [['/', 'home', 'Dashboard', true]] },
     {
       label: 'Documents',
@@ -129,7 +135,7 @@ export default function Layout() {
         </header>
         <main className="main">
           <BackButton />
-          <Outlet />
+          {isExternal && !EXTERNAL_PAGES.test(location.pathname) ? <Navigate to="/notifications" replace /> : <Outlet />}
         </main>
       </div>
       {profile?.active && <AskDms />}

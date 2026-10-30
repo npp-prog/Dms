@@ -75,6 +75,8 @@ export function AuthProvider({ children }) {
     isHead: Boolean(profile?.active && profile.office && profile.head),
     // The Records Officer (a position, Users) sees and downloads every document.
     isRecords: Boolean(profile?.active && (profile.positions || []).includes('Records Officer')),
+    // A supplier or payee (not LGU personnel): only the documents referred to them.
+    isExternal: Boolean(profile?.active && profile.role === 'payee'),
     // May refer a document they hold to any active user outside its route (Users > May route to
     // any person); admins always may.
     canRefer: Boolean(profile?.active && (['admin', 'superadmin'].includes(profile.role) || profile.canRefer)),

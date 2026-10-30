@@ -45,6 +45,12 @@ service cloud.firestore {
     function unchanged(keys) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
+    // A supplier or payee (role 'payee'): not LGU personnel. They only see and sign the documents
+    // referred to them, and send them back; no messages, communities, circulars, checklists,
+    // tracking or documents of their own.
+    function isStaff() {
+      return isActive() && profile().role != 'payee';
+    }
     // The head of the user's office (Users: Office head).
     function isOfficeHead() {
       return isActive() && myOffice() != '' && profile().get('head', false) == true;
@@ -72,7 +78,7 @@ service cloud.firestore {
     // ---- Circulars: letters, executive orders, memos... sent by an office head to some or all
     // offices. Each office it is sent to marks it received (only its own entry in receipts). ----
     match /circulars/{id} {
-      allow read: if isActive() && (isAdmin() || resource.data.by == request.auth.uid
+      allow read: if isStaff() && (isAdmin() || resource.data.by == request.auth.uid
         || (myOffice() != '' && myOffice() in resource.data.toOffices));
       allow create: if (isOfficeHead() || isAdmin())
         && request.resource.data.by == request.auth.uid
@@ -80,7 +86,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['title', 'kind', 'note', 'file', 'fromOffice', 'by', 'byName', 'at', 'all', 'toOffices', 'receipts'])
         && request.resource.data.receipts.size() == 0
         && request.resource.data.toOffices.size() > 0;
-      allow update: if isActive()
+      allow update: if isStaff()
         && ((resource.data.by == request.auth.uid
              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['file']))
           || (myOffice() != '' && myOffice() in resource.data.toOffices
@@ -88,7 +94,7 @@ service cloud.firestore {
              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['receipts'])
              && request.resource.data.receipts.diff(resource.data.receipts).affectedKeys().hasOnly([myOffice()])
              && request.resource.data.receipts[myOffice()].uid == request.auth.uid));
-      allow delete: if isAdmin() || (isActive() && resource.data.by == request.auth.uid);
+      allow delete: if isAdmin() || (isStaff() && resource.data.by == request.auth.uid);
     }
 
     // ---- Communities: groups any user creates for their office, with members from any office. The
@@ -105,14 +111,14 @@ service cloud.firestore {
           && request.resource.data.get('readAt', {}).diff(resource.data.get('readAt', {})).affectedKeys().hasOnly([request.auth.uid])
           && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
       }
-      allow read: if isActive() && (isMember(resource.data) || manages(resource.data));
+      allow read: if isStaff() && (isMember(resource.data) || manages(resource.data));
       // Any active user creates one, for their office.
-      allow create: if isActive()
+      allow create: if isStaff()
         && request.resource.data.createdBy == request.auth.uid
         && (isAdmin() || request.resource.data.office == myOffice())
         && request.auth.uid in request.resource.data.members
         && request.resource.data.keys().hasOnly(['name', 'description', 'office', 'createdBy', 'members', 'names', 'createdAt', 'lastText', 'lastAt', 'lastBy', 'readAt']);
-      allow update: if isActive()
+      allow update: if isStaff()
         && request.resource.data.keys().hasOnly(['name', 'description', 'office', 'createdBy', 'members', 'names', 'createdAt', 'lastText', 'lastAt', 'lastBy', 'readAt'])
         && unchanged(['office', 'createdBy', 'createdAt'])
         && (manages(resource.data)
@@ -121,18 +127,18 @@ service cloud.firestore {
           || (isMember(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names'])
               && resource.data.members.removeAll([request.auth.uid]) == request.resource.data.members
               && request.resource.data.get('names', {}).diff(resource.data.get('names', {})).affectedKeys().hasOnly([request.auth.uid])));
-      allow delete: if isActive() && manages(resource.data);
+      allow delete: if isStaff() && manages(resource.data);
       match /messages/{mid} {
         function community() {
           return get(/databases/$(database)/documents/communities/$(cid)).data;
         }
-        allow read: if isActive() && exists(/databases/$(database)/documents/communities/$(cid))
+        allow read: if isStaff() && exists(/databases/$(database)/documents/communities/$(cid))
           && (isMember(community()) || manages(community()));
-        allow create: if isActive() && request.resource.data.from == request.auth.uid
+        allow create: if isStaff() && request.resource.data.from == request.auth.uid
           && isMember(getAfter(/databases/$(database)/documents/communities/$(cid)).data)
           && request.resource.data.keys().hasOnly(['from', 'fromName', 'text', 'file', 'at'])
           && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
-        allow delete: if isActive() && (resource.data.from == request.auth.uid || manages(community()));
+        allow delete: if isStaff() && (resource.data.from == request.auth.uid || manages(community()));
         allow update: if false;
       }
     }
@@ -160,19 +166,22 @@ service cloud.firestore {
       function members() {
         return request.resource.data.members;
       }
-      allow read: if isActive() && request.auth.uid in resource.data.members;
-      allow create: if isActive() && members().size() == 2 && request.auth.uid in members()
+      allow read: if isStaff() && request.auth.uid in resource.data.members;
+      // between two LGU personnel only (not a supplier or payee)
+      allow create: if isStaff() && members().size() == 2 && request.auth.uid in members()
+        && get(/databases/$(database)/documents/users/$(members()[0])).data.role != 'payee'
+        && get(/databases/$(database)/documents/users/$(members()[1])).data.role != 'payee'
         && members()[0] < members()[1] && cid == members()[0] + '_' + members()[1]
         && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
         && request.resource.data.lastBy == request.auth.uid;
-      allow update: if isActive() && request.auth.uid in resource.data.members
+      allow update: if isStaff() && request.auth.uid in resource.data.members
         && request.resource.data.members == resource.data.members
         && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
         && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
       match /messages/{mid} {
-        allow read: if isActive() && exists(/databases/$(database)/documents/conversations/$(cid))
+        allow read: if isStaff() && exists(/databases/$(database)/documents/conversations/$(cid))
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
-        allow create: if isActive() && request.resource.data.from == request.auth.uid
+        allow create: if isStaff() && request.resource.data.from == request.auth.uid
           && request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(cid)).data.members
           && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
           && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
@@ -210,7 +219,7 @@ service cloud.firestore {
         (isSuper() && (request.auth.uid != uid || unchanged(['role', 'active'])))
         // Admin may approve/deactivate and edit regular users only.
         || (isAdmin() && request.auth.uid != uid
-            && resource.data.role == 'user' && request.resource.data.role == 'user')
+            && resource.data.role in ['user', 'payee'] && request.resource.data.role in ['user', 'payee'])
         // Anyone may edit their own name (not their office, office head or routing to any person:
         // they decide what they can see and do).
         || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer', 'positions']))
@@ -230,7 +239,7 @@ service cloud.firestore {
 
     // ---- Checklist library (requirements per transaction type, keyed by checklist no.) ----
     match /checklists/{code} {
-      allow read: if isActive();
+      allow read: if isStaff();
       allow write: if isAdmin();
     }
 
@@ -293,7 +302,7 @@ service cloud.firestore {
             // forwarded to this user
             || request.auth.uid in resource.data.get('sharedWith', []));
       // A new document is not routed, shared or archived yet.
-      allow create: if isActive()
+      allow create: if isStaff()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.get('office', '') == myOffice()
         && !request.resource.data.keys().hasAny(['workflow', 'currentOffice', 'atPreparer', 'routeOffices', 'sharedWith', 'archive', 'reviews']);
@@ -358,13 +367,16 @@ service cloud.firestore {
     // Each user keeps their own entry; administrators keep everyone's (so someone who has not
     // signed in since can still be found), from their profile, and remove inactive users'.
     match /directory/{uid} {
-      allow read: if isActive();
-      allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email'])
+      // external: a supplier or payee (found only to refer a document to them)
+      allow read: if isStaff() || (isActive() && request.auth.uid == uid);
+      allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email', 'external'])
         && ((request.auth.uid == uid
+              && request.resource.data.get('external', false) == (profile().role == 'payee')
               && request.resource.data.office == myOffice()
               && request.resource.data.get('email', '') in ['', request.auth.token.email])
             || (isAdmin()
               && get(/databases/$(database)/documents/users/$(uid)).data.active == true
+              && request.resource.data.get('external', false) == (get(/databases/$(database)/documents/users/$(uid)).data.role == 'payee')
               && request.resource.data.office == get(/databases/$(database)/documents/users/$(uid)).data.get('office', '')
               && request.resource.data.email == get(/databases/$(database)/documents/users/$(uid)).data.get('email', '')));
       allow delete: if isAdmin();
