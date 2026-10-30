@@ -88,7 +88,7 @@ A new person can click **Create an account**. An administrator then approves the
 
 **Messages** (menu, under Account) is for messages between users. **+ New message**, type a name or email, and write; Enter sends, Shift+Enter starts a new line. Replies appear at once, and the menu shows how many conversations have something new. Only the two people in a conversation can read it, administrators included.
 
-**Notifications** (menu, and the bell at the top) has three parts. **Updates**: what happened to the documents you prepared (released, returned, referred, signed, numbered, processed, with who did it and their remarks), circulars for your office, and communities you were added to; new ones are highlighted, click one to open it, **Mark all as read** or × to remove it. **Circulars to receive**: circulars for your office not marked received yet. **Waiting in** your office: the documents to act on. The number next to Notifications counts all of them.
+**Notifications** (the bell at the top) has three parts. **Updates**: what happened to the documents you prepared (released, returned, referred, signed, numbered, processed, with who did it and their remarks), circulars for your office, and communities you were added to; new ones are highlighted, click one to open it, **Mark all as read** or × to remove it. **Circulars to receive**: circulars for your office not marked received yet. **Waiting in** your office: the documents to act on. The number on the bell counts all of them.
 
 **Folders** (menu, under Documents) keeps every document you may see, prepared in DMS or uploaded, in a folder per document type (DV, OBR, PR, Travel Order…); each folder shows how many documents it holds and when one last changed. Open a folder to see its documents and search them by control no., DRN, payee or preparer. **Tiles** or **List** (top right) switches between tiles and a table, for the folders and inside a folder; DMS remembers your choice on that device. Cancelled documents are left out.
 
@@ -205,7 +205,7 @@ The checklist's header boxes (DV Number, OBR/FURS Number, Payee) fill in from th
 When you **convert a document to PDF**, DMS starts its **workflow**: from then on the PDF goes from office to office along the route set under Administration → Workflow (or, if none is set, the steps of **How to process this document**). Marking it complete is not enough: the document leaves your office only as a PDF. For a DV: your office → Municipal Accounting Office → Municipal Treasurer's Office → Office of the Municipal Mayor → Treasurer's Office → Accounting. The **Workflow** card on the document shows each office, where the document is now, and who released or returned it and when.
 
 - **Release.** When the paper leaves your office, click **Release to Municipal Accounting Office**. From then on you can't edit the document.
-- **No receiving.** Once released, the document is at the next office: it finds it in its **Notifications** (left menu or the bell at the top, with the number waiting) and acts on it right away. There is no **Receive** button.
+- **No receiving.** Once released, the document is at the next office: it finds it in its **Notifications** (the bell at the top, with the number waiting) and acts on it right away. There is no **Receive** button.
 - **Release or return.** After acting on it, the office releases it to the next office, or clicks **Return to …** and says why (e.g. *OBR not signed*). The document goes back one office.
 - **Mark processed.** The last office closes the route.
 

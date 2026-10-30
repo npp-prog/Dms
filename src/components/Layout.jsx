@@ -57,10 +57,9 @@ export default function Layout() {
       label: 'Documents',
       items: [
         ['/tracking', 'workflow', 'Tracking'],
-        ['/notifications', 'bell', 'Notifications', false, notices],
-        ['/circulars', 'send', 'Circulars'],
         ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
         ['/folders', 'folder', 'Folders'],
+        ['/circulars', 'send', 'Circulars'],
         ['/archive', 'archive', 'Archive'],
         ['/checklists', 'check', 'Checklists'],
       ],
@@ -128,7 +127,7 @@ export default function Layout() {
             <Icon name="logout" /><span className="lo-txt">Log out</span>
           </button>
           <Link to="/notifications" className="square-btn" title={notices ? `${notices} new for you` : 'Notifications'}>
-            <Icon name="bell" />{notices > 0 && <span className="dot" />}
+            <Icon name="bell" />{notices > 0 && <span className="bell-count">{notices > 99 ? '99+' : notices}</span>}
           </Link>
           <Link to="/profile" className="me" title={`${name} · My Profile`}>
             <Avatar name={name} size="sm" />
