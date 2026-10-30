@@ -1,6 +1,8 @@
 import { computeRow, toCaps } from '../lib/forms.js';
 import { formatCurrency, sumColumn } from '../lib/template.js';
 import Select from './Select.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { fundsOf } from '../lib/defaults.js';
 
 function inputType(type) {
   if (type === 'number' || type === 'currency') return 'number';
@@ -79,6 +81,7 @@ function TableInput({ field, value, onChange, disabled }) {
 }
 
 export default function FieldInput({ field, value, onChange, disabled, invalid }) {
+  const funds = fundsOf(useAuth().settings);
   const label = (
     <label className="field-label" htmlFor={`f-${field.key}`}>
       {field.label} {field.required && <span className="req">*</span>}
@@ -91,10 +94,14 @@ export default function FieldInput({ field, value, onChange, disabled, invalid }
     control = <textarea id={`f-${field.key}`} rows={3} value={value ?? ''} disabled={disabled} className="caps"
       onChange={(e) => onChange(toCaps(e.target.value))} />;
   } else if (field.type === 'select') {
+    // The Fund field lists the LGU's funds (Settings), not the ones saved in the format; a value
+    // chosen earlier stays listed.
+    const listed = field.key === 'fund' ? funds : (field.options || []);
+    const options = value && !listed.includes(value) ? [...listed, value] : listed;
     control = (
       <Select id={`f-${field.key}`} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
         <option value="">— Select —</option>
-        {(field.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </Select>
     );
   } else {

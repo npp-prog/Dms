@@ -7,6 +7,7 @@ import Select from '../components/Select.jsx';
 import { addQrStamps, readSignatures } from '../lib/signing.js';
 import { qrAppearance, verifyUrl } from '../lib/qr.js';
 import { imageToPdf } from '../lib/imagePdf.js';
+import { fundsOf } from '../lib/defaults.js';
 
 // A document that is not prepared in DMS but already exists as a file: a scanned OBR, a letter,
 // a PDF made in another system. It gets a DMS control number, its file becomes its PDF (a photo
@@ -96,7 +97,10 @@ export default function UploadDocument() {
         </div>
         <div className="field">
           <label className="field-label" htmlFor={`${id}-f`}>Fund <span className="muted">(optional)</span></label>
-          <input id={`${id}-f`} className="caps" value={form.fund} onChange={set('fund')} />
+          <Select id={`${id}-f`} value={form.fund} onChange={(e) => setForm({ ...form, fund: e.target.value })}>
+            <option value="">—</option>
+            {fundsOf(settings).map((f) => <option key={f} value={f}>{f}</option>)}
+          </Select>
         </div>
         <div className="field upload-wide">
           <label className="field-label" htmlFor={`${id}-n`}>Notes <span className="muted">(optional)</span></label>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { saveSettings } from '../../lib/api.js';
 import { SIGNATORY_ROLES, signatoriesFrom } from '../../lib/signatories.js';
-import { positionsOf } from '../../lib/defaults.js';
+import { fundsOf, positionsOf } from '../../lib/defaults.js';
 
 export default function Settings() {
   const { settings, setSettings } = useAuth();
@@ -12,6 +12,7 @@ export default function Settings() {
   const setSig = (k) => (e) => setForm({ ...form, signatories: { ...form.signatories, [k]: e.target.value } });
   const [officeText, setOfficeText] = useState((settings.offices || []).join('\n'));
   const [positionText, setPositionText] = useState(positionsOf(settings).join('\n'));
+  const [fundText, setFundText] = useState(fundsOf(settings).join('\n'));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -19,7 +20,7 @@ export default function Settings() {
     try {
       const { updatedAt, ...rest } = form;
       const lines = (t) => [...new Set(t.split('\n').map((o) => o.trim()).filter(Boolean))];
-      const clean = { ...rest, offices: lines(officeText), positions: lines(positionText) };
+      const clean = { ...rest, offices: lines(officeText), positions: lines(positionText), funds: lines(fundText) };
       await saveSettings(clean);
       setSettings(clean);
       setStatus('Saved.');
@@ -66,6 +67,14 @@ export default function Settings() {
         <div className="fields">
           <div className="field field-wide">
             <textarea rows={10} value={officeText} onChange={(e) => setOfficeText(e.target.value)} />
+          </div>
+        </div>
+        <h3>Funds</h3>
+        <p className="small muted">One fund per line: listed in the Fund field of every form and when uploading a document. Renaming a fund here
+          does not change documents already saved.</p>
+        <div className="fields">
+          <div className="field field-wide">
+            <textarea rows={4} value={fundText} onChange={(e) => setFundText(e.target.value)} aria-label="Funds" />
           </div>
         </div>
         <h3>Positions</h3>

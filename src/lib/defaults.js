@@ -811,6 +811,10 @@ export const DEFAULT_POSITIONS = [
   'Encoder', 'Reviewer', 'Bookkeeper', 'Cashier', 'Disbursing Officer', 'Inspection Officer', 'Acceptance Officer',
   'Property Custodian', 'Records Officer', 'Signatory',
 ];
+// Funds of the LGU (the Fund field of every form, Upload). Admins add more in Settings.
+export const DEFAULT_FUNDS = ['General Fund', 'Special Education Fund', 'Trust Fund'];
+export const fundsOf = (settings) => (settings?.funds?.length ? settings.funds : DEFAULT_FUNDS);
+
 export const positionsOf = (settings) => (settings?.positions?.length ? settings.positions : DEFAULT_POSITIONS);
 
 export const DEFAULT_SETTINGS = {
@@ -839,6 +843,7 @@ export const DEFAULT_SETTINGS = {
     'Municipal Tourism Office',
   ],
   positions: DEFAULT_POSITIONS,
+  funds: DEFAULT_FUNDS,
   lguName: 'Municipal Government of Candoni',
   lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
   province: 'Negros Occidental',
