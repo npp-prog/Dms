@@ -114,6 +114,7 @@ function Conversation({ me, partner, convo, onBack, onSent }) {
 
   const send = async (e) => {
     e?.preventDefault();
+    if (busy) return; // Enter pressed again while sending
     if (!text.trim()) return;
     setBusy(true); setError('');
     // Sent: the conversation is on the server, so its messages can be listened to (a new one too).

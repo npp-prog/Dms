@@ -1242,3 +1242,7 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .archive-run .btn { flex: 0 0 auto; }
 .archive-log { margin-top: .75rem; }
 .archive-backup .receipts li { align-items: center; }
+
+/* A failed action on a document: over the page, which stays as it was */
+.action-toast { position: fixed; z-index: 60; left: 50%; bottom: 1.25rem; transform: translateX(-50%); width: min(560px, calc(100vw - 2rem));
+  display: flex; align-items: flex-start; gap: .5rem; justify-content: space-between; box-shadow: var(--shadow-lg); }

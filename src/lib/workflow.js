@@ -239,6 +239,9 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   if ((action === 'release' || action === 'complete') && uploadMissing(doc)) {
     throw new Error(`Upload ${wf.steps[wf.stage].upload} before releasing it.`);
   }
+  if ((action === 'release' || action === 'complete') && assignPending(doc)) {
+    throw new Error('This step assigns a reference no. that is not assigned yet: assign it (Workflow card), put it on the PDF, then release it.');
+  }
   if ((action === 'release' || action === 'complete') && refStampMissing(doc)) {
     throw new Error(`Put the ${refStampMissing(doc).label} on the PDF (PDF and digital signatures) before releasing it.`);
   }

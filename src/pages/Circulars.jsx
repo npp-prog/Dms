@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getFileBytes, listDirectory } from '../lib/api.js';
-import { CIRCULAR_KINDS, deleteCircular, getCircular, listCirculars, receiveCircular, sendCircular } from '../lib/social.js';
+import { CIRCULAR_KINDS, deleteCircular, getCircular, listCirculars, markNotificationsRead, receiveCircular, sendCircular, watchNotifications } from '../lib/social.js';
 import Select from '../components/Select.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
 
@@ -141,8 +141,13 @@ function NewCircular({ offices, me, onCancel, onSent }) {
   );
 }
 
+// A fresh page for each circular.
 export function CircularView() {
   const { id } = useParams();
+  return <CircularPage key={id} id={id} />;
+}
+
+function CircularPage({ id }) {
   const navigate = useNavigate();
   const { user, profile, isAdmin, actor } = useAuth();
   const [c, setC] = useState(null);
@@ -151,6 +156,12 @@ export function CircularView() {
   const [file, setFile] = useState(null); // { bytes, url } or { error }
   const load = () => getCircular(id).then((x) => (x ? setC(x) : setError('This circular no longer exists.'))).catch((e) => setError(e.code === 'permission-denied' ? 'This circular is not for your office.' : e.message));
   useEffect(() => { load(); }, [id]);
+  // Opened: its updates in Notifications are read.
+  useEffect(() => watchNotifications(user.uid, (list) => {
+    const ids = list.filter((n) => !n.read && n.link === `/circulars/${id}`).map((n) => n.id);
+    if (ids.length) markNotificationsRead(user.uid, ids).catch(() => {});
+  }, () => {}), [id, user.uid]);
+  const [actionError, setActionError] = useState('');
   useEffect(() => {
     if (!c?.file?.path) return undefined;
     let url = '';
@@ -171,12 +182,12 @@ export function CircularView() {
 
   const receive = async () => {
     setBusy(true);
-    try { await receiveCircular(id, actor); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
+    setActionError('');
+    try { await receiveCircular(id, actor); await load(); } catch (e) { setActionError(e.message); } finally { setBusy(false); }
   };
   const remove = async () => {
     if (!window.confirm(`Delete "${c.title}"? The offices it was sent to will no longer see it.`)) return;
-    await deleteCircular(id).catch((e) => setError(e.message));
-    navigate('/circulars', { replace: true });
+    try { await deleteCircular(id); navigate('/circulars', { replace: true }); } catch (e) { setActionError(e.message); }
   };
 
   return (
@@ -195,6 +206,7 @@ export function CircularView() {
               <dt>For</dt><dd>{c.all ? 'All offices' : c.toOffices.join(', ')}</dd>
               {c.note && <><dt>Note</dt><dd style={{ whiteSpace: 'pre-line' }}>{c.note}</dd></>}
             </dl>
+            {actionError && <div className="alert small">{actionError}</div>}
             {mine && (receipt
               ? <div className="alert-info small">Received by {receipt.name} on {when(receipt.at)}.</div>
               : <button className="btn btn-primary" disabled={busy} onClick={receive}>Mark received for {profile.office}</button>)}

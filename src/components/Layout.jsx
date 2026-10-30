@@ -16,12 +16,11 @@ export default function Layout() {
   useEffect(() => setOpen(false), [location.pathname]);
   // Documents waiting in the user's office (refreshed as the user moves around).
   const [waiting, setWaiting] = useState(0);
+  const [circulars, setCirculars] = useState([]); // ids of circulars the office has to receive
   useEffect(() => {
     if (!profile?.active) return;
-    Promise.all([
-      listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => d.length).catch(() => 0),
-      listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => toReceive(l, profile.office).length).catch(() => 0),
-    ]).then(([docs, circulars]) => setWaiting(docs + circulars));
+    listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => setWaiting(d.length)).catch(() => {});
+    listCirculars({ office: profile.office, uid: user.uid, isAdmin: false }).then((l) => setCirculars(toReceive(l, profile.office).map((c) => c.id))).catch(() => {});
   }, [location.pathname, profile?.office, profile?.active, isAdmin, isHead, user.uid]);
 
   // Conversations with a message not seen yet (live).
@@ -32,17 +31,19 @@ export default function Layout() {
   }, [user.uid, profile?.active]);
 
   // Updates not read yet (live), and communities with a message not seen yet.
-  const [updates, setUpdates] = useState(0);
+  const [unreadUpdates, setUnreadUpdates] = useState([]);
   useEffect(() => {
     if (!profile?.active) return undefined;
-    return watchNotifications(user.uid, (list) => setUpdates(list.filter((n) => !n.read).length), () => setUpdates(0));
+    return watchNotifications(user.uid, (list) => setUnreadUpdates(list.filter((n) => !n.read)), () => setUnreadUpdates([]));
   }, [user.uid, profile?.active]);
   const [groupUnread, setGroupUnread] = useState(0);
   useEffect(() => {
     if (!profile?.active) return undefined;
     return watchCommunities(user.uid, (list) => setGroupUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setGroupUnread(0));
   }, [user.uid, profile?.active]);
-  const notices = waiting + updates;
+  // A circular to receive that also has an unread update counts once.
+  const notices = waiting + unreadUpdates.length
+    + circulars.filter((id) => !unreadUpdates.some((n) => n.link === `/circulars/${id}`)).length;
 
   const groups = [
     { items: [['/', 'home', 'Dashboard', true]] },

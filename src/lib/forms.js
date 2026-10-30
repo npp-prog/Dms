@@ -1,5 +1,6 @@
 import { toNumber } from './template.js';
 import { isChecked } from './checklists.js';
+import { localDay } from './archiveFiles.js';
 
 // Pure helpers shared by the guided wizard and validation (no Firebase here).
 
@@ -83,7 +84,7 @@ export function initialData(type) {
   const data = {};
   for (const f of type?.fields || []) {
     if (f.type === 'table') data[f.key] = [];
-    else if (f.type === 'date' && f.key === 'date') data[f.key] = new Date().toISOString().slice(0, 10);
+    else if (f.type === 'date' && f.key === 'date') data[f.key] = localDay();
     else data[f.key] = f.default ?? '';
   }
   return data;

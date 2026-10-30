@@ -136,13 +136,20 @@ function FileView({ file, bytes }) {
   );
 }
 
+// A fresh page for each document (no state carried over from the one before).
 export default function DocumentView() {
   const { docId } = useParams();
+  return <DocumentPage key={docId} docId={docId} />;
+}
+
+function DocumentPage({ docId }) {
   const navigate = useNavigate();
   const { actor, settings, isAdmin, isHead, canRefer, user, profile } = useAuth();
   const [docData, setDocData] = useState(null);
   const [type, setType] = useState(null);
   const [error, setError] = useState('');
+  // An action that failed (release, upload, save…): shown over the page, which stays.
+  const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState('document');
   // An uploaded supporting document shown in the main area.
@@ -194,11 +201,16 @@ export default function DocumentView() {
     try {
       let d = await getDocument(docId);
       if (!d) throw new Error('Document not found.');
-      // At a step that assigns a reference no. (e.g. the DV No.): the office gets it on opening.
+      // At a step that assigns a reference no. (e.g. the DV No.): the office holding it gets it on
+      // opening (not an administrator who only looks at it: they can assign it in the Workflow card).
       if (d.status !== 'cancelled' && assignPending(d)
-        && canAct(d, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] })) {
-        await assignRefNo(docId, actor).catch(() => {});
-        d = (await getDocument(docId)) || d;
+        && canAct(d, { uid: user.uid, office: profile.office, isAdmin: false, isHead, positions: profile.positions || [] })) {
+        try {
+          await assignRefNo(docId, actor);
+          d = (await getDocument(docId)) || d;
+        } catch (e) {
+          setActionError(`The reference no. could not be assigned: ${e.message}`);
+        }
       }
       setDocData(d);
       ensureCheck(docId, d).catch(() => {}); // only those who may act on it can write it
@@ -232,7 +244,7 @@ export default function DocumentView() {
   const uploaded = Boolean(docData.uploaded);
   const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = !uploaded && editable && (docData.status === 'complete' || (revising && (docData.pdf?.files || []).length > 0)) && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
+  const canSign = editable && docData.status === 'complete' && wf?.state !== 'done' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
   // (The office holding it signs: documents are no longer received first.)
   // Signing is open only at a step of the route that signs (or to a person it is referred to).
   const signHere = !wf || (wf.state === 'in-progress' && Boolean(wf.referral || wf.steps[wf.stage]?.sign));
@@ -243,7 +255,8 @@ export default function DocumentView() {
   const canCancel = editable && (isAdmin || (isOwner && atPreparer && wf?.state !== 'done'));
   const run = async (fn) => {
     setBusy(true);
-    try { await fn(); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); }
+    setActionError('');
+    try { await fn(); await load(); } catch (e) { setActionError(e.message); } finally { setBusy(false); }
   };
 
   const remove = () => {
@@ -265,6 +278,10 @@ export default function DocumentView() {
 
   return (
     <div className="page">
+      {actionError && (
+        <div className="alert action-toast no-print" role="alert">{actionError}
+          <button type="button" className="btn-icon" aria-label="Close" onClick={() => setActionError('')}>×</button></div>
+      )}
       <div className="page-head no-print">
         <div>
           <div className="crumbs"><Link to="/documents">Documents</Link> / {docData.controlNo}</div>
@@ -305,7 +322,7 @@ export default function DocumentView() {
               canConvert={canConvert} canSign={canSign} signStep={signHere} onChanged={load}
               onLoaded={(p) => {
                 setPdfView(p);
-                if (shownPdf.current !== p.bytes) { shownPdf.current = p.bytes; setView('pdf'); }
+                if (shownPdf.current !== p.path) { shownPdf.current = p.path; setView('pdf'); }
               }}
               onView={() => { setView('pdf'); viewer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
               placements={placements}
@@ -360,6 +377,7 @@ export default function DocumentView() {
               onlyPositions={wf?.state === 'in-progress' && !wf.referral && !isAdmin && profile.office && officeOf(wf.steps[wf.stage], docData) === profile.office
                 && !holdsPosition(wf.steps[wf.stage], profile.positions || [], isHead) ? wf.steps[wf.stage].positions : null}
               onRefer={(to, note, done) => run(async () => { await referDocument(docId, to, note, actor); done(); })}
+              onAssign={() => run(() => assignRefNo(docId, actor))}
               onChooseOffices={(picks) => run(() => chooseStepOffices(docId, picks, actor))}
               sendPanel={wf?.steps?.[wf.stage]?.fills && (
                 <SendPanel doc={docData} me={user.uid} busy={busy}

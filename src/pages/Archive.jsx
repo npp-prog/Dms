@@ -194,8 +194,9 @@ function Backups({ docs, me }) {
   if (!settings) return msg ? <div className="alert">{msg.text}</div> : null;
 
   const status = backupStatus(backups, settings);
-  const device = settings.devices.find((d) => d.id === form.device);
-  const last = backups.find((b) => b.device === form.device);
+  // The chosen device, else the first (e.g. one just added, or the chosen one removed).
+  const device = settings.devices.find((d) => d.id === form.device) || settings.devices[0];
+  const last = device ? backups.find((b) => b.device === device.id) : null;
   const batch = toBackUp(docs, last, form.kind);
 
   const run = async () => {
@@ -219,7 +220,7 @@ function Backups({ docs, me }) {
         <h3>Backups</h3>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Devices and schedule'}</button>
       </div>
-      {editing ? <Devices settings={settings} onSaved={(s) => { setSettings(s); setEditing(false); }} /> : (
+      {editing ? <Devices settings={settings} onSaved={(s) => { setSettings(s); setEditing(false); setForm((f) => ({ ...f, device: s.devices.some((d) => d.id === f.device) ? f.device : s.devices[0]?.id || '' })); }} /> : (
         <>
           {status.length === 0 && <p className="small muted">No backup device yet. Click <b>Devices and schedule</b> and add the computer, external drive or other device the archive is backed up to.</p>}
           <ul className="receipts">
@@ -233,7 +234,7 @@ function Backups({ docs, me }) {
           </ul>
           {status.length > 0 && (
             <div className="archive-run">
-              <Select value={form.device} onChange={(e) => setForm({ ...form, device: e.target.value })} aria-label="Device">
+              <Select value={device?.id || ''} onChange={(e) => setForm({ ...form, device: e.target.value })} aria-label="Device">
                 {settings.devices.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </Select>
               <Select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} aria-label="What to back up">

@@ -1,5 +1,6 @@
 import { amountToWords } from './numberToWords.js';
 import { approverSignatories, viceApproves } from './approver.js';
+import { localDay } from './archiveFiles.js';
 
 // Lightweight template engine for document formats.
 //
@@ -165,7 +166,7 @@ export function renderTemplate(template, ctx = {}) {
   const base = {
     ...(ctx.data || {}),
     controlNo: ctx.controlNo || '',
-    today: ctx.today || new Date().toISOString().slice(0, 10),
+    today: ctx.today || localDay(),
     lgu: ctx.lgu || {},
     docType: ctx.docType || {},
     preparedBy: ctx.preparedBy || '',

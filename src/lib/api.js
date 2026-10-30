@@ -10,6 +10,7 @@ import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES
 import { checkRecord } from './publicRecord.js';
 import { applyAction, assignPending, buildWorkflow, cancelWorkflow, officeOf, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
 import { withApprover } from './approver.js';
+import { localDay } from './archiveFiles.js';
 import { notify } from './social.js';
 
 // ---------- Users ----------
@@ -676,13 +677,13 @@ export async function assignRefNo(id, user) {
     const value = (counter.exists() ? counter.data().value : 0) + 1;
     const number = series.format(value);
     const iso = now.toISOString();
-    const data = { ...(d.data || {}), [assign.field]: number, ...(assign.dateField ? { [assign.dateField]: iso.slice(0, 10) } : {}) };
+    const data = { ...(d.data || {}), [assign.field]: number, ...(assign.dateField ? { [assign.dateField]: localDay(now) } : {}) };
     const who = { stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, at: iso };
     // Every data field set here is listed in refNos (the security rules allow only those).
     const refNos = {
       ...(d.refNos || {}),
       [assign.field]: { value: number, label: field?.label || assign.field, ...who },
-      ...(assign.dateField ? { [assign.dateField]: { value: iso.slice(0, 10), label: 'Date', of: assign.field, ...who } } : {}),
+      ...(assign.dateField ? { [assign.dateField]: { value: localDay(now), label: 'Date', of: assign.field, ...who } } : {}),
     };
     tx.set(counterRef, { value });
     patch.data = data;
@@ -1073,13 +1074,17 @@ export function deleteDocument(id) {
 }
 
 export function snapshotType(type) {
-  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'template', 'paperSize', 'orientation', 'bulkDownload', 'uploadOnly'];
+  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'template', 'paperSize', 'orientation', 'bulkDownload', 'uploadOnly', 'headerOffice'];
   return Object.fromEntries(keys.filter((k) => type[k] !== undefined).map((k) => [k, type[k]]));
 }
 
 // Prefer the frozen format stored on the document; fall back to the live type.
 export async function getTypeForDocument(document) {
-  if (document.typeSnapshot?.template !== undefined || !document.typeId) return withApprover({ id: document.typeId, ...document.typeSnapshot });
+  if (document.typeSnapshot?.template !== undefined || !document.typeId) {
+    // Saved before the snapshot kept the letterhead office (the Travel Order: the Mayor's).
+    const headerOffice = document.typeSnapshot?.headerOffice ?? STARTER_TYPES.find((t) => t.code === document.typeSnapshot?.code)?.headerOffice;
+    return withApprover({ id: document.typeId, ...document.typeSnapshot, ...(headerOffice ? { headerOffice } : {}) });
+  }
   return getDocumentType(document.typeId);
 }
 

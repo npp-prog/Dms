@@ -66,20 +66,29 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [refEdit, setRefEdit] = useState(null); // { value, date } while changing the assigned no.
   const placement = placements.mark;
 
-  // Load the current PDF and check every signature in it.
+  // Load the current PDF and check every signature in it: once per version (not again when the
+  // document is reloaded after another action).
   useEffect(() => {
     let live = true;
     setBytes(null); setSignatures(null);
     if (current) {
-      // A version made in this page is already here: no need to download it again.
+      // A version already here (made in this page, or downloaded before): not downloaded again.
       (made.current[current.path] ? Promise.resolve(made.current[current.path]) : getPdfBytes(current.path))
-        .then((b) => { if (live) { const s = readSignatures(b); setBytes(b); setSignatures(s); onLoaded?.({ bytes: b, signatures: s }); } })
+        .then((b) => {
+          made.current[current.path] = b;
+          if (live) { const s = readSignatures(b); setBytes(b); setSignatures(s); onLoaded?.({ path: current.path, bytes: b, signatures: s }); }
+        })
         .catch((e) => live && setError(`Could not open the PDF: ${e.message}`));
     }
-    // Only bases computed the current way are compared; older ones could differ in how, not what.
+    return () => { live = false; };
+  }, [current?.path]);
+  // Is the PDF still the document as it is? Only bases computed the current way are compared;
+  // older ones could differ in how, not what.
+  useEffect(() => {
+    let live = true;
     documentBasis(docData).then((b) => live && setStale(docData.pdf?.basisV === BASIS_VERSION && Boolean(docData.pdf?.basis) && b !== docData.pdf.basis));
     return () => { live = false; };
-  }, [current?.path, docData]);
+  }, [docData]);
   useEffect(() => setWhy(reason || ''), [reason]);
   useEffect(() => {
     if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch((e) => { setSaved(null); setError(e.message); });
@@ -87,7 +96,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   useEffect(() => {
     if (mode === 'sign' && mark === undefined) getSavedMark(actor.uid).then(setMark).catch((e) => { setMark(null); setError(e.message); });
   }, [mode, mark, actor.uid]);
-  const markUrl = useMemo(() => (mark ? URL.createObjectURL(new Blob([mark], { type: 'image/png' })) : ''), [mark]);
+  const [markUrl, setMarkUrl] = useState('');
+  useEffect(() => {
+    if (!mark) { setMarkUrl(''); return undefined; }
+    const url = URL.createObjectURL(new Blob([mark], { type: 'image/png' }));
+    setMarkUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [mark]);
   const placingMark = mode === 'sign' && Boolean(mark) && useMark;
   // Reference nos. this office assigned at its step (e.g. the DV No.): shown on its signature.
   const wf = docData.workflow;
@@ -163,6 +178,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   // Signed: the current PDF (not a superseded one).
   const signed = (signatures || []).length > 0 || signedFiles.length > 0;
   const run = async (label, fn) => {
+    if (busy) return; // e.g. Enter pressed again while signing
     setBusy(label); setError(''); setNotice('');
     try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(''); }
   };

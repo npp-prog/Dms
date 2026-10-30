@@ -161,6 +161,7 @@ function Room({ c, me, manages, onBack, onGone }) {
 
   const send = async (e) => {
     e?.preventDefault();
+    if (busy) return; // Enter pressed again while sending
     if (!text.trim() && !file) return;
     setBusy(true); setError('');
     try { await postToCommunity(c, me, { text, file }); setText(''); setFile(null); } catch (err) { setError(err.message); } finally { setBusy(false); }

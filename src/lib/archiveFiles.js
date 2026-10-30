@@ -1,6 +1,10 @@
 // What the Archive keeps of a document, shared by the backup ZIP (lib/archive.js) and the
 // automatic Google Drive backup (netlify/lib/driveBackup.mjs). No Firebase here.
 
+// The calendar day (YYYY-MM-DD) in the Philippines, wherever the code runs (a phone, a Netlify
+// server in UTC): toISOString().slice(0, 10) gives the UTC day, the day before until 8 a.m.
+export const localDay = (d = new Date()) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
 export const isArchived = (d) => d?.workflow?.state === 'done';
 export const processedAt = (d) => [...(d?.workflow?.events || [])].reverse().find((e) => e.type === 'completed')?.at || '';
 
@@ -19,4 +23,4 @@ export function filesOf(d) {
 }
 
 // The folder of a document in a backup: year processed / type / control no. and payee.
-export const docFolder = (d) => [(processedAt(d) || '').slice(0, 4) || 'undated', safe(d.typeCode) || 'DOC', safe(`${d.controlNo} ${d.title}`)];
+export const docFolder = (d) => [processedAt(d) ? localDay(processedAt(d)).slice(0, 4) : 'undated', safe(d.typeCode) || 'DOC', safe(`${d.controlNo} ${d.title}`)];

@@ -211,6 +211,10 @@ test('document workflow', () => {
   // to the end; the payment step needs the check details and the DV signed in Box E
   while (doc.workflow.state === 'in-progress') {
     const a = availableActions(doc)[0];
+    if (assignPending(doc)) { // the DV No., assigned when Accounting opens it
+      assert.throws(() => applyAction(doc, a, { uid: 'x', displayName: 'X' }), /not assigned yet/);
+      doc.data = { ...doc.data, dvNo: '0001', dvDate: '2026-10-30' };
+    }
     if (fillsMissing(doc).length) {
       assert.deepEqual(fillsMissing(doc), ['checkNo', 'checkDate', 'bankName']);
       assert.throws(() => applyAction(doc, a, { uid: 'x', displayName: 'X' }), /Fill in/);
@@ -433,6 +437,8 @@ test('a step that assigns a reference no. puts it on the PDF before releasing', 
   doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
   assert.equal(refStampMissing(doc), null, 'nothing assigned yet');
   assert.equal(assignPending(doc), true, 'Accounting gets the number on opening it');
+  assert.throws(() => applyAction(doc, 'release', rosa), /not assigned yet/);
+  doc.data = { dvNo: '0001', dvDate: '2026-10-30' };
   doc.refNos = { dvNo: { value: '0001', label: 'Disbursement No.', stage: 1, at: '2026-10-30T02:00:00Z' }, dvDate: { value: '2026-10-30', label: 'Date', of: 'dvNo', stage: 1 } };
   assert.deepEqual(refStampMissing(doc), { field: 'dvNo', label: 'Disbursement No.', value: '0001', date: '2026-10-30' });
   assert.throws(() => applyAction(doc, 'release', rosa), /Put the Disbursement No\. on the PDF/);

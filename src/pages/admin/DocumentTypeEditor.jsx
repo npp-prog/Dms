@@ -72,11 +72,13 @@ export default function DocumentTypeEditor() {
   const [type, setType] = useState(typeId ? null : EMPTY);
   const [tab, setTab] = useState(TABS[0]);
   const [error, setError] = useState('');
+  // Could not load the type: the page shows only this (save errors show above the editor).
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (typeId) getDocumentType(typeId).then((t) => (t ? setType({ ...EMPTY, ...t }) : setError('Not found'))).catch((e) => setError(e.message));
+    if (typeId) getDocumentType(typeId).then((t) => (t ? setType({ ...EMPTY, ...t }) : setLoadError('Not found'))).catch((e) => setLoadError(e.message));
   }, [typeId]);
 
   const issues = useMemo(() => {
@@ -84,17 +86,17 @@ export default function DocumentTypeEditor() {
     const list = [];
     if (!type.code.trim()) list.push('Code is required.');
     if (!type.name.trim()) list.push('Name is required.');
+    if (type.processing.some((p) => !p.office.trim() || !p.action.trim())) list.push('Every processing step needs an office and an action.');
     if (type.uploadOnly) return list;
     const keys = type.fields.map((f) => f.key);
     if (keys.some((k) => !k)) list.push('Every field needs a key.');
     if (new Set(keys).size !== keys.length) list.push('Field keys must be unique.');
     if (keys.some((k) => k && !/^[A-Za-z_][\w]*$/.test(k))) list.push('Field keys may only contain letters, numbers and underscores.');
     if (type.checklist.some((c) => !c.label.trim())) list.push('Every checklist item needs a label.');
-    if (type.processing.some((p) => !p.office.trim() || !p.action.trim())) list.push('Every processing step needs an office and an action.');
     return list;
   }, [type]);
 
-  if (error) return <div className="page"><div className="alert">{error}</div></div>;
+  if (loadError) return <div className="page"><div className="alert">{loadError}</div></div>;
   if (!type) return <div className="page"><div className="spinner" /></div>;
 
   const patch = (p) => { setSaved(false); setType((t) => ({ ...t, ...p })); };
