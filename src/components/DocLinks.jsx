@@ -28,25 +28,28 @@ export function LinkList({ links = [], onRemove, onOpen }) {
   if (!links.length) return null;
   return (
     <ul className="doc-links">
-      {links.map((l, i) => (
-        <li key={i}>
-          <span className="badge badge-blue">{l.kind === 'fts' ? 'DMS' : l.kind === 'file' ? 'File' : l.system}</span>{' '}
-          {l.kind === 'file' ? (
-            <>
-              {onOpen ? <button type="button" className="link" onClick={() => onOpen(l, i)}>{l.name}</button> : l.name}
-              {l.dms && <> · <Link to={`/documents/${l.dms.id}`} title="Open it as a DMS document">{l.dms.controlNo}</Link></>}
-              <span className="muted"> · {kb(l.size)} · {l.by}</span>
-            </>
-          ) : l.kind === 'fts'
-            ? (onOpen ? <button type="button" className="link" onClick={() => onOpen(l, i)}>{l.controlNo}</button>
-              : <Link to={`/documents/${l.id}`} target="_blank" rel="noopener">{l.controlNo}</Link>)
-            : safeUrl(l.url)
-              ? <a href={safeUrl(l.url)} target="_blank" rel="noopener noreferrer">{l.ref || safeUrl(l.url)}</a>
-              : l.ref}
-          {l.kind === 'fts' && <span className="muted"> · {l.typeCode}{l.title ? ` · ${l.title}` : ''}</span>}
-          {onRemove && <button type="button" className="btn-icon" title="Remove link" onClick={() => onRemove(i)}>×</button>}
-        </li>
-      ))}
+      {links.map((l, i) => {
+        const url = safeUrl(l.url);
+        const title = l.kind === 'file' ? l.name : l.kind === 'fts' ? l.controlNo : l.ref || url || l.system;
+        const open = onOpen && (l.kind === 'file' || l.kind === 'fts') ? () => onOpen(l, i) : null;
+        // The line under the name: what it is and where it comes from.
+        const meta = l.kind === 'file'
+          ? [l.dms && <Link key="d" to={`/documents/${l.dms.id}`} title="Open it as a DMS document">{l.dms.controlNo}</Link>, kb(l.size), l.by]
+          : l.kind === 'fts' ? ['DMS', l.typeCode, l.title] : [l.system];
+        return (
+          <li key={i} className="doc-link">
+            <span className={`doc-link-ic ${l.kind === 'file' || l.kind === 'fts' ? l.kind : 'ext'}`} aria-hidden="true">{l.kind === 'file' ? 'PDF' : l.kind === 'fts' ? 'DMS' : '↗'}</span>
+            <span className="doc-link-body">
+              {open ? <button type="button" className="doc-link-name" title={title} onClick={open}>{title}</button>
+                : l.kind === 'fts' ? <Link className="doc-link-name" to={`/documents/${l.id}`} target="_blank" rel="noopener">{title}</Link>
+                  : url ? <a className="doc-link-name" href={url} target="_blank" rel="noopener noreferrer" title={title}>{title}</a>
+                    : <span className="doc-link-name plain" title={title}>{title}</span>}
+              <span className="doc-link-meta">{meta.filter(Boolean).map((m, j) => <span key={j}>{m}</span>)}</span>
+            </span>
+            {onRemove && <button type="button" className="btn-icon" title="Remove" onClick={() => onRemove(i)}>×</button>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

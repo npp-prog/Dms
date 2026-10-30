@@ -675,9 +675,20 @@ details summary { cursor: pointer; font-weight: 600; margin-top: .8rem; }
 .checklist-view .doc-links, .checklist-view .link-editor { margin-left: 1.4rem; }
 .main > .back-btn { margin: -.6rem 0 .6rem; padding-left: .55rem; }
 .bulk-status { align-self: center; max-width: 22rem; }
-.doc-links { list-style: none; margin: .35rem 0 .2rem; padding: 0; font-size: .85rem; }
-.doc-links li { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; padding: .1rem 0; }
-.doc-links a { overflow-wrap: anywhere; }
+.doc-links { list-style: none; margin: .4rem 0 .3rem; padding: 0; display: grid; gap: .35rem; }
+.doc-link { display: flex; align-items: center; gap: .6rem; padding: .45rem .55rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.doc-link-ic { flex: none; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 700; letter-spacing: .02em; background: #fdecec; color: #b42318; }
+.doc-link-ic.fts { background: var(--info-bg); color: var(--info); }
+.doc-link-ic.ext { background: var(--sunken); color: var(--muted); font-size: .9rem; }
+.doc-link-body { flex: 1; min-width: 0; display: grid; gap: .1rem; }
+.doc-link-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: 0; padding: 0; text-align: left; font: inherit; font-size: .88rem; font-weight: 500; color: var(--ink); text-decoration: none; cursor: pointer; }
+.doc-link-name:hover { text-decoration: underline; }
+.doc-link-name.plain { cursor: default; }
+.doc-link-name.plain:hover { text-decoration: none; }
+.doc-link-meta { display: flex; flex-wrap: wrap; gap: 0 .4rem; font-size: .76rem; color: var(--muted); }
+.doc-link-meta span + span::before { content: "·"; margin-right: .4rem; }
+.doc-link-meta a { color: var(--primary); }
+.doc-link .btn-icon { flex: none; }
 .link-editor { margin-top: .5rem; padding: .7rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; display: grid; gap: .55rem; }
 .link-editor .tabs { margin-bottom: 0; }
 .additional-docs { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
