@@ -17,7 +17,7 @@ export const safeUrl = (url) => (/^https?:\/\/\S+$/i.test(String(url || '').trim
 // One-line text of a link, as printed on the checklist.
 export function linkText(l) {
   if (l.kind === 'fts') return `${l.controlNo} (${l.typeCode})`;
-  if (l.kind === 'file') return `File: ${l.name}`;
+  if (l.kind === 'file') return l.dms ? `${l.dms.controlNo} (File: ${l.name})` : `File: ${l.name}`;
   return [l.system, l.ref || safeUrl(l.url)].filter(Boolean).join(': ');
 }
 
@@ -34,6 +34,7 @@ export function LinkList({ links = [], onRemove, onOpen }) {
           {l.kind === 'file' ? (
             <>
               {onOpen ? <button type="button" className="link" onClick={() => onOpen(l, i)}>{l.name}</button> : l.name}
+              {l.dms && <> · <Link to={`/documents/${l.dms.id}`} title="Open it as a DMS document">{l.dms.controlNo}</Link></>}
               <span className="muted"> · {kb(l.size)} · {l.by}</span>
             </>
           ) : l.kind === 'fts'

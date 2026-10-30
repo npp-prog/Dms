@@ -401,6 +401,44 @@ export async function uploadAttachment(docId, itemId, file, user, onProgress) {
   return { kind: 'file', path, name: file.name, type: file.type, size: file.size, by: user.displayName || user.email, at: new Date().toISOString() };
 }
 
+// A file uploaded to a checklist item is also a DMS document of its own (All Documents, with a
+// control no. and the QR code), supporting the document it was uploaded to. Its file stays with
+// that document (documents/{parent}/attachments/...), so everyone who sees the checklist opens it.
+// Step 1: the record (draft until its file is stored).
+export async function createSupportingDocument(parent, item, { typeCode = '', fileName }, user) {
+  const controlNo = await nextControlNo();
+  const typeName = String(item.label || 'Supporting document').slice(0, 120);
+  const ref = await addDoc(collection(db, 'documents'), {
+    typeId: '', typeCode: typeCode || 'DOC', typeName, typeVersion: 1,
+    typeSnapshot: { code: typeCode || 'DOC', name: typeName, fields: [], steps: [], processing: [], template: '' },
+    controlNo,
+    data: { payee: parent.title || '', fund: parent.data?.fund || '', notes: `Supporting document of ${parent.controlNo}` },
+    checklist: {}, additionalDocs: [], links: {}, transaction: null, signatories: null,
+    status: 'draft', uploaded: { name: fileName, at: new Date().toISOString() },
+    supports: { id: parent.id, controlNo: parent.controlNo, typeCode: parent.typeCode, item: typeName },
+    title: parent.title || typeName,
+    createdBy: user.uid, createdByName: user.displayName || user.email, office: user.office || '',
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    history: [historyEntry('uploaded', user, `${fileName} · supporting ${parent.controlNo}`)],
+  });
+  return { id: ref.id, controlNo };
+}
+
+// Step 2: its file (already stored with the parent), its verification and public records.
+export async function finishSupportingDocument(id, link, bytes, user) {
+  const ref = doc(db, 'documents', id);
+  const file = { path: link.path, size: bytes.length, sha256: await sha256(bytes), kind: 'uploaded', method: 'dms', reason: '', stage: null, at: link.at, by: link.by, uid: user.uid, signer: null };
+  const verifyRef = doc(db, 'verifications', file.sha256);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    const known = (await tx.get(verifyRef)).exists();
+    if (!known) tx.set(verifyRef, { controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: 1, kind: 'uploaded', signer: '', signatures: 0, by: file.by, at: file.at });
+    const next = { ...d, pdf: { basis: null, basisV: null, files: [file] }, status: 'complete' };
+    tx.update(ref, { pdf: next.pdf, status: 'complete', updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('complete', user, link.name)] });
+    tx.set(doc(db, 'checks', id), checkRecord(next));
+  });
+}
+
 export async function getFileBytes(path) {
   try {
     return new Uint8Array(await getBytes(storageRef(storage, path)));

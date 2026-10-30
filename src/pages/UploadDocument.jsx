@@ -6,6 +6,7 @@ import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, lis
 import Select from '../components/Select.jsx';
 import { addQrStamps, readSignatures } from '../lib/signing.js';
 import { qrAppearance, verifyUrl } from '../lib/qr.js';
+import { imageToPdf } from '../lib/imagePdf.js';
 
 // A document that is not prepared in DMS but already exists as a file: a scanned OBR, a letter,
 // a PDF made in another system. It gets a DMS control number, its file becomes its PDF (a photo
@@ -13,26 +14,6 @@ import { qrAppearance, verifyUrl } from '../lib/qr.js';
 const OTHER = { id: '', code: 'DOC', name: 'Other document', fields: [], steps: [], processing: [], template: '' };
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 const size = (n) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
-
-// A picture (photo or scan) as a one-page A4 PDF.
-async function imageToPdf(file) {
-  const [{ jsPDF }, bmp] = await Promise.all([import('jspdf'), createImageBitmap(file)]);
-  const c = document.createElement('canvas');
-  const k = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
-  c.width = Math.round(bmp.width * k);
-  c.height = Math.round(bmp.height * k);
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.drawImage(bmp, 0, 0, c.width, c.height);
-  const landscape = c.width > c.height;
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' });
-  const pw = landscape ? 297 : 210;
-  const ph = landscape ? 210 : 297;
-  const s = Math.min((pw - 20) / c.width, (ph - 20) / c.height);
-  pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', (pw - c.width * s) / 2, (ph - c.height * s) / 2, c.width * s, c.height * s);
-  return new Uint8Array(pdf.output('arraybuffer'));
-}
 
 export default function UploadDocument() {
   const { actor, settings } = useAuth();

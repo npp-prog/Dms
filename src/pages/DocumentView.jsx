@@ -1,8 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, createSupportingDocument, finishSupportingDocument, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
 import { canAct, editableByPreparer, holdsPosition, isReceived, officeOf } from '../lib/workflow.js';
+import { addQrStamps, readSignatures } from '../lib/signing.js';
+import { qrAppearance, verifyUrl } from '../lib/qr.js';
+import { imageToPdf } from '../lib/imagePdf.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
@@ -17,7 +20,6 @@ import PdfCard from '../components/PdfCard.jsx';
 import SendPanel from '../components/SendPanel.jsx';
 import { pdfFileName } from '../components/printables.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
-import { readSignatures } from '../lib/signing.js';
 
 function downloadBytes(bytes, name, type) {
   const a = document.createElement('a');
@@ -31,7 +33,7 @@ function downloadBytes(bytes, name, type) {
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 // Under a checklist item: its linked and uploaded documents, and (for the preparer) link or upload.
-function ItemLinks({ item, links, canEdit, docId, actor, onChange, onOpen }) {
+function ItemLinks({ item, links, canEdit, docId, parent, actor, onChange, onOpen }) {
   const [open, setOpen] = useState(false);
   const [upload, setUpload] = useState('');
   const [error, setError] = useState('');
@@ -39,7 +41,19 @@ function ItemLinks({ item, links, canEdit, docId, actor, onChange, onOpen }) {
     if (!file) return;
     setError(''); setUpload('Uploading… 0%');
     try {
-      const l = await uploadAttachment(docId, item.id, file, actor, (x) => setUpload(`Uploading… ${Math.round(x * 100)}%`));
+      if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Upload a PDF or a picture (JPG or PNG).');
+      // It is also a DMS document of its own (All Documents, with a control no. and the QR code).
+      setUpload('Preparing the PDF…');
+      let pdf = file.type === 'application/pdf' ? new Uint8Array(await file.arrayBuffer()) : await imageToPdf(file);
+      const code = itemTypeCode(item);
+      const created = await createSupportingDocument(parent, item, { typeCode: /^[A-Z]{2,8}$/.test(code) ? code : '', fileName: file.name }, actor);
+      try {
+        if (!readSignatures(pdf).length) pdf = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
+      } catch { /* kept without the code */ }
+      const name = file.type === 'application/pdf' ? file.name : `${file.name.replace(/\.[^.]+$/, '')}.pdf`;
+      const stored = await uploadAttachment(docId, item.id, new File([pdf], name, { type: 'application/pdf' }), actor, (x) => setUpload(`Uploading… ${Math.round(x * 100)}%`));
+      await finishSupportingDocument(created.id, stored, pdf, actor);
+      const l = { ...stored, dms: { id: created.id, controlNo: created.controlNo } };
       await onChange([...links, l], linkText(l));
     } catch (e) {
       setError(e.message);
@@ -207,6 +221,10 @@ export default function DocumentView() {
           <div className="crumbs"><Link to="/documents">Documents</Link> / {docData.controlNo}</div>
           <h1>{docData.typeName} <StatusBadge status={docData.status} /></h1>
           <p className="muted">{docData.title} · {docData.uploaded ? 'Uploaded' : 'Prepared'} by {docData.createdByName}</p>
+          {docData.supports && (
+            <p className="small">Supporting document of <Link to={`/documents/${docData.supports.id}`}>{docData.supports.controlNo}</Link>
+              {docData.supports.typeCode ? ` (${docData.supports.typeCode})` : ''}, checklist item <i>{docData.supports.item}</i>.</p>
+          )}
         </div>
         <div className="row gap wrap">
           {view !== 'pdf' && <button className="btn btn-primary" onClick={() => window.print()}>Print {view === 'checklist' ? 'checklist' : 'document'}</button>}
@@ -329,7 +347,7 @@ export default function DocumentView() {
                   const v = docData.checklist?.[c.id];
                   return (
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} actor={actor}
+                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} parent={{ ...docData, id: docId }} actor={actor}
                         onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))}
                         canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
                         onChange={(list, note) => run(async () => saveDocumentLinks(docId, {
