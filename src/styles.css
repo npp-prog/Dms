@@ -177,10 +177,10 @@ table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 /* Prepare Document: the document types as a list. */
 .type-search { max-width: 360px; margin: .2rem 0 .9rem; }
 .type-list { padding: .3rem; max-width: 860px; }
-.type-list a { display: flex; align-items: center; gap: 1rem; padding: .75rem .9rem; border-radius: 10px; text-decoration: none; color: var(--ink); }
-.type-list a + a { box-shadow: 0 -1px 0 var(--line); }
-.type-list a:hover { background: var(--hover); box-shadow: none; }
-.type-list a:hover + a { box-shadow: none; }
+.type-list > a { display: flex; align-items: center; gap: 1rem; padding: .75rem .9rem; border-radius: 10px; text-decoration: none; color: var(--ink); }
+.type-list > a + a { box-shadow: 0 -1px 0 var(--line); }
+.type-list > a:hover { background: var(--hover); box-shadow: none; }
+.type-list > a:hover + a { box-shadow: none; }
 .type-list .code { flex: none; min-width: 5.2rem; font-weight: 600; font-size: .88rem; color: var(--primary); }
 .type-list .name { flex: 1; min-width: 0; font-size: .98rem; font-weight: 500; }
 .type-list .cat { flex: none; font-size: .8rem; color: var(--muted); }
@@ -1029,3 +1029,7 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .zip-dates .field { margin: 0; }
 .zip-count { padding-bottom: .6rem; }
 .upcoming .drn { color: var(--muted); font-size: .9em; white-space: nowrap; }
+.type-list.type-choose { max-width: none; }
+.type-choose .type-row { padding: .5rem .9rem; }
+.type-choose .type-acts .btn { min-height: 28px; padding: .18rem .65rem; font-size: .8rem; border-radius: 7px; }
+.type-choose .type-acts .btn-primary { color: #fff; }
