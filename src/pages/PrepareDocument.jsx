@@ -13,30 +13,46 @@ import FieldInput from '../components/FieldInput.jsx';
 import DocumentPreview from '../components/DocumentPreview.jsx';
 import ProcessingGuide from '../components/ProcessingGuide.jsx';
 
+// New document (from the Dashboard's "+ New document"; not in the menu): choose the type, then
+// prepare it in DMS from its format, or upload it as a file.
 function TypePicker() {
   const [types, setTypes] = useState(null);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
-  useEffect(() => { listDocumentTypes({ activeOnly: true }).then((t) => setTypes(t.filter((x) => !x.uploadOnly))).catch((e) => setError(e.message)); }, []);
+  useEffect(() => { listDocumentTypes({ activeOnly: true }).then(setTypes).catch((e) => setError(e.message)); }, []);
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = (types || []).filter((t) => words.every((w) => `${t.code} ${t.name} ${t.category}`.toLowerCase().includes(w)));
   return (
     <div className="page">
-      <h1>Prepare Document</h1>
-      <p className="muted">Choose the document you need to prepare. You will be guided step by step, followed by the checklist of requirements.</p>
-      {types?.length > 6 && <input className="search type-search" placeholder="Search by code or name…" value={q} onChange={(e) => setQ(e.target.value)} />}
+      <h1>New document</h1>
+      <p className="muted">Choose the type of document. <b>Prepare</b> encodes it in DMS step by step, followed by its checklist;
+        <b> Upload</b> brings in a file you already have (a scanned or signed form, a PDF from another system).</p>
       {error && <div className="alert">{error}</div>}
       {!types && !error && <div className="spinner" />}
-      {types?.length === 0 && <p className="muted">No document types are available yet.</p>}
-      {types?.length > 0 && (
-        <div className="card type-list">
-          {types.filter((t) => `${t.code} ${t.name} ${t.category}`.toLowerCase().includes(q.trim().toLowerCase())).map((t) => (
-            <Link key={t.id} to={`/new/${t.id}`}>
-              <span className="code">{t.code}</span>
-              <span className="name">{t.name}</span>
-              {t.category && <span className="cat">{t.category}</span>}
-              <span className="go" aria-hidden="true">›</span>
-            </Link>
-          ))}
-        </div>
+      {types && (
+        <>
+          {types.length > 6 && <input className="search type-search" type="search" placeholder="Search by code or name…" value={q} onChange={(e) => setQ(e.target.value)} />}
+          <div className="card type-list type-choose">
+            {shown.map((t) => (
+              <div key={t.id} className="type-row">
+                <span className="code">{t.code}</span>
+                <span className="name">{t.name}{t.category && <span className="cat"> · {t.category}</span>}</span>
+                <span className="type-acts">
+                  {!t.uploadOnly && <Link className="btn btn-primary btn-sm" to={`/new/${t.id}`}>Prepare</Link>}
+                  <Link className="btn btn-ghost btn-sm" to={`/upload?type=${t.id}`}>Upload</Link>
+                </span>
+              </div>
+            ))}
+            {!words.length && (
+              <div className="type-row">
+                <span className="code">—</span>
+                <span className="name">Other document <span className="cat">· kept with a control number, not routed</span></span>
+                <span className="type-acts"><Link className="btn btn-ghost btn-sm" to="/upload">Upload</Link></span>
+              </div>
+            )}
+            {shown.length === 0 && words.length > 0 && <p className="small muted" style={{ padding: '.6rem .9rem' }}>No document type matches.</p>}
+          </div>
+        </>
       )}
     </div>
   );
@@ -157,7 +173,7 @@ function Wizard({ typeId, docId }) {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="crumbs"><Link to="/new">Prepare</Link> / {type.code}{existing && ` / ${existing.controlNo}`}</div>
+          <div className="crumbs"><Link to="/new">New document</Link> / {type.code}{existing && ` / ${existing.controlNo}`}</div>
           <h1>{type.name}</h1>
         </div>
         <button className="btn btn-ghost" disabled={busy} onClick={() => save('draft')}>Save draft</button>

@@ -76,7 +76,7 @@ export default function Dashboard() {
           <h1>{greeting()}{firstName ? `, ${firstName}` : ''}</h1>
           <p>{ROLE_NAMES[profile.role] || profile.role}{profile.office ? ` · ${profile.office}` : ''}</p>
         </div>
-        <Link to="/new" className="btn btn-gold">+ Prepare document</Link>
+        <Link to="/new" className="btn btn-primary">+ New document</Link>
       </div>
       {error && <div className="alert">{error}</div>}
       {setupNotice.length > 0 && (

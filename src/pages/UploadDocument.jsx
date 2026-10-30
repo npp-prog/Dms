@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, listDocumentTypes, setDocumentStatus, startWorkflow } from '../lib/api.js';
@@ -39,7 +39,9 @@ export default function UploadDocument() {
   const navigate = useNavigate();
   const id = useId();
   const [types, setTypes] = useState(null);
-  const [typeId, setTypeId] = useState('');
+  // Opened from New document with the type chosen (?type=<id>).
+  const [params] = useSearchParams();
+  const [typeId, setTypeId] = useState(params.get('type') || '');
   const [form, setForm] = useState({ title: '', fund: '', notes: '' });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState('');
@@ -90,7 +92,7 @@ export default function UploadDocument() {
     <div className="page">
       <div className="page-head">
         <div>
-          <div className="crumbs"><Link to="/documents">Documents</Link> / Upload</div>
+          <div className="crumbs"><Link to="/new">New document</Link> / Upload</div>
           <h1>Upload a document</h1>
           <p className="muted">For a document that already exists as a file: a scanned or signed form, a letter, a PDF from another system.
             It gets a DMS control number, follows the workflow of its type, and can be signed, forwarded and linked like a prepared document.</p>
