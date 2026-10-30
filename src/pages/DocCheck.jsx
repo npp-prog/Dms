@@ -4,6 +4,9 @@ import { getCheck, getPdfBytes, sha256Hex } from '../lib/api.js';
 import { readSignatures, verifyPdf } from '../lib/signing.js';
 import PdfViewer from '../components/PdfViewer.jsx';
 
+// Give up on a step that hangs (a slow or blocked connection) and say so, instead of loading forever.
+const within = (ms, promise, what) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} took too long. Check the connection and try again.`)), ms))]);
+
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
 // What the QR code on a DMS PDF opens (/v/<document id>), for anyone, signed in or not: DMS's
@@ -17,24 +20,32 @@ export default function DocCheck({ standalone = false }) {
   const [error, setError] = useState('');
   const [copy, setCopy] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [pdf, setPdf] = useState(null); // { bytes, signatures } of the current PDF, or { error }
+  const [pdf, setPdf] = useState(null); // { bytes, signatures, url } of the current PDF, or { error }
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setRec(undefined); setError('');
     if (!/^[A-Za-z0-9]{10,40}$/.test(id)) { setRec(null); return; }
-    getCheck(id).then(setRec).catch((e) => { setRec(null); setError(e.message); });
-  }, [id]);
+    within(20000, getCheck(id), 'Loading the record').then(setRec).catch((e) => { setRec(null); setError(e.message); });
+  }, [id, attempt]);
 
   // The document itself: its current PDF.
   useEffect(() => {
     setPdf(null);
     if (!rec?.pdf) return undefined;
     let live = true;
-    getPdfBytes(rec.pdf)
-      .then((bytes) => { if (live) setPdf({ bytes, signatures: readSignatures(bytes) }); })
-      .catch(() => live && setPdf({ error: true }));
-    return () => { live = false; };
-  }, [rec?.pdf]);
+    let url = '';
+    within(45000, getPdfBytes(rec.pdf), 'Loading the PDF')
+      .then((bytes) => {
+        if (!live) return;
+        url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+        let signatures = [];
+        try { signatures = readSignatures(bytes); } catch { /* shown without signature details */ }
+        setPdf({ bytes, signatures, url });
+      })
+      .catch((e) => live && setPdf({ error: e.message || 'The PDF could not be loaded.' }));
+    return () => { live = false; if (url) URL.revokeObjectURL(url); };
+  }, [rec?.pdf, attempt]);
 
   const checkCopy = async (f) => {
     if (!f) return;
@@ -63,6 +74,7 @@ export default function DocCheck({ standalone = false }) {
           <div className="verify-verdict bad">Not found: this code does not belong to a DMS document.</div>
           <p className="muted">Check that the whole QR code was scanned. A document that was deleted no longer has a record.
             {error && ` (${error})`}</p>
+          {error && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
         </>
       )}
       {rec && (
@@ -85,8 +97,19 @@ export default function DocCheck({ standalone = false }) {
           {rec.pdf && (
             <section className="card check-pdf">
               <h3>The document</h3>
-              {!pdf && <div className="spinner" />}
-              {pdf?.error && <p className="small muted">The PDF could not be shown just now. Try again later.</p>}
+              {!pdf && <><div className="spinner" /><p className="small muted center">Loading the PDF…</p></>}
+              {pdf?.error && (
+                <div className="alert small">
+                  The PDF could not be shown: {pdf.error}
+                  <div><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttempt((n) => n + 1)}>Try again</button></div>
+                </div>
+              )}
+              {pdf?.url && (
+                <div className="check-pdf-links">
+                  <a className="link small" href={pdf.url} target="_blank" rel="noreferrer">Open PDF</a>
+                  <a className="link small" href={pdf.url} download={`${rec.controlNo}.pdf`}>Download</a>
+                </div>
+              )}
               {pdf?.bytes && <PdfViewer bytes={pdf.bytes} signatures={pdf.signatures} title={rec.controlNo} />}
             </section>
           )}

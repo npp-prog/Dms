@@ -91,9 +91,12 @@ export default function PdfViewer({ bytes, signatures = [], title = '', placing 
     (async () => {
       try {
         setError('');
-        const lib = await loadPdfjs();
+        // An old browser can leave pdf.js waiting forever: give up after a while and say so.
+        const slow = new Promise((_, reject) => setTimeout(() => reject(new Error('this browser is taking too long to draw it. Use Open PDF or Download instead, or update the browser.')), 30000));
+        const lib = await Promise.race([loadPdfjs(), slow]);
         // pdf.js takes over the buffer it is given: pass a copy.
-        loaded = await lib.getDocument({ data: bytes.slice() }).promise;
+        const task = lib.getDocument({ data: bytes.slice() });
+        loaded = await Promise.race([task.promise, slow]);
         const list = [];
         for (let n = 1; n <= loaded.numPages; n++) {
           const page = await loaded.getPage(n);

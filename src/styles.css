@@ -1168,3 +1168,5 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .ask-typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes ask-dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 @media (max-width: 600px) { .ask-fab span { display: none; } .ask-fab { padding: .7rem; } .ask { right: 16px; bottom: 72px; } }
+
+.check-pdf-links { display: flex; gap: 1rem; margin: 0 0 .6rem; }
