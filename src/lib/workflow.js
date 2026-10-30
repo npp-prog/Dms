@@ -83,6 +83,13 @@ export function routeSteps(type, offices = []) {
   }));
 }
 
+// Fields a step's office assigns as a reference no. (and its date) once the PDF is made: from the
+// document's own route, else the type's route or processing guide.
+export function assignedFields(type, doc) {
+  const steps = doc?.workflow?.steps || (type?.route?.length ? type.route : type?.processing || []);
+  return new Set(steps.flatMap((s) => (s.assign?.field ? [s.assign.field, s.assign.dateField].filter(Boolean) : [])));
+}
+
 export function buildWorkflow(type, doc, offices, user, at = new Date().toISOString()) {
   const steps = routeSteps(type, offices);
   if (!steps.length) return null;

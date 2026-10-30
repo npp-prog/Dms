@@ -328,7 +328,7 @@ export default function DocumentView() {
             onSend={(to, note, done) => run(async () => { await forwardDocument(docId, to, note, actor, 'review'); done(); })}
             onReview={(comment, done) => run(async () => { await reviewDocument(docId, comment, actor); done(); })} />
           {isAdmin && editable && type && draft && !uploaded && accountingOpen && (
-            <AccountingPanel type={type} data={draft} onChange={setDraft} busy={busy}
+            <AccountingPanel type={type} doc={docData} data={draft} onChange={setDraft} busy={busy}
               saved={JSON.stringify(draft) === JSON.stringify(docData.data || {})}
               onSave={() => run(() => saveAccountingEntries(docId, draft, actor, docData.history))} />
           )}

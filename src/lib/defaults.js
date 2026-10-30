@@ -57,7 +57,7 @@ const DV = {
     { key: 'certA', label: 'Box A — Printed name (Head of Office)', type: 'text', required: true, step: 's3' },
     { key: 'certAPos', label: 'Box A — Position', type: 'text', default: 'Head of Department/Office', step: 's3' },
     { key: 'approver', label: 'Box D — Approved for payment by', type: 'select', options: ['Municipal Mayor', 'Municipal Vice Mayor'], required: true, step: 's3' },
-    // Filled in by the Accounting Office on the saved DV (Documents > the DV > Accounting).
+    // Assigned by the Accounting Office on the PDF (the route's assign step), not typed in the form.
     { key: 'dvNo', label: 'Disbursement No.', type: 'text', filledBy: 'accounting' },
     { key: 'dvDate', label: 'Date', type: 'date', filledBy: 'accounting' },
     {
