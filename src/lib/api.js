@@ -94,7 +94,8 @@ export const conversationId = (a, b) => [a, b].sort().join('_');
 
 // Live list of the user's conversations, newest first. Returns the unsubscribe function.
 export function watchConversations(uid, onChange, onError) {
-  return onSnapshot(query(collection(db, 'conversations'), where('members', 'array-contains', uid)),
+  // includeMetadataChanges: also hear when a new conversation reaches the server (saved turns true)
+  return onSnapshot(query(collection(db, 'conversations'), where('members', 'array-contains', uid)), { includeMetadataChanges: true },
     // saved: false while a new conversation is still on its way to the server
     (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data(), saved: !d.metadata.hasPendingWrites })).sort((x, y) => (y.lastAt || '').localeCompare(x.lastAt || ''))),
     onError);

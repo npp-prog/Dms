@@ -116,7 +116,8 @@ function Conversation({ me, partner, convo, onBack, onSent }) {
     e?.preventDefault();
     if (!text.trim()) return;
     setBusy(true); setError('');
-    try { await sendMessage(me, partner, text); setText(''); onSent(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+    // Sent: the conversation is on the server, so its messages can be listened to (a new one too).
+    try { await sendMessage(me, partner, text); setText(''); setReady(true); onSent(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
 
   return (
