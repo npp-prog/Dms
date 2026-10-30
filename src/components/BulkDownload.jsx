@@ -45,8 +45,11 @@ export default function BulkDownload({ docData, type, settings }) {
           blob: await renderPdf(checklistElement(checklist, docData, settings), 'A4', 'portrait'),
         }) });
       }
-      // Every document linked to the checklist.
-      items.forEach((item, i) => {
+      // Every document linked to the checklist, then the other attachments (numbered after the
+      // checklist and its additional documents).
+      const extras = (docData.extraItems || []).map((x, k) => ({ ...x, n: items.length + (docData.additionalDocs || []).length + k }));
+      [...items.map((item, i) => ({ ...item, n: i })), ...extras].forEach((item) => {
+        const i = item.n;
         for (const link of docData.links?.[item.id] || []) {
           if (link.kind === 'fts') {
             jobs.push({ label: link.controlNo, run: async () => {

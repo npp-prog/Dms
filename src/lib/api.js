@@ -429,6 +429,17 @@ export async function saveDocumentLinks(id, { links, checklist }, user, history 
   });
 }
 
+// Attachments that are not on the checklist (extraItems: [{ id, label }], their links in links[id]),
+// added without changing the checklist.
+export async function saveExtraItems(id, { extraItems, links }, user, history = [], note = '') {
+  await updateDoc(doc(db, 'documents', id), {
+    extraItems,
+    links,
+    updatedAt: serverTimestamp(),
+    history: [...history, historyEntry('attachments', user, note)],
+  });
+}
+
 // A supporting document uploaded to a checklist item (a scanned PDF or a photo), kept at
 // documents/{docId}/attachments/{itemId}/{time}-{name}. Returns the link stored on the item.
 export const ATTACHMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];

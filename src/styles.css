@@ -1063,6 +1063,12 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .ref-box p { margin: 0; }
 .ref-box .row { align-items: center; }
 .ref-done { margin: .6rem 0 0; }
+.extra-items { margin-top: .9rem; display: grid; gap: .45rem; justify-items: start; }
+.extra-items h4 { margin: 0; }
+.extra-items .checklist-view { width: 100%; margin: 0; }
+.extra-head { align-items: center; }
+.extra-add { width: 100%; flex-wrap: nowrap; }
+.extra-add input { flex: 1; min-width: 0; }
 .ref-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; font-size: .9rem; }
 .ref-edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; align-items: end; }
 .ref-edit .field { margin: 0; }

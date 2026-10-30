@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
 import { canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
@@ -33,6 +33,58 @@ function downloadBytes(bytes, name, type) {
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 // Under a checklist item: its linked and uploaded documents, and (for the preparer) link or upload.
+// Other attachments: documents that go with this one but are not on its checklist, each linked or
+// uploaded like a checklist item, added without changing the checklist.
+function ExtraItems({ docData, docId, actor, start, canEdit, busy, run, onOpen }) {
+  const [name, setName] = useState(null);
+  const extras = docData.extraItems || [];
+  if (!extras.length && !canEdit) return null;
+  const save = (extraItems, links, note) => run(() => saveExtraItems(docId, { extraItems, links }, actor, docData.history, note));
+  const add = (e) => {
+    e.preventDefault();
+    const label = name.trim().replace(/\s+/g, ' ');
+    if (!label) return;
+    save([...extras, { id: `x${Date.now().toString(36)}`, label }], docData.links || {}, `added ${label}`);
+    setName(null);
+  };
+  const remove = (x) => {
+    if (!window.confirm(`Remove ${x.label}?`)) return;
+    const { [x.id]: _gone, ...links } = docData.links || {};
+    save(extras.filter((y) => y.id !== x.id), links, `removed ${x.label}`);
+  };
+  return (
+    <div className="extra-items">
+      <h4>Other attachments</h4>
+      {extras.length > 0 && (
+        <ul className="checklist-view">
+          {extras.map((x, i) => {
+            const links = docData.links?.[x.id] || [];
+            return (
+              <li key={x.id}>
+                <span className="row gap extra-head">
+                  <span>{x.label}</span>
+                  {canEdit && !links.length && <button type="button" className="btn-icon" title="Remove" disabled={busy} onClick={() => remove(x)}>×</button>}
+                </span>
+                <ItemLinks item={x} n={start + i + 1} links={links} docId={docId} parent={{ ...docData, id: docId }} actor={actor} onOpen={onOpen} canEdit={canEdit}
+                  onChange={(list, note) => save(extras, { ...(docData.links || {}), [x.id]: list }, `${x.label}: ${note}`)} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {canEdit && (name === null
+        ? <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setName('')}>+ Add attachment</button>
+        : (
+          <form className="row gap extra-add" onSubmit={add}>
+            <input value={name} autoFocus maxLength={120} aria-label="What it is" placeholder="What is it?" onChange={(e) => setName(e.target.value)} />
+            <button className="btn btn-primary btn-sm" disabled={busy || !name.trim()}>Add</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setName(null)}>Cancel</button>
+          </form>
+        ))}
+    </div>
+  );
+}
+
 function ItemLinks({ item, n, links, canEdit, docId, parent, actor, onChange, onOpen }) {
   const [open, setOpen] = useState(false);
   const [upload, setUpload] = useState('');
@@ -362,6 +414,9 @@ export default function DocumentView() {
                   <ol className="small" start={activeChecklist.items.length + 1}>{docData.additionalDocs.map((t, i) => <li key={i}>{t}</li>)}</ol>
                 </>
               )}
+              <ExtraItems docData={docData} docId={docId} actor={actor} start={activeChecklist.items.length + (docData.additionalDocs || []).length}
+                canEdit={editable && (isAdmin || docData.createdBy === user.uid)} busy={busy} run={run}
+                onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))} />
             </section>
           )}
           <section className="card">
