@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
-import { canAct, editableByPreparer, holdsPosition, isReceived, officeOf } from '../lib/workflow.js';
+import { canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -164,7 +164,7 @@ export default function DocumentView() {
   const atPreparer = !wf || (wf.state === 'in-progress' && !wf.referral && (!officeOf(wf.steps[wf.stage], docData) || officeOf(wf.steps[wf.stage], docData) === profile.office));
   // A signed PDF is the record of what was signed: the document can no longer be edited.
   // Signatures on the current PDF (a new PDF supersedes signed ones).
-  const pdfFiles = docData.pdf?.files || [];
+  const pdfFiles = liveFiles(docData.pdf?.files);
   const hasSignature = pdfFiles.slice(Math.max(0, ...pdfFiles.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)))).some((f) => f.kind === 'signed');
   // Back with the preparer's office (returned for revision, or not yet released): the preparer
   // may change the document and convert it again, even if it was signed. The new PDF supersedes

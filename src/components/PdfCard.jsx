@@ -4,7 +4,7 @@ import {
   BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, setDocumentStatus, startWorkflow, editRefNo,
 } from '../lib/api.js';
 import { addNotes, checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
-import { refStampMissing } from '../lib/workflow.js';
+import { liveFiles, refStampMissing, refUndoBase, withdrawnFiles } from '../lib/workflow.js';
 import { byOffice, missingFields } from '../lib/forms.js';
 import { markPixels } from '../lib/markImage.js';
 import { certId, forgetPassword, rememberedPassword, rememberedStatus } from '../lib/rememberPassword.js';
@@ -39,7 +39,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const current = files.at(-1);
   // Versions before the newest converted (or uploaded) PDF are superseded by it.
   const lastNew = Math.max(0, ...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : 0)));
-  const signedFiles = files.slice(lastNew).filter((f) => f.kind === 'signed');
+  const signedFiles = liveFiles(files).filter((f) => f.i >= lastNew && f.kind === 'signed');
+  const withdrawn = withdrawnFiles(files);
   const [bytes, setBytes] = useState(null);
   const made = useRef({}); // path -> bytes of versions made in this page
   const [signatures, setSignatures] = useState(null);
@@ -135,6 +136,18 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
       onChanged();
     });
   };
+
+  // Already on the PDF: to change it, go back to the PDF from before it went on (DMS keeps every
+  // version; the ones in between are withdrawn), then edit it and put it on again.
+  const undoBase = canSign ? refUndoBase(docData) : -1;
+  const placedRef = undoBase >= 0 ? docData.refNos[wf.steps[wf.stage].assign.field] : null;
+  const undoRef = () => window.confirm(`Take the ${placedRef.label} off the PDF to change it? The PDF goes back to version ${undoBase + 1}, from before it was put on: anything added at this step since (such as your signature) comes off too and is made again. Every version stays under Versions.`) && run('Going back…', async () => {
+    const base = made.current[files[undoBase].path] || await getPdfBytes(files[undoBase].path);
+    made.current[(await addPdfVersion(docData.id, base, actor, { kind: 'restored', restores: undoBase, onProgress: uploading, reason: `To change the ${placedRef.label.replace(/\.$/, '')}` })).path] = base;
+    onView?.();
+    setNotice(`The ${placedRef.label.replace(/\.$/, '')} is off the PDF. Click Edit to change it, then put it on again.`);
+    onChanged();
+  });
 
   // The reference no. stamped on its own (a step that does not sign, or signed in Acrobat).
   const stampRef = () => run('Putting it on the PDF…', async () => {
@@ -333,6 +346,13 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             </div>
           )}
 
+          {placedRef && bytes && !mode && (
+            <div className="ref-value small ref-done">
+              <span>{placedRef.label} <b>{placedRef.value}</b> is on the PDF.</span>
+              <button type="button" className="link small" disabled={!!busy} onClick={undoRef}>Change it</button>
+            </div>
+          )}
+
           {/* Signing first (for the signatory), then viewing and downloading as quieter links. */}
           {canSign && bytes && mode !== 'stamp' && !refEdit && (
             <div className="row gap wrap pdf-sign-actions">
@@ -459,9 +479,10 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
             <summary>Versions ({files.length})</summary>
             <ol>
               {files.map((f, i) => (
-                <li key={f.path} className={i < lastNew ? 'superseded' : ''}>
-                  {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : f.kind === 'stamped' ? `${f.reason || 'Reference no.'} put on it` : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
-                  {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : i < lastNew ? ' · superseded' : ''}
+                <li key={f.path} className={i < lastNew || withdrawn.has(i) ? 'superseded' : ''}>
+                  {f.kind === 'generated' ? 'Converted' : f.kind === 'uploaded' ? 'Uploaded' : f.kind === 'stamped' ? `${f.reason || 'Reference no.'} put on it`
+                    : f.kind === 'restored' ? `Back to version ${f.restores + 1}${f.reason ? ` (${f.reason.toLowerCase()})` : ''}` : `Signed${f.signer?.name ? ` by ${f.signer.name}` : ''}${f.method === 'upload' ? ' (uploaded)' : ''}`}
+                  {' · '}{f.by} · {when(f.at)}{i === files.length - 1 ? ' · current' : withdrawn.has(i) ? ' · taken back' : i < lastNew ? ' · superseded' : ''}
                 </li>
               ))}
             </ol>

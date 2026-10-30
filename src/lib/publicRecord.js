@@ -1,6 +1,6 @@
 // The public record of a document (checks/{docId}): what the QR code on its PDF opens, for anyone,
 // signed in or not. Only what confirms the paper in hand: no amounts, data fields or remarks.
-import { officeOf } from './workflow.js';
+import { liveFiles, officeOf } from './workflow.js';
 
 export const CHECK_KEYS = ['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'updatedAt'];
 
@@ -25,7 +25,8 @@ export function checkRecord(d, at = new Date().toISOString()) {
       done: wf.state === 'done' || i < wf.stage,
       current: moving && i === wf.stage,
     })),
-    signatures: files.filter((f) => f.kind === 'signed').map((f) => ({
+    // signatures taken back (to change a reference no. already on the PDF) are left out
+    signatures: liveFiles(files).filter((f) => f.kind === 'signed').map((f) => ({
       name: f.signer?.name || f.by || '', at: f.signer?.signedAt || f.at || '', reason: f.reason || '', pnpki: Boolean(f.signer?.pnpki),
     })),
     // every PDF DMS issued for it, by fingerprint: a copy can be checked against them

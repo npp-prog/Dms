@@ -135,6 +135,35 @@ export function availableActions(doc) {
   ];
 }
 
+// PDF versions still in effect. A 'restored' version (to change an assigned reference no. that was
+// already put on the PDF) is a copy of an earlier version: the versions between them are withdrawn.
+// Each kept entry has i, its index in pdf.files.
+export function liveFiles(files = []) {
+  const out = [];
+  files.forEach((f, i) => {
+    if (f.kind !== 'restored') { out.push({ ...f, i }); return; }
+    while (out.length && out.at(-1).i > f.restores) out.pop();
+  });
+  return out;
+}
+export const withdrawnFiles = (files = []) => {
+  const live = new Set(liveFiles(files).map((f) => f.i));
+  return new Set(files.map((f, i) => i).filter((i) => !live.has(i) && files[i].kind !== 'restored'));
+};
+
+// The reference no. this step put on the PDF can still be changed: the document is still at the
+// step, and everything added to the PDF since the number went on was added at this step. Returns
+// the index (in pdf.files) of the version to go back to, or -1.
+export function refUndoBase(doc) {
+  const wf = doc?.workflow;
+  const step = wf?.state === 'in-progress' && !wf.referral ? wf.steps[wf.stage] : null;
+  if (!step?.assign?.field || doc.refNos?.[step.assign.field]?.stage !== wf.stage || refStampMissing(doc)) return -1;
+  const live = liveFiles(doc.pdf?.files);
+  const at = live.findIndex((f) => f.refStage === wf.stage);
+  if (at < 1 || live.slice(at).some((f) => f.stage !== wf.stage || f.kind === 'generated' || f.kind === 'uploaded')) return -1;
+  return live[at - 1].i;
+}
+
 // A step that requires a signature: is this step's signature on the current PDF? (PDF versions
 // record the step they were added at; lib/api.js addPdfVersion.) A document returned and sent
 // back unchanged needs no new signature; once it is converted to PDF again (a new PDF, with no
@@ -143,7 +172,7 @@ export function availableActions(doc) {
 export function signatureMissing(doc) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress' || !wf.steps[wf.stage]?.sign) return false;
-  const files = doc.pdf?.files || [];
+  const files = liveFiles(doc.pdf?.files);
   // Since the last new PDF (converted, or uploaded as the document itself).
   const current = files.slice(Math.max(...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1))) + 1);
   return !current.some((f) => f.kind === 'signed' && !f.referral && (f.stage === wf.stage || (f.stage == null && wf.stage === 0)));
@@ -158,7 +187,7 @@ export function refStampMissing(doc) {
   const step = wf?.state === 'in-progress' && !wf.referral ? wf.steps[wf.stage] : null;
   const r = step?.assign?.field ? doc.refNos?.[step.assign.field] : null;
   if (!r || r.stage !== wf.stage) return null;
-  const files = doc.pdf?.files || [];
+  const files = liveFiles(doc.pdf?.files);
   const lastNew = Math.max(-1, ...files.map((f, i) => (f.kind === 'generated' || f.kind === 'uploaded' ? i : -1)));
   if (lastNew >= 0 && files[lastNew].kind === 'generated' && files[lastNew].at > r.at) return null;
   if (files.slice(lastNew + 1).some((f) => f.refStage === wf.stage)) return null;

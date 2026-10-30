@@ -756,7 +756,7 @@ export async function getPdfBytes(path) {
 }
 
 // Stores a new version of the document's PDF (converted, or signed) and records it.
-export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', signer = null, reason = '', note = '', refStage = null, basis = null, onProgress }) {
+export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', signer = null, reason = '', note = '', refStage = null, restores = null, basis = null, onProgress }) {
   const docRef = doc(db, 'documents', id);
   const current = (await getDoc(docRef)).data();
   const n = current?.pdf?.files?.length || 0;
@@ -782,6 +782,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     path, size: bytes.length, sha256: await sha256(bytes), kind, method, reason,
     ...(note ? { note } : {}), // text the signatory added on the PDF with this signature
     ...(refStage != null ? { refStage } : {}), // the step whose reference no. it put on the PDF
+    ...(restores != null ? { restores } : {}), // a copy of this earlier version (lib/workflow.js liveFiles)
     stage: wf?.state === 'in-progress' ? wf.stage : null, // the workflow step it was signed at
     // signed by a person the document was referred to: not the step's own signature
     ...(wf?.state === 'in-progress' && wf.referral ? { referral: true } : {}),
@@ -806,7 +807,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
       // basisV: how the basis was computed (bases computed another way are not compared).
       pdf,
       updatedAt: serverTimestamp(),
-      history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : 'converted to PDF', user, note)],
+      history: [...(d.history || []), historyEntry(kind === 'signed' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
     });
   });
   return file;
