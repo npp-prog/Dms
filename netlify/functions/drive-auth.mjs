@@ -26,12 +26,13 @@ export default async (req) => {
     try {
       const { refreshToken, email } = await exchangeCode(url.searchParams.get('code') || '');
       if (!refreshToken) return back('no-token');
-      const before = await store.get('secret');
       await store.set('secret', { googleRefreshToken: refreshToken, firebaseRefreshToken: pending.firebaseRefreshToken, email, by: pending.name, uid: pending.uid, at: new Date().toISOString() });
-      // Another Google account: back everything up afresh there.
-      if (before?.email && before.email !== email) {
+      // Another Google account than the one backed up to so far (also after a disconnect): back
+      // everything up afresh there.
+      const state = (await store.get('state')) || {};
+      if ((state.email || '') !== email) {
         await store.clearDocs();
-        await store.set('state', {});
+        await store.set('state', { email });
       }
       return back('connected');
     } catch {

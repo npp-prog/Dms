@@ -15,7 +15,7 @@ export default async (req) => {
   if (!me || !keepsArchive(me.profile)) return json(403, { error: 'Only the Records Officer or an administrator can do this.' });
   const store = backupStore();
   const { action } = await req.json().catch(() => ({}));
-  if (action === 'run') return json(200, await backupNow({ store, makeSource: (t) => firebaseAs(t), makeDrive: (t) => driveClient(t), budgetMs: 7000 }));
+  if (action === 'run') return json(200, await backupNow({ store, makeSource: (t) => firebaseAs(t), makeDrive: (t) => driveClient(t), budgetMs: 4500 }));
   const [secret, state] = await Promise.all([store.get('secret'), store.get('state')]);
   return json(200, {
     configured: true, connected: Boolean(secret?.googleRefreshToken), email: secret?.email || '', by: secret?.by || '', at: secret?.at || '',

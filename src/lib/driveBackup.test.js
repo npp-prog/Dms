@@ -68,3 +68,34 @@ test('a run stops when its time is up and the next one goes on from there', asyn
   assert.equal(r1.documents + r2.documents, 5);
   assert.equal(r2.caughtUp, true);
 });
+
+test('a document folder deleted in Drive, or the whole DMS Archive folder, is backed up again', async () => {
+  const d = { controlNo: 'DMS-1', typeCode: 'DV', title: 'X', workflow: { state: 'done', events: [{ type: 'completed', at: '2026-10-30T01:00:00Z' }] }, pdf: { files: [{ path: 'p/a.pdf', kind: 'generated' }] } };
+  const docs = [{ id: 'a', raw: '2026-10-30T01:00:00Z', data: d }, { id: 'b', raw: '2026-10-30T02:00:00Z', data: { ...d, controlNo: 'DMS-2' } }];
+  const f = fakes(docs);
+  await runBackup({ ...f });
+  // DMS-1's record.json is deleted in Drive, then DMS-1 changes: the run does not stop on it.
+  const realUpload = f.drive.upload;
+  const { record } = await f.store.get('doc/a');
+  f.drive.upload = async (x) => { if (x.id === record) throw new Error('Google Drive: File not found'); return realUpload(x); };
+  docs[0] = { ...docs[0], raw: '2026-10-30T03:00:00Z' };
+  f.log.length = 0;
+  const r = await runBackup({ ...f });
+  assert.equal(r.documents, 1);
+  assert.deepEqual(f.log, ['new PDF 01 generated.pdf', 'new record.json'], 'started afresh');
+  // The whole DMS Archive folder is deleted: everything is backed up again.
+  f.drive.exists = async () => false;
+  const all = await runBackup({ ...f });
+  assert.equal(all.documents, 2);
+});
+
+test('the time running out inside a document never uploads a file twice', async () => {
+  const d = { controlNo: 'DMS-9', typeCode: 'DV', title: 'BIG', workflow: { state: 'done', events: [{ type: 'completed', at: '2026-10-30T01:00:00Z' }] },
+    pdf: { files: [1, 2, 3, 4].map((i) => ({ path: `p/${i}.pdf`, kind: 'signed' })) } };
+  const f = fakes([{ id: 'big', raw: '2026-10-30T01:00:00Z', data: d }]);
+  let t = 0;
+  const r1 = await runBackup({ ...f, budgetMs: 4, now: () => t++ });
+  assert.equal(r1.caughtUp, false);
+  await runBackup({ ...f });
+  assert.equal(f.log.filter((x) => x.startsWith('new PDF')).length, 4, 'each PDF once');
+});

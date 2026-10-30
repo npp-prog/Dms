@@ -75,8 +75,9 @@ export async function driveClient(refreshToken, fetchImpl = fetch) {
       const done = await (await call(session, { method: 'PUT', headers: { 'content-type': type }, body: bytes })).json();
       return done.id;
     },
+    // Is it there, and not in the Trash?
     async exists(id) {
-      try { await call(`${API}/files/${id}?fields=id,trashed`); return true; } catch { return false; }
+      try { return !(await (await call(`${API}/files/${id}?fields=id,trashed`)).json()).trashed; } catch { return false; }
     },
   };
 }
