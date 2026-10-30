@@ -50,7 +50,7 @@ export default function Messages() {
         <aside className={`chat-list${partner ? ' has-open' : ''}`}>
           <div className="chat-list-head">
             {starting
-              ? <PersonPicker value={null} onChange={pick} exclude={[user.uid]} placeholder="Type a name or email…" />
+              ? <PersonPicker value={null} onChange={pick} exclude={[user.uid]} external placeholder="Type a name or email…" />
               : <button type="button" className="btn btn-primary btn-sm" onClick={() => setStarting(true)}>+ New message</button>}
           </div>
           {convos === null && !error && <div className="spinner" />}

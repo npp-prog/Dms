@@ -623,7 +623,8 @@ export async function referDocument(id, to, note, user) {
   let d;
   await runTransaction(db, async (tx) => {
     d = (await tx.get(ref)).data();
-    const patch = referPatch(d, to, note, user);
+    // referred: everyone it was referred to, who may still read it after sending it back.
+    const patch = { ...referPatch(d, to, note, user), referred: [...new Set([...(d.referred || []), to.uid])] };
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('referred', user, patch.workflow.events.at(-1).remarks)] });
     publishCheck(tx, id, { ...d, ...patch });
   });
@@ -994,6 +995,12 @@ export async function reviewDocument(id, comment, user) {
       history: [...(d.history || []), historyEntry('reviewed', user, text.slice(0, 200))],
     });
   });
+}
+
+// Documents referred to the user (a supplier or payee, or anyone), including those sent back.
+export async function listReferred(uid, max = 200) {
+  const snap = await getDocs(query(collection(db, 'documents'), where('referred', 'array-contains', uid), limit(max)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
 }
 
 export async function listForwarded(uid, max = 100) {

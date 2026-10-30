@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { listForwarded, listInbox } from '../lib/api.js';
+import { listForwarded, listInbox, listReferred } from '../lib/api.js';
 import { HIDDEN_EVENTS, officeOf } from '../lib/workflow.js';
 import Select from '../components/Select.jsx';
 import { drnOf } from '../lib/naming.js';
@@ -60,6 +60,11 @@ export default function Inbox() {
   // Documents someone forwarded to this user.
   const [forwarded, setForwarded] = useState(null);
   useEffect(() => { listForwarded(user.uid).then(setForwarded).catch(() => setForwarded([])); }, [user.uid]);
+  // A supplier or payee: the documents they signed and sent back (still open to them).
+  const [sentBack, setSentBack] = useState([]);
+  useEffect(() => {
+    if (isExternal) listReferred(user.uid).then((l) => setSentBack(l.filter((d) => d.currentOffice !== `person:${user.uid}`))).catch(() => {});
+  }, [user.uid, isExternal]);
   const [office, setOffice] = useState(profile.office || '');
 
   useEffect(() => {
@@ -145,6 +150,27 @@ export default function Inbox() {
         </div>
       )}
 
+      {sentBack.length > 0 && (
+        <>
+          <h2 className="inbox-sub">Sent back</h2>
+          <div className="card table-card">
+            <table className="data-table">
+              <thead><tr><th>Control No.</th><th>Type</th><th>Payee / Subject</th><th>From</th><th>Where</th></tr></thead>
+              <tbody>
+                {sentBack.map((d) => (
+                  <tr key={d.id}>
+                    <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
+                    <td>{d.typeCode}</td>
+                    <td>{d.title}</td>
+                    <td className="small">{d.office || d.createdByName}</td>
+                    <td className="small">{d.workflow?.state === 'done' ? 'Processed' : d.workflow?.state === 'cancelled' ? 'Cancelled' : officeOf(d.workflow?.steps?.[d.workflow.stage], d) || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
       {forwarded && forwarded.length > 0 && (
         <>
           <h2 className="inbox-sub">Forwarded to you</h2>

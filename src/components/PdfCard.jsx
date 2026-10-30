@@ -91,8 +91,9 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   }, [docData]);
   useEffect(() => setWhy(reason || ''), [reason]);
   useEffect(() => {
-    if (mode === 'sign' && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch((e) => { setSaved(null); setError(e.message); });
-  }, [mode, saved, actor.uid]);
+    // Known up front: it decides how this person signs (PNPKI, or an e-signature without one).
+    if (canSign && saved === undefined) getSavedCertificate(actor.uid).then(setSaved).catch((e) => { setSaved(null); setError(e.message); });
+  }, [canSign, saved, actor.uid]);
   useEffect(() => {
     if ((mode === 'sign' || mode === 'esign') && mark === undefined) getSavedMark(actor.uid).then(setMark).catch((e) => { setMark(null); setError(e.message); });
   }, [mode, mark, actor.uid]);
@@ -106,6 +107,8 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   // An e-signature (no PNPKI certificate) is the signature mark itself: always placed.
   const esign = mode === 'esign';
   const placingMark = (mode === 'sign' && Boolean(mark) && useMark) || (esign && Boolean(mark));
+  // Has a PNPKI certificate registered (undefined while checking).
+  const hasCert = saved === undefined ? undefined : Boolean(saved);
   // Reference nos. this office assigned at its step (e.g. the DV No.): shown on its signature.
   const wf = docData.workflow;
   const myRefs = Object.values(docData.refNos || {})
@@ -170,6 +173,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   // e-signature, their name and the date, locked on the PDF. It is not a digital signature: it
   // shows who signed in DMS (recorded with the version) but carries no certificate.
   const eSign = () => run('Signing…', async () => {
+    if (hasCert) throw new Error('You have a PNPKI certificate: sign with it (Sign with PNPKI).');
     if (!mark) throw new Error('Add your signature mark in My Profile first.');
     if (!placement) throw new Error('Tap the PDF where your signature mark goes.');
     if (placingText && !placements.text) throw new Error('Tap the PDF where your text goes, or untick "Add text on the PDF".');
@@ -399,11 +403,14 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           {/* Signing first (for the signatory), then viewing and downloading as quieter links. */}
           {canSign && bytes && mode !== 'stamp' && !refEdit && (
             <div className="row gap wrap pdf-sign-actions">
-              {mode !== 'sign' && <button className="btn btn-primary btn-sm" disabled={!signStep} onClick={() => setMode('sign')}>Sign with PNPKI</button>}
-              {mode !== 'esign' && <button className="btn btn-ghost btn-sm" disabled={!signStep} onClick={() => setMode('esign')}
-                title="No PNPKI certificate: sign with your signature mark, marked e-signature">E-signature</button>}
-              {mode !== 'upload' && <button className="btn btn-ghost btn-sm" disabled={!signStep} onClick={() => setMode('upload')}>Upload signed PDF</button>}
-              {!signStep && <span className="small muted">This step of the workflow does not sign.</span>}
+              {/* One way to sign per person: with their PNPKI certificate (registered in My Profile), or
+                  with an e-signature when they have none. */}
+              {mode !== 'sign' && <button className={`btn btn-sm ${hasCert ? 'btn-primary' : 'btn-ghost'}`} disabled={!signStep || !hasCert} onClick={() => setMode('sign')}>Sign with PNPKI</button>}
+              {mode !== 'esign' && <button className={`btn btn-sm ${hasCert === false ? 'btn-primary' : 'btn-ghost'}`} disabled={!signStep || hasCert !== false} onClick={() => setMode('esign')}>E-signature</button>}
+              {mode !== 'upload' && <button className="btn btn-ghost btn-sm" disabled={!signStep || !hasCert} onClick={() => setMode('upload')}>Upload signed PDF</button>}
+              {!signStep ? <span className="small muted">This step of the workflow does not sign.</span>
+                : hasCert ? <span className="small muted">You have a PNPKI certificate: sign with it.</span>
+                  : hasCert === false && <span className="small muted">No PNPKI certificate registered: sign with your e-signature. To sign with PNPKI, register your certificate in <Link to="/profile">My Profile</Link>.</span>}
             </div>
           )}
           <div className="pdf-links">

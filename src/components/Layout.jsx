@@ -9,9 +9,9 @@ import { listCirculars, toReceive, watchCommunities, watchNotifications } from '
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Supplier / Payee' };
 
-// A supplier or payee may open only these: the documents referred to them, and their profile
-// (certificate and signature mark).
-const EXTERNAL_PAGES = /^\/(notifications|profile|documents\/[^/]+)\/?$/;
+// A supplier or payee may open only these: the documents referred to them, Messages, and their
+// profile (certificate and signature mark).
+const EXTERNAL_PAGES = /^\/(notifications|messages|profile|documents\/[^/]+)\/?$/;
 
 export default function Layout() {
   const { user, profile, settings, isAdmin, isSuper, isHead, isRecords, isExternal, logout } = useAuth();
@@ -30,7 +30,7 @@ export default function Layout() {
   // Conversations with a message not seen yet (live).
   const [unread, setUnread] = useState(0);
   useEffect(() => {
-    if (!profile?.active || isExternal) return undefined;
+    if (!profile?.active) return undefined;
     return watchConversations(user.uid, (list) => setUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setUnread(0));
   }, [user.uid, profile?.active]);
 
@@ -50,7 +50,7 @@ export default function Layout() {
     + circulars.filter((id) => !unreadUpdates.some((n) => n.link === `/circulars/${id}`)).length;
 
   const groups = isExternal ? [
-    { items: [['/notifications', 'bell', 'Documents for you', false, notices], ['/profile', 'user', 'My Profile']] },
+    { items: [['/notifications', 'bell', 'Documents for you', false, notices], ['/messages', 'chat', 'Messages', false, unread], ['/profile', 'user', 'My Profile']] },
   ] : [
     { items: [['/', 'home', 'Dashboard', true]] },
     {

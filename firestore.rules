@@ -45,9 +45,9 @@ service cloud.firestore {
     function unchanged(keys) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
-    // A supplier or payee (role 'payee'): not LGU personnel. They only see and sign the documents
-    // referred to them, and send them back; no messages, communities, circulars, checklists,
-    // tracking or documents of their own.
+    // A supplier or payee (role 'payee'): not LGU personnel. They see and sign the documents
+    // referred to them, send them back (and still read them afterwards), and use Messages; no
+    // communities, circulars, checklists, tracking or documents of their own.
     function isStaff() {
       return isActive() && profile().role != 'payee';
     }
@@ -166,22 +166,19 @@ service cloud.firestore {
       function members() {
         return request.resource.data.members;
       }
-      allow read: if isStaff() && request.auth.uid in resource.data.members;
-      // between two LGU personnel only (not a supplier or payee)
-      allow create: if isStaff() && members().size() == 2 && request.auth.uid in members()
-        && get(/databases/$(database)/documents/users/$(members()[0])).data.role != 'payee'
-        && get(/databases/$(database)/documents/users/$(members()[1])).data.role != 'payee'
+      allow read: if isActive() && request.auth.uid in resource.data.members;
+      allow create: if isActive() && members().size() == 2 && request.auth.uid in members()
         && members()[0] < members()[1] && cid == members()[0] + '_' + members()[1]
         && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
         && request.resource.data.lastBy == request.auth.uid;
-      allow update: if isStaff() && request.auth.uid in resource.data.members
+      allow update: if isActive() && request.auth.uid in resource.data.members
         && request.resource.data.members == resource.data.members
         && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
         && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
       match /messages/{mid} {
-        allow read: if isStaff() && exists(/databases/$(database)/documents/conversations/$(cid))
+        allow read: if isActive() && exists(/databases/$(database)/documents/conversations/$(cid))
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
-        allow create: if isStaff() && request.resource.data.from == request.auth.uid
+        allow create: if isActive() && request.resource.data.from == request.auth.uid
           && request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(cid)).data.members
           && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
           && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
@@ -299,8 +296,9 @@ service cloud.firestore {
       }
       allow read: if isActive()
         && (resource.data.createdBy == request.auth.uid || isAdmin() || heldByMyOffice() || headSees() || referredToMe() || referredByMyOffice() || isRecords()
-            // forwarded to this user
-            || request.auth.uid in resource.data.get('sharedWith', []));
+            // forwarded to this user, or referred to them (also after they sent it back)
+            || request.auth.uid in resource.data.get('sharedWith', [])
+            || request.auth.uid in resource.data.get('referred', []));
       // A new document is not routed, shared or archived yet.
       allow create: if isStaff()
         && request.resource.data.createdBy == request.auth.uid
@@ -352,7 +350,8 @@ service cloud.firestore {
             || ((heldByMyOffice() || (isHead() && holder() == myOffice()))
                 && holdsStepPosition()
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards', 'supplements'])
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards', 'supplements', 'referred'])
+                && request.resource.data.get('referred', []).hasAll(resource.data.get('referred', []))
                 && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())
                 && request.resource.data.get('refNos', {}).diff(resource.data.get('refNos', {})).affectedKeys().hasOnly(assignedKeys())));
       // The preparer deletes only a draft never converted to PDF nor routed (no signatures, no
@@ -367,8 +366,8 @@ service cloud.firestore {
     // Each user keeps their own entry; administrators keep everyone's (so someone who has not
     // signed in since can still be found), from their profile, and remove inactive users'.
     match /directory/{uid} {
-      // external: a supplier or payee (found only to refer a document to them)
-      allow read: if isStaff() || (isActive() && request.auth.uid == uid);
+      // external: a supplier or payee
+      allow read: if isActive();
       allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email', 'external'])
         && ((request.auth.uid == uid
               && request.resource.data.get('external', false) == (profile().role == 'payee')
