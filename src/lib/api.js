@@ -434,7 +434,9 @@ export async function finishSupportingDocument(id, link, bytes, user) {
     const known = (await tx.get(verifyRef)).exists();
     if (!known) tx.set(verifyRef, { controlNo: d.controlNo, typeCode: d.typeCode, typeName: d.typeName, version: 1, kind: 'uploaded', signer: '', signatures: 0, by: file.by, at: file.at });
     const next = { ...d, pdf: { basis: null, basisV: null, files: [file] }, status: 'complete' };
-    tx.update(ref, { pdf: next.pdf, status: 'complete', updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('complete', user, link.name)] });
+    // Its file under the DMS name (Fund_Payee_No._Type_Control No.); the name it came with is kept.
+    const uploaded = { ...(d.uploaded || {}), name: link.name, original: d.uploaded?.name || '' };
+    tx.update(ref, { pdf: next.pdf, uploaded, status: 'complete', updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('complete', user, `${link.name} (uploaded as ${uploaded.original})`)] });
     tx.set(doc(db, 'checks', id), checkRecord(next));
   });
 }

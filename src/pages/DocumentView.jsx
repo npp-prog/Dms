@@ -19,6 +19,7 @@ import ReviewCard from '../components/ReviewCard.jsx';
 import PdfCard from '../components/PdfCard.jsx';
 import SendPanel from '../components/SendPanel.jsx';
 import { pdfFileName } from '../components/printables.jsx';
+import { controlRef, fileBase } from '../lib/naming.js';
 import PdfViewer from '../components/PdfViewer.jsx';
 
 function downloadBytes(bytes, name, type) {
@@ -33,7 +34,7 @@ function downloadBytes(bytes, name, type) {
 
 // Links of one checklist item on a saved document; the preparer and admins can add or remove them.
 // Under a checklist item: its linked and uploaded documents, and (for the preparer) link or upload.
-function ItemLinks({ item, links, canEdit, docId, parent, actor, onChange, onOpen }) {
+function ItemLinks({ item, n, links, canEdit, docId, parent, actor, onChange, onOpen }) {
   const [open, setOpen] = useState(false);
   const [upload, setUpload] = useState('');
   const [error, setError] = useState('');
@@ -50,7 +51,8 @@ function ItemLinks({ item, links, canEdit, docId, parent, actor, onChange, onOpe
       try {
         if (!readSignatures(pdf).length) pdf = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
       } catch { /* kept without the code */ }
-      const name = file.type === 'application/pdf' ? file.name : `${file.name.replace(/\.[^.]+$/, '')}.pdf`;
+      // Named like every DMS file: Fund_Payee_Checklist No._Type_Control No. (its own control no.).
+      const name = `${fileBase({ fund: parent.data?.fund, subject: parent.data?.payee || parent.title, number: n, type: /^[A-Z]{2,8}$/.test(code) ? code : 'DOC', ref: controlRef(created.controlNo) })}.pdf`;
       const stored = await uploadAttachment(docId, item.id, new File([pdf], name, { type: 'application/pdf' }), actor, (x) => setUpload(`Uploading… ${Math.round(x * 100)}%`));
       await finishSupportingDocument(created.id, stored, pdf, actor);
       const l = { ...stored, dms: { id: created.id, controlNo: created.controlNo } };
@@ -343,11 +345,11 @@ export default function DocumentView() {
               </div>
               {unchecked.length > 0 && <div className="alert">{unchecked.length} required item(s) not yet ticked</div>}
               <ul className="checklist-view">
-                {activeChecklist.items.map((c) => {
+                {activeChecklist.items.map((c, ci) => {
                   const v = docData.checklist?.[c.id];
                   return (
                     <li key={c.id}><span>{isChecked(v) ? '☑' : v === 'NA' ? 'N/A' : '☐'}</span> {c.label.split('\n')[0]}
-                      <ItemLinks item={c} links={docData.links?.[c.id] || []} docId={docId} parent={{ ...docData, id: docId }} actor={actor}
+                      <ItemLinks item={c} n={ci + 1} links={docData.links?.[c.id] || []} docId={docId} parent={{ ...docData, id: docId }} actor={actor}
                         onOpen={(l, key) => (l.kind === 'fts' ? openLinked(l, key) : openFile(l, key))}
                         canEdit={editable && (isAdmin || docData.createdBy === user.uid)}
                         onChange={(list, note) => run(async () => saveDocumentLinks(docId, {
