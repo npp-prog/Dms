@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, HIDDEN_EVENTS, approverMismatch, assignPending, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { ACTION_LABELS, HIDDEN_EVENTS, approverMismatch, isThirdParty, assignPending, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
 import PersonPicker from './PersonPicker.jsx';
 import Select from './Select.jsx';
 
@@ -10,20 +10,30 @@ const EVENT_TEXT = {
 };
 
 // The preparer chooses which office handles each step that has alternates (e.g. the Mayor or the
-// Vice Mayor), before first releasing the document.
+// Vice Mayor), and the person of each third-party step (a supplier, payee…), before first
+// releasing the document.
 function OfficeChoice({ doc, busy, onChoose }) {
   const wf = doc.workflow;
   const main = (s) => (s.office === 'Requesting office' ? '' : s.office);
   // The office matching Approved by (Mayor or Vice Mayor) is suggested where the route differs.
   const [picks, setPicks] = useState(() => {
     const m = approverMismatch(doc);
-    return Object.fromEntries(wf.steps.map((s, i) => [i, m && m.stage === i ? m.office : s.routedTo]));
+    return Object.fromEntries(wf.steps.map((s, i) => [i, isThirdParty(s) ? s.party || null : m && m.stage === i ? m.office : s.routedTo]));
   });
   const name = (o) => o || "Preparer's office";
-  const changed = wf.steps.some((s, i) => s.alternates?.length && picks[i] !== s.routedTo);
+  const changed = wf.steps.some((s, i) => (isThirdParty(s) ? picks[i]?.uid !== s.party?.uid : s.alternates?.length && picks[i] !== s.routedTo));
+  const missing = wf.steps.some((s, i) => isThirdParty(s) && !picks[i]?.uid);
   return (
     <div className={`route-choice${wf.choose ? ' needed' : ''}`}>
       <div className="field-label">{wf.choose ? 'Choose who handles these steps' : 'Offices chosen for these steps'}</div>
+      {wf.steps.map((s, i) => isThirdParty(s) && (
+        <div key={`p${i}`} className="route-options">
+          <div className="small"><b>Step {i + 1}</b> · third party · {s.action}{s.sign ? ' · signs the PDF' : ''}</div>
+          <PersonPicker value={picks[i] ? { ...picks[i], displayName: picks[i].name } : null} external
+            placeholder="Type the name or email of the supplier, payee…"
+            onChange={(p) => setPicks({ ...picks, [i]: p ? { uid: p.uid, name: p.displayName || p.email } : null })} />
+        </div>
+      ))}
       {wf.steps.map((s, i) => s.alternates?.length > 0 && (
         <div key={i} className="route-options">
           <div className="small"><b>Step {i + 1}</b> · {s.action}{s.sign ? ' · signs the PDF' : ''}</div>
@@ -36,7 +46,7 @@ function OfficeChoice({ doc, busy, onChoose }) {
         </div>
       ))}
       {(wf.choose || changed) && (
-        <div><button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onChoose(picks)}>{wf.choose ? 'Confirm these offices' : 'Save the change'}</button></div>
+        <div><button type="button" className="btn btn-primary btn-sm" disabled={busy || missing} onClick={() => onChoose(picks)}>{wf.choose ? 'Confirm' : 'Save the change'}</button></div>
       )}
     </div>
   );
@@ -145,7 +155,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
   const referral = wf.referral;
   const unsigned = !referral && signatureMissing(doc);
   const released = wf.events.some((e) => e.type === 'released');
-  const hasAlternates = wf.steps.some((s) => s.alternates?.length);
+  const hasAlternates = wf.steps.some((s) => s.alternates?.length || isThirdParty(s));
   const showChoice = wf.state === 'in-progress' && hasAlternates && wf.stage === 0 && !released && !referral && canAct;
   const refPending = refStampMissing(doc);
   const toAssign = canAct && assignPending(doc) ? wf.steps[wf.stage].assign.field : '';

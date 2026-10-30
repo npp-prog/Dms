@@ -521,3 +521,27 @@ test('Approved by and the route must agree (Mayor or Vice Mayor)', async () => {
   assert.equal(approverMismatch(doc), null);
   assert.equal({ ...doc, ...applyAction(doc, 'release', juan, '', 't3') }.currentOffice, 'Office of the Municipal Mayor');
 });
+
+test('a third-party step: the preparer designates the person, who signs and releases it', async () => {
+  const { THIRD_PARTY } = await import('./workflow.js');
+  const route = [{ office: '', action: 'Prepare' }, { office: THIRD_PARTY, action: 'Conforme', sign: true }, { office: 'Municipal Accounting Office', action: 'Pre-audit' }];
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  const acme = { uid: 's1', displayName: 'ACME Supplies' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
+  doc = { ...doc, ...buildWorkflow({ route }, doc, DEFAULT_SETTINGS.offices, juan, 't0') };
+  assert.equal(doc.workflow.choose, true);
+  assert.throws(() => applyAction(doc, 'release', juan), /third party/);
+  assert.throws(() => chooseOffices(doc, {}, juan), /choose the third party/);
+  const { changed, ...patch } = chooseOffices(doc, { 1: { uid: 's1', name: 'ACME Supplies' } }, juan, 't1');
+  doc = { ...doc, ...patch };
+  assert.equal(doc.workflow.events.at(-1).remarks, 'Step 2: ACME Supplies');
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't2') };
+  assert.equal(doc.currentOffice, 'person:s1', 'held by the supplier');
+  assert.equal(whereIs(doc), 'ACME Supplies');
+  assert.ok(!doc.routeOffices.includes('ACME Supplies'), 'offices only');
+  assert.ok(canAct(doc, acme) && !canAct(doc, { uid: 'x', office: 'Municipal Accounting Office' }));
+  assert.equal(signatureMissing(doc), true, 'this step signs');
+  doc.pdf.files.push({ kind: 'esigned', stage: 1 });
+  doc = { ...doc, ...applyAction(doc, 'release', acme, '', 't3') };
+  assert.equal(doc.currentOffice, 'Municipal Accounting Office');
+});

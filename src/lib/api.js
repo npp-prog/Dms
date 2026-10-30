@@ -643,6 +643,10 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
     if (!d?.workflow) throw new Error('This document has no workflow.');
     if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
     patch = applyAction(d, action, user, remarks);
+    // Released to a third party (a step of the route): they keep reading it afterwards.
+    if (patch.currentOffice?.startsWith('person:') && !patch.workflow.referral) {
+      patch.referred = [...new Set([...(d.referred || []), patch.currentOffice.slice(7)])];
+    }
     const label = d.workflow.referral ? { back: 'sent back' }[action]
       : { release: 'released', return: 'returned', complete: 'processed' }[action];
     const history = [...(d.history || []), historyEntry(label, user, remarks)];

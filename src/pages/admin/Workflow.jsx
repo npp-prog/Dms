@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { addPosition, listDocumentTypes, saveRoute } from '../../lib/api.js';
 import { positionsOf } from '../../lib/defaults.js';
 import PositionsPicker from '../../components/PositionsPicker.jsx';
-import { routeFromGuide } from '../../lib/workflow.js';
+import { THIRD_PARTY, routeFromGuide } from '../../lib/workflow.js';
 import Icon from '../../components/Icon.jsx';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
 import Select from '../../components/Select.jsx';
@@ -89,7 +89,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
   const [msg, setMsg] = useState(null);
   const custom = Boolean(type.route?.length);
   const dirty = !same(clean(route), saved) || !custom;
-  const officeName = (o) => o || "Preparer's office";
+  const officeName = (o) => (o === THIRD_PARTY ? 'Third party (designated by the preparer)' : o || "Preparer's office");
   // A step's office, with its alternates: "Office of the Municipal Mayor or …Vice Mayor".
   const officesOf = (s) => [s.office, ...(s.alternates || [])].map(officeName).join(' or ');
 
@@ -116,8 +116,8 @@ function RouteEditor({ type, offices, actor, onSaved }) {
   const problems = [
     !route.length && 'Add at least one step.',
     route.some((s) => !s.action.trim()) && 'Every step needs an action (what the office does).',
-    route.some((s, i) => i > 0 && s.office === route[i - 1].office && same([...(s.positions || [])].sort(), [...(route[i - 1].positions || [])].sort())) && 'Two steps in a row are for the same people (office and positions): merge them, or change the office or who acts.',
-    route.some((s) => s.office && !offices.includes(s.office)) && 'A step names an office that is not in Settings: users of that office will not receive it.',
+    route.some((s, i) => i > 0 && s.office !== THIRD_PARTY && s.office === route[i - 1].office && same([...(s.positions || [])].sort(), [...(route[i - 1].positions || [])].sort())) && 'Two steps in a row are for the same people (office and positions): merge them, or change the office or who acts.',
+    route.some((s) => s.office && s.office !== THIRD_PARTY && !offices.includes(s.office)) && 'A step names an office that is not in Settings: users of that office will not receive it.',
   ].filter(Boolean);
   const blocking = !route.length || route.some((s) => !s.action.trim());
 
@@ -199,8 +199,9 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 <div className="route-fields">
                   <label className="field">
                     <span className="field-label">Office</span>
-                    <Select value={s.office} onChange={(e) => set(i, { office: e.target.value })}>
+                    <Select value={s.office} onChange={(e) => set(i, { office: e.target.value, ...(e.target.value === THIRD_PARTY ? { alternates: [], positions: [] } : {}) })}>
                       <option value={PREPARER}>Preparer&apos;s office (whoever prepared it)</option>
+                      <option value={THIRD_PARTY}>Third party (the preparer designates the person: a supplier, payee…)</option>
                       {choices.map((o) => <option key={o} value={o}>{o}{offices.includes(o) ? '' : ' (not in Settings)'}</option>)}
                     </Select>
                   </label>
@@ -208,6 +209,9 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                     <span className="field-label">Action</span>
                     <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} />
                   </label>
+                  {s.office === THIRD_PARTY ? (
+                    <p className="help">The preparer designates the third party (a supplier, payee or other person with a DMS account) before releasing the document. They sign it, if this step signs, and release it to the next step.</p>
+                  ) : (
                   <div className="field">
                     <span className="field-label">Alternate offices <span className="muted">(optional)</span></span>
                     <div className="chips-field">
@@ -224,7 +228,8 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                     </div>
                     <span className="help">The preparer chooses which office handles this step.</span>
                   </div>
-                  {s.office !== PREPARER ? (
+                  )}
+                  {s.office !== PREPARER && s.office !== THIRD_PARTY ? (
                     <div className="field">
                       <span className="field-label">Who acts <span className="muted">(optional)</span></span>
                       <div className="chips-field">

@@ -57,7 +57,15 @@ export function resolveOffice(stepOffice, offices = []) {
 }
 
 // Who holds a step: the office it is routed to, or the preparer's office.
-export const officeOf = (step, doc) => step?.routedTo || doc?.office || '';
+// A route step for a third party (not an office): a supplier, payee or other person outside the
+// route's offices, whom the preparer designates (step.party: { uid, name }) before releasing it.
+export const THIRD_PARTY = '@third-party';
+export const isThirdParty = (step) => step?.office === THIRD_PARTY;
+
+// Who holds a step: the office it is routed to, the third party's name, or the preparer's office.
+export const officeOf = (step, doc) => (isThirdParty(step) ? step.party?.name || 'Third party (to be chosen)' : step?.routedTo || doc?.office || '');
+// What currentOffice holds for a step: an office, or 'person:<uid>' for a third party.
+const holderOf = (step, doc) => (isThirdParty(step) ? `person:${step.party?.uid || ''}` : officeOf(step, doc));
 
 // The route suggested by a type's processing guide, as the admin route editor starts it.
 export function routeFromGuide(type, offices = []) {
@@ -74,6 +82,8 @@ export function routeSteps(type, offices = []) {
   const steps = type?.route?.length ? type.route : routeFromGuide(type, offices);
   return steps.map((s) => ({
     office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign),
+    // a third party: designated by the preparer (chooseOffices)
+    ...(s.office === THIRD_PARTY ? { thirdParty: true } : {}),
     ...(s.alternates?.length ? { alternates: s.alternates.filter((o) => o !== (s.office || '')) } : {}),
     // Who in the office acts on it (positions, Users); none: anyone in the office.
     ...(s.positions?.length && s.office ? { positions: [...s.positions] } : {}),
@@ -119,8 +129,8 @@ export function buildWorkflow(type, doc, offices, user, at = new Date().toISOStr
   if (!steps.length) return null;
   const workflow = {
     state: 'in-progress', stage: 0, received: true, steps,
-    // Steps with alternate offices: the preparer chooses before releasing it.
-    ...(steps.some((s) => s.alternates?.length) ? { choose: true } : {}),
+    // Steps with alternate offices, or for a third party: the preparer chooses before releasing it.
+    ...(steps.some((s) => s.alternates?.length || isThirdParty(s)) ? { choose: true } : {}),
     events: [{ type: 'started', stage: 0, office: officeOf(steps[0], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: '' }],
   };
   return { workflow, ...placement(workflow, doc) };
@@ -132,10 +142,11 @@ export function buildWorkflow(type, doc, offices, user, at = new Date().toISOStr
 export function placement(workflow, doc) {
   const reached = workflow.state === 'done' ? workflow.steps.length - 1
     : Math.max(workflow.stage, ...(workflow.events || []).filter((e) => e.type === 'released').map((e) => e.stage + 1));
-  const offices = [...new Set(workflow.steps.slice(0, reached + 1).map((s) => officeOf(s, doc)).filter(Boolean))];
+  // (offices only: a third party reads it through currentOffice and the referred list)
+  const offices = [...new Set(workflow.steps.slice(0, reached + 1).filter((s) => !isThirdParty(s)).map((s) => officeOf(s, doc)).filter(Boolean))];
   const moving = workflow.state === 'in-progress';
   if (moving && workflow.referral) return { currentOffice: `person:${workflow.referral.uid}`, atPreparer: false, routeOffices: offices };
-  const current = moving ? officeOf(workflow.steps[workflow.stage], doc) : '';
+  const current = moving ? holderOf(workflow.steps[workflow.stage], doc) : '';
   return { currentOffice: current, atPreparer: moving && !workflow.steps[workflow.stage].routedTo, routeOffices: offices };
 }
 
@@ -152,6 +163,7 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = 
   if (isAdmin) return true;
   if (wf.referral) return wf.referral.uid === uid;
   const step = wf.steps[wf.stage];
+  if (isThirdParty(step)) return Boolean(uid) && step.party?.uid === uid;
   const holder = officeOf(step, doc);
   if (!step.routedTo) return doc.createdBy === uid || (isHead && Boolean(office) && office === holder);
   return Boolean(office) && office === holder && holdsPosition(step, positions, isHead);
@@ -266,7 +278,10 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   if ((action === 'release' || action === 'complete') && signatureMissing(doc)) {
     throw new Error('This step requires a signature: sign the PDF (PDF and digital signatures) before releasing it.');
   }
-  if (action === 'release' && wf.stage === 0 && wf.choose) throw new Error('Choose the office of each step with alternates before releasing it.');
+  if (action === 'release' && wf.stage === 0 && wf.choose) throw new Error('Choose the office of each step with alternates, and the third party, before releasing it.');
+  if (action === 'release' && isThirdParty(wf.steps[wf.stage + 1]) && !wf.steps[wf.stage + 1].party?.uid) {
+    throw new Error(`Choose the third party of step ${wf.stage + 2} before releasing it.`);
+  }
   if (action === 'release' && wf.stage === 0 && !wf.events.some((e) => e.type === 'released') && approverMismatch(doc)) {
     const m = approverMismatch(doc);
     throw new Error(`Approved by and the route differ: step ${m.stage + 1} should go to ${m.office}. Choose it in the Workflow card.`);
@@ -312,6 +327,14 @@ export function chooseOffices(doc, picks, user, at = new Date().toISOString()) {
   }
   const changed = [];
   const steps = wf.steps.map((s, i) => {
+    // A third party: the person the preparer designates ({ uid, name }).
+    if (isThirdParty(s)) {
+      const pick = picks[i] ?? s.party;
+      if (!pick?.uid) throw new Error(`Step ${i + 1}: choose the third party (supplier, payee…).`);
+      const party = { uid: pick.uid, name: pick.name || pick.displayName || pick.email || 'Third party' };
+      if (party.uid !== s.party?.uid) changed.push(`Step ${i + 1}: ${party.name}`);
+      return { ...s, party };
+    }
     if (!s.alternates?.length) return s;
     const main = s.office === 'Requesting office' ? '' : s.office;
     const pick = picks[i] ?? s.routedTo;
@@ -319,7 +342,7 @@ export function chooseOffices(doc, picks, user, at = new Date().toISOString()) {
     if (pick !== s.routedTo) changed.push(`Step ${i + 1}: ${pick || 'Preparer\'s office'}`);
     return { ...s, routedTo: pick };
   });
-  const remarks = steps.map((s, i) => (s.alternates?.length ? `Step ${i + 1}: ${s.routedTo || 'Preparer\'s office'}` : '')).filter(Boolean).join('; ');
+  const remarks = steps.map((s, i) => (isThirdParty(s) ? `Step ${i + 1}: ${s.party.name}` : s.alternates?.length ? `Step ${i + 1}: ${s.routedTo || 'Preparer\'s office'}` : '')).filter(Boolean).join('; ');
   const next = { ...wf, steps, choose: false, events: [...wf.events, { type: 'route', stage: 0, office: officeOf(steps[0], doc), by: user.displayName || user.email, uid: user.uid, at, remarks }] };
   return { workflow: next, ...placement(next, doc), changed };
 }

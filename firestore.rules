@@ -274,10 +274,13 @@ service cloud.firestore {
           && resource.data.workflow.get('referral', {}).get('fromOffice', '') == myOffice();
       }
       // Referring a document to a person: admins, and users allowed to route to any person.
+      // Or released to a third-party step of its route: to the person the preparer designated.
       function referralAllowed() {
         return !request.resource.data.get('currentOffice', '').matches('person:.*')
           || resource.data.get('currentOffice', '').matches('person:.*')
-          || isAdmin() || profile().get('canRefer', false) == true;
+          || isAdmin() || profile().get('canRefer', false) == true
+          || (request.resource.data.workflow.steps[request.resource.data.workflow.stage].get('office', '') == '@third-party'
+              && request.resource.data.currentOffice == 'person:' + request.resource.data.workflow.steps[request.resource.data.workflow.stage].get('party', {}).get('uid', '-'));
       }
       // The fields the current route step assigns on receiving (e.g. dvNo and dvDate) or fills in
       // (e.g. checkNo, checkDate, bankName), if any.
