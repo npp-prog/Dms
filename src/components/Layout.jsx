@@ -7,7 +7,7 @@ import AskDms from './AskDms.jsx';
 import { isUnread, listInbox, watchConversations } from '../lib/api.js';
 import { listCirculars, toReceive, watchCommunities, watchNotifications } from '../lib/social.js';
 
-const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Supplier / Payee' };
+const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Third Party' };
 
 // A supplier or payee may open only these: the documents referred to them, Messages, and their
 // profile (certificate and signature mark).

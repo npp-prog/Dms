@@ -81,14 +81,14 @@ export default function Users() {
                   </td>
                   <td>
                     {canManage(u) ? (
-                      // Supplier / Payee: not LGU personnel; only signs the documents referred to them.
+                      // Third Party: not LGU personnel; only signs the documents referred to them.
                       <Select value={u.role} onChange={(e) => change(u, { role: e.target.value, ...(e.target.value === 'payee' ? { office: '', head: false, positions: [], canRefer: false } : {}) })}>
                         <option value="user">User</option>
-                        <option value="payee">Supplier / Payee</option>
+                        <option value="payee">Third Party</option>
                         {isSuper && <option value="admin">Admin</option>}
                         {isSuper && <option value="superadmin">Superadmin</option>}
                       </Select>
-                    ) : ({ payee: 'Supplier / Payee' }[u.role] || u.role)}
+                    ) : ({ payee: 'Third Party' }[u.role] || u.role)}
                   </td>
                   <td><span className={`badge ${u.active ? 'badge-green' : 'badge-yellow'}`}>{u.active ? 'Active' : 'Pending / inactive'}</span></td>
                   <td>

@@ -35,7 +35,7 @@ export default function PersonPicker({ value, onChange, exclude = [], external =
             <li key={p.uid}>
               <button type="button" onClick={() => { onChange(p); setQ(''); }}>
                 <b>{p.displayName || p.email}</b>
-                <span className="small muted">{[p.email, p.external ? 'Supplier / Payee' : p.office].filter(Boolean).join(' · ')}</span>
+                <span className="small muted">{[p.email, p.external ? 'Third Party' : p.office].filter(Boolean).join(' · ')}</span>
               </button>
             </li>
           ))}
