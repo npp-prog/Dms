@@ -5,7 +5,7 @@ import {
   signInWithRedirect, signOut, updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase.js';
-import { ensureUserProfile, getSettings, setupSite, syncDirectoryEntry, updateUser } from '../lib/api.js';
+import { ensureUserProfile, getSettings, setupSite, syncDirectory, syncDirectoryEntry, updateUser } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 
@@ -34,6 +34,7 @@ export function AuthProvider({ children }) {
     if (p.active) {
       setSettings(await getSettings().catch(() => ({})));
       syncDirectoryEntry(firebaseUser.uid, p).catch(() => {});
+      if (['admin', 'superadmin'].includes(p.role)) syncDirectory().catch(() => {});
     }
     return p;
   }, []);

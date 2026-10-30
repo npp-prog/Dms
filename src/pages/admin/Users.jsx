@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { addPosition, listUsers, updateUser } from '../../lib/api.js';
+import { addPosition, listUsers, syncDirectory, updateUser } from '../../lib/api.js';
 import { positionsOf } from '../../lib/defaults.js';
 import Select from '../../components/Select.jsx';
 import PositionsPicker from '../../components/PositionsPicker.jsx';
@@ -16,7 +16,8 @@ export default function Users() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
-  const load = () => listUsers().then((u) => setUsers(u.sort((a, b) => Number(a.active) - Number(b.active) || (a.displayName || '').localeCompare(b.displayName || '')))).catch((e) => setError(e.message));
+  // The directory (finding people by name, e.g. in Messages) follows approvals and office changes.
+  const load = () => listUsers().then((u) => { syncDirectory(u).catch(() => {}); return u; }).then((u) => setUsers(u.sort((a, b) => Number(a.active) - Number(b.active) || (a.displayName || '').localeCompare(b.displayName || '')))).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
 
   const change = async (u, patch) => {

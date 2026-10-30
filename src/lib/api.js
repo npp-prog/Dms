@@ -59,6 +59,23 @@ export async function syncDirectoryEntry(uid, profile) {
   if (!cur?.exists() || Object.keys(entry).some((k) => cur.data()[k] !== entry[k])) await setDoc(ref, entry);
 }
 
+// Administrators: every active user in the directory (also those who have not signed in since it
+// existed, or were just approved), as in their profile; inactive users out of it.
+export async function syncDirectory(users) {
+  const all = users || await listUsers();
+  const cur = Object.fromEntries((await getDocs(collection(db, 'directory'))).docs.map((d) => [d.id, d.data()]));
+  const batch = writeBatch(db);
+  let n = 0;
+  for (const u of all) {
+    const uid = u.id || u.uid;
+    if (u.active) {
+      const entry = { displayName: u.displayName || '', office: u.office || '', email: u.email || '' };
+      if (!cur[uid] || Object.keys(entry).some((k) => cur[uid][k] !== entry[k])) { batch.set(doc(db, 'directory', uid), entry); n++; }
+    } else if (cur[uid]) { batch.delete(doc(db, 'directory', uid)); n++; }
+  }
+  if (n) await batch.commit();
+}
+
 export async function listDirectory() {
   const snap = await getDocs(collection(db, 'directory'));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() })).sort((a, b) => a.displayName.localeCompare(b.displayName));

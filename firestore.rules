@@ -223,12 +223,19 @@ service cloud.firestore {
     }
 
     // ---- Directory: names and offices of active users (to forward a document to someone) ----
+    // Each user keeps their own entry; administrators keep everyone's (so someone who has not
+    // signed in since can still be found), from their profile, and remove inactive users'.
     match /directory/{uid} {
       allow read: if isActive();
-      allow write: if isActive() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['displayName', 'office', 'email'])
-        && request.resource.data.office == myOffice()
-        && request.resource.data.get('email', '') in ['', request.auth.token.email];
+      allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email'])
+        && ((request.auth.uid == uid
+              && request.resource.data.office == myOffice()
+              && request.resource.data.get('email', '') in ['', request.auth.token.email])
+            || (isAdmin()
+              && get(/databases/$(database)/documents/users/$(uid)).data.active == true
+              && request.resource.data.office == get(/databases/$(database)/documents/users/$(uid)).data.get('office', '')
+              && request.resource.data.email == get(/databases/$(database)/documents/users/$(uid)).data.get('email', '')));
+      allow delete: if isAdmin();
     }
 
     // ---- Verification records ----
