@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
-import { canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices } from '../lib/api.js';
+import { assignPending, canAct, editableByPreparer, holdsPosition, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
@@ -192,8 +192,14 @@ export default function DocumentView() {
 
   const load = async () => {
     try {
-      const d = await getDocument(docId);
+      let d = await getDocument(docId);
       if (!d) throw new Error('Document not found.');
+      // At a step that assigns a reference no. (e.g. the DV No.): the office gets it on opening.
+      if (d.status !== 'cancelled' && assignPending(d)
+        && canAct(d, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] })) {
+        await assignRefNo(docId, actor).catch(() => {});
+        d = (await getDocument(docId)) || d;
+      }
       setDocData(d);
       ensureCheck(docId, d).catch(() => {}); // only those who may act on it can write it
       setDraft(d.data || {});
@@ -227,7 +233,7 @@ export default function DocumentView() {
   const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = !uploaded && editable && (docData.status === 'complete' || (revising && (docData.pdf?.files || []).length > 0)) && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
-  // (An office signs once it has received the document.)
+  // (The office holding it signs: documents are no longer received first.)
   // Signing is open only at a step of the route that signs (or to a person it is referred to).
   const signHere = !wf || (wf.state === 'in-progress' && Boolean(wf.referral || wf.steps[wf.stage]?.sign));
   // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is
@@ -424,7 +430,7 @@ export default function DocumentView() {
           <section className="card">
             <h3>History</h3>
             <ul className="history">
-              {[...(docData.history || [])].reverse().map((h, i) => (
+              {[...(docData.history || [])].filter((h) => !['received', 'received (referred)'].includes(h.action)).reverse().map((h, i) => (
                 <li key={i}><b>{h.action}</b> {h.note && `(${h.note})`}<div className="small muted">{h.by} · {new Date(h.at).toLocaleString()}</div></li>
               ))}
             </ul>

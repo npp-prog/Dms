@@ -231,7 +231,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                         <PositionsPicker value={s.positions || []} choices={positionsOf(settings)} onNew={newPosition}
                           placeholder="+ Add a position…" onChange={(positions) => set(i, { positions })} />
                       </div>
-                      <span className="help">{s.positions?.length ? 'Only these positions (and the office head) receive, sign and release it.' : 'Anyone in the office.'}</span>
+                      <span className="help">{s.positions?.length ? 'Only these positions (and the office head) sign and release it.' : 'Anyone in the office.'}</span>
                     </div>
                   ) : <div />}
                   <div className="route-options">
@@ -242,7 +242,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                     <label className="check">
                       <input type="checkbox" checked={Boolean(s.assign)} disabled={!textFields.length}
                         onChange={(e) => set(i, { assign: e.target.checked ? suggestAssign() : undefined })} />
-                      Assigns a reference no. on receiving
+                      Assigns a reference no.
                     </label>
                   </div>
                   {s.assign && (

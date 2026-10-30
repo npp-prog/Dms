@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
-import { officeOf } from '../lib/workflow.js';
+import { HIDDEN_EVENTS, officeOf } from '../lib/workflow.js';
 import Select from './Select.jsx';
 import { drnOf } from '../lib/naming.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const EVENT = { started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Offices chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back' };
+const EVENT = { started: 'Started', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned', route: 'Offices chosen', referred: 'Referred', 'referral back': 'Sent back' };
 
 // Where a routed document is: its state for the filters.
 export function stateOf(d, office, uid = '') {
@@ -16,7 +16,7 @@ export function stateOf(d, office, uid = '') {
   if (wf.state === 'cancelled') return 'cancelled';
   if (wf.referral) return uid && wf.referral.uid === uid ? 'mine' : 'moving';
   if (office && officeOf(wf.steps[wf.stage], d) === office) return 'mine';
-  if (wf.events.at(-1)?.type === 'returned') return 'returned';
+  if (wf.events.filter((e) => !HIDDEN_EVENTS.has(e.type)).at(-1)?.type === 'returned') return 'returned';
   return 'moving';
 }
 
@@ -25,7 +25,7 @@ export function trackingViews(office) {
   return [
     ['active', 'On the move', (r) => !['done', 'cancelled'].includes(r.state)],
     ...(office ? [['mine', 'In your office', (r) => r.state === 'mine']] : []),
-    ['returned', 'Returned', (r) => r.state === 'returned' || (r.state === 'mine' && r.d.workflow.events.at(-1)?.type === 'returned')],
+    ['returned', 'Returned', (r) => r.state === 'returned' || (r.state === 'mine' && r.d.workflow.events.filter((e) => !HIDDEN_EVENTS.has(e.type)).at(-1)?.type === 'returned')],
     ['done', 'Processed', (r) => r.state === 'done'],
     ['all', 'All routed', () => true],
   ];
@@ -87,7 +87,7 @@ export default function WorkflowTracking() {
               {shown.length === 0 && <tr><td colSpan={6} className="muted">No documents here. A document is routed when it is marked complete.</td></tr>}
               {shown.map(({ d, state }) => {
                 const wf = d.workflow;
-                const last = wf.events.at(-1);
+                const last = wf.events.filter((e) => !HIDDEN_EVENTS.has(e.type)).at(-1);
                 const step = wf.steps[wf.stage];
                 return (
                   <tr key={d.id}>
@@ -109,9 +109,7 @@ export default function WorkflowTracking() {
                           <b>{officeOf(step, d) || 'Requesting office'}</b>
                           <div className="small">{step.action}</div>
                           {wf.referral && <div className="small">Referred to <b>{wf.referral.name}</b></div>}
-                          <span className={`badge ${state === 'mine' ? 'badge-blue' : last?.type === 'returned' ? 'badge-red' : wf.received ? 'badge-green' : 'badge-yellow'}`}>
-                            {last?.type === 'returned' && !wf.received ? 'Returned' : wf.received ? 'Received' : 'To receive'}
-                          </span>
+                          {last?.type === 'returned' && <span className="badge badge-red">Returned</span>}
                         </>
                       ) : <span className={`badge ${wf.state === 'done' ? 'badge-green' : 'badge-gray'}`}>{wf.state === 'done' ? 'Processed' : 'Cancelled'}</span>}
                     </td>

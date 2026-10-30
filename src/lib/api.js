@@ -8,7 +8,7 @@ import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
 import { checkRecord } from './publicRecord.js';
-import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
+import { applyAction, assignPending, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
 import { withApprover } from './approver.js';
 
 // ---------- Users ----------
@@ -610,7 +610,7 @@ export async function referDocument(id, to, note, user) {
   });
 }
 
-// Receive, release, return or complete the current step. Runs as a transaction: the step must
+// Release, return or complete the current step. Runs as a transaction: the step must
 // still be the one the user saw (another office may have acted meanwhile).
 export async function workflowAction(id, action, user, { stage, remarks = '' } = {}) {
   const ref = doc(db, 'documents', id);
@@ -620,36 +620,48 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
     if (!d?.workflow) throw new Error('This document has no workflow.');
     if (stage !== undefined && d.workflow.stage !== stage) throw new Error('Someone else acted on this document first. The page has been refreshed.');
     const patch = applyAction(d, action, user, remarks);
-    const label = d.workflow.referral ? { receive: 'received (referred)', back: 'sent back' }[action]
-      : { receive: 'received', release: 'released', return: 'returned', complete: 'processed' }[action];
+    const label = d.workflow.referral ? { back: 'sent back' }[action]
+      : { release: 'released', return: 'returned', complete: 'processed' }[action];
     const history = [...(d.history || []), historyEntry(label, user, remarks)];
-    // Received at a step that assigns a reference no. (e.g. Accounting, the DV No.): the next number
-    // of its series and today's date, unless the field already has one.
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
+    publishCheck(tx, id, { ...d, ...patch });
+  });
+}
+
+// The office holding the document opens it at a step that assigns a reference no. (e.g.
+// Accounting, the DV No.): the next number of its series and today's date, unless the field
+// already has one.
+export async function assignRefNo(id, user) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const d = snap.data();
+    if (!d || !assignPending(d)) return;
+    const patch = {};
+    const history = [...(d.history || [])];
     const step = d.workflow.steps[d.workflow.stage];
-    const assign = action === 'receive' && !d.workflow.referral ? step.assign : null;
-    if (assign?.field && !String(d.data?.[assign.field] || '').trim()) {
-      const field = (d.typeSnapshot?.fields || []).find((f) => f.key === assign.field);
-      const now = new Date();
-      const series = refNumber(assign.pattern || DEFAULT_REF_PATTERN, { fund: d.data?.fund, date: now });
-      const counterRef = doc(db, 'counters', `${d.typeCode}_${series.counterId}`.slice(0, 140));
-      const counter = await tx.get(counterRef);
-      const value = (counter.exists() ? counter.data().value : 0) + 1;
-      const number = series.format(value);
-      const iso = now.toISOString();
-      const data = { ...(d.data || {}), [assign.field]: number, ...(assign.dateField ? { [assign.dateField]: iso.slice(0, 10) } : {}) };
-      const who = { stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, at: iso };
-      // Every data field set here is listed in refNos (the security rules allow only those).
-      const refNos = {
-        ...(d.refNos || {}),
-        [assign.field]: { value: number, label: field?.label || assign.field, ...who },
-        ...(assign.dateField ? { [assign.dateField]: { value: iso.slice(0, 10), label: 'Date', of: assign.field, ...who } } : {}),
-      };
-      tx.set(counterRef, { value });
-      patch.data = data;
-      patch.refNos = refNos;
-      patch.workflow = { ...patch.workflow, events: [...patch.workflow.events, { type: 'assigned', stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, uid: user.uid, at: iso, remarks: `${field?.label || assign.field} ${number}` }] };
-      history.push(historyEntry('assigned', user, `${field?.label || assign.field} ${number}`));
-    }
+    const assign = step.assign;
+    const field = (d.typeSnapshot?.fields || []).find((f) => f.key === assign.field);
+    const now = new Date();
+    const series = refNumber(assign.pattern || DEFAULT_REF_PATTERN, { fund: d.data?.fund, date: now });
+    const counterRef = doc(db, 'counters', `${d.typeCode}_${series.counterId}`.slice(0, 140));
+    const counter = await tx.get(counterRef);
+    const value = (counter.exists() ? counter.data().value : 0) + 1;
+    const number = series.format(value);
+    const iso = now.toISOString();
+    const data = { ...(d.data || {}), [assign.field]: number, ...(assign.dateField ? { [assign.dateField]: iso.slice(0, 10) } : {}) };
+    const who = { stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, at: iso };
+    // Every data field set here is listed in refNos (the security rules allow only those).
+    const refNos = {
+      ...(d.refNos || {}),
+      [assign.field]: { value: number, label: field?.label || assign.field, ...who },
+      ...(assign.dateField ? { [assign.dateField]: { value: iso.slice(0, 10), label: 'Date', of: assign.field, ...who } } : {}),
+    };
+    tx.set(counterRef, { value });
+    patch.data = data;
+    patch.refNos = refNos;
+    patch.workflow = { ...d.workflow, events: [...d.workflow.events, { type: 'assigned', stage: d.workflow.stage, office: step.routedTo || d.office || '', by: user.displayName || user.email, uid: user.uid, at: iso, remarks: `${field?.label || assign.field} ${number}` }] };
+    history.push(historyEntry('assigned', user, `${field?.label || assign.field} ${number}`));
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
     publishCheck(tx, id, { ...d, ...patch });
   });

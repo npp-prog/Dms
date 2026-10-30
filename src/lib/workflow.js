@@ -5,7 +5,7 @@
 // document.workflow = {
 //   state: 'in-progress' | 'done' | 'cancelled',
 //   stage: index of the current step,
-//   received: whether the office holding it has received the paper,
+//   received: always true now (documents are no longer received; older ones may have false),
 //   steps: [{ office (as in the guide), action, routedTo (office in Settings, or '' = preparer),
 //            sign (the office must sign the PDF before releasing it) }],
 //   events: [{ type: 'started' | 'received' | 'released' | 'returned' | 'completed' | 'cancelled'
@@ -76,7 +76,7 @@ export function routeSteps(type, offices = []) {
     ...(s.alternates?.length ? { alternates: s.alternates.filter((o) => o !== (s.office || '')) } : {}),
     // Who in the office acts on it (positions, Users); none: anyone in the office.
     ...(s.positions?.length && s.office ? { positions: [...s.positions] } : {}),
-    // The reference no. this office assigns when it receives the document (e.g. the DV No.).
+    // The reference no. this office assigns (when the office first opens the document) (e.g. the DV No.).
     ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
     // Fields this office fills in (e.g. Check/ADA No., date, bank) and a file it must upload
     // (e.g. the DV signed by the payee in Box E), both before it releases the document.
@@ -139,13 +139,10 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = 
 export function availableActions(doc) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return [];
-  if (wf.referral) return wf.referral.received ? ['back'] : ['receive'];
+  // No receiving: released to an office (or referred to a person), it is there to act on.
+  if (wf.referral) return ['back'];
   const last = wf.stage === wf.steps.length - 1;
-  return [
-    ...(!wf.received ? ['receive'] : []),
-    ...(wf.received ? [last ? 'complete' : 'release'] : []),
-    ...(wf.stage > 0 ? ['return'] : []),
-  ];
+  return [last ? 'complete' : 'release', ...(wf.stage > 0 ? ['return'] : [])];
 }
 
 // PDF versions still in effect. A 'restored' version (to change an assigned reference no. that was
@@ -248,33 +245,30 @@ export function applyAction(doc, action, user, remarks = '', at = new Date().toI
   const event = (type, stage) => ({ type, stage, office: officeOf(wf.steps[stage], doc), by: user.displayName || user.email, uid: user.uid, at, remarks: String(remarks || '').trim() });
   let next;
   if (wf.referral) {
-    // With a person outside the route: they receive it, act (e.g. sign), and send it back.
+    // With a person outside the route: they act (e.g. sign), and send it back.
     const r = wf.referral;
     const ev = (type) => ({ ...event(type, wf.stage), office: r.office || r.name });
-    if (action === 'receive') next = { ...wf, referral: { ...r, received: true }, events: [...wf.events, ev('referral received')] };
     if (action === 'back') {
       const { referral, ...rest } = wf;
       next = { ...rest, events: [...wf.events, ev('referral back')] };
     }
     return { workflow: next, ...placement(next, doc) };
   }
-  if (action === 'receive') next = { ...wf, received: true, events: [...wf.events, event('received', wf.stage)] };
-  if (action === 'release') next = { ...wf, stage: wf.stage + 1, received: false, events: [...wf.events, event('released', wf.stage)] };
-  if (action === 'return') next = { ...wf, stage: wf.stage - 1, received: false, events: [...wf.events, event('returned', wf.stage)] };
+  if (action === 'release') next = { ...wf, stage: wf.stage + 1, received: true, events: [...wf.events, event('released', wf.stage)] };
+  if (action === 'return') next = { ...wf, stage: wf.stage - 1, received: true, events: [...wf.events, event('returned', wf.stage)] };
   if (action === 'complete') next = { ...wf, state: 'done', events: [...wf.events, event('completed', wf.stage)] };
   return { workflow: next, ...placement(next, doc) };
 }
 
 // Refers the document to a person outside the route (an active user): it waits for them to
-// receive it, act and send it back to the office holding it, then the route goes on.
+// act on it and send it back to the office holding it, then the route goes on.
 export function referDocument(doc, to, note, user, at = new Date().toISOString()) {
   const wf = doc.workflow;
   if (!wf || wf.state !== 'in-progress' || wf.referral) throw new Error('This document cannot be referred now.');
-  if (!wf.received) throw new Error('Receive the document before referring it.');
   if (!to?.uid) throw new Error('Choose the person to refer it to.');
   if (to.uid === user.uid) throw new Error('Choose someone other than yourself.');
   const fromOffice = officeOf(wf.steps[wf.stage], doc);
-  const referral = { uid: to.uid, name: to.displayName || to.email || '', office: to.office || '', fromOffice, by: user.displayName || user.email, byUid: user.uid, at, note: String(note || '').trim(), received: false };
+  const referral = { uid: to.uid, name: to.displayName || to.email || '', office: to.office || '', fromOffice, by: user.displayName || user.email, byUid: user.uid, at, note: String(note || '').trim(), received: true };
   const next = { ...wf, referral, events: [...wf.events, { type: 'referred', stage: wf.stage, office: fromOffice, by: user.displayName || user.email, uid: user.uid, at, remarks: `to ${referral.name}${referral.office ? ` (${referral.office})` : ''}${referral.note ? ` — ${referral.note}` : ''}` }] };
   return { workflow: next, ...placement(next, doc) };
 }
@@ -314,9 +308,8 @@ export function whereIs(doc) {
   if (!wf) return '';
   if (wf.state === 'done') return 'Processed';
   if (wf.state === 'cancelled') return 'Cancelled';
-  if (wf.referral) return `${wf.referral.name} (referred${wf.referral.received ? '' : ', to receive'})`;
-  const step = wf.steps[wf.stage];
-  return `${officeOf(step, doc) || 'Requesting office'}${wf.received ? '' : ' (to receive)'}`;
+  if (wf.referral) return `${wf.referral.name} (referred)`;
+  return officeOf(wf.steps[wf.stage], doc) || 'Requesting office';
 }
 
 // The preparer may still change the document while it is at the first step (their office).
@@ -326,8 +319,20 @@ export function editableByPreparer(doc) {
   return wf.state === 'in-progress' && wf.stage === 0 && !wf.referral;
 }
 
-// Has the one holding the document (the office, or the person it is referred to) received it?
-export const isReceived = (wf) => Boolean(wf && (wf.referral ? wf.referral.received : wf.received));
+// Documents are no longer received: released to an office, it is there (older documents still
+// waiting "to receive" count as there too).
+export const isReceived = (wf) => Boolean(wf);
 
-export const ACTION_LABELS = { receive: 'Receive', release: 'Release', return: 'Return', complete: 'Mark processed', back: 'Send back' };
+// Workflow events no longer shown (receiving, from before it was dropped).
+export const HIDDEN_EVENTS = new Set(['received', 'referral received']);
+
+// The current step assigns a reference no. (e.g. the DV No.) that it has not assigned yet: DMS
+// assigns it when the office holding the document opens it.
+export function assignPending(doc) {
+  const wf = doc?.workflow;
+  const step = wf?.state === 'in-progress' && !wf.referral ? wf.steps[wf.stage] : null;
+  return Boolean(step?.assign?.field && !String(doc.data?.[step.assign.field] || '').trim());
+}
+
+export const ACTION_LABELS = { release: 'Release', return: 'Return', complete: 'Mark processed', back: 'Send back' };
 

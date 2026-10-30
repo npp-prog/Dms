@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
+import { ACTION_LABELS, HIDDEN_EVENTS, availableActions, fillsMissing, officeOf, refStampMissing, signatureMissing, uploadMissing } from '../lib/workflow.js';
 import PersonPicker from './PersonPicker.jsx';
 import Select from './Select.jsx';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const EVENT_TEXT = {
-  started: 'Started', received: 'Received', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned',
-  route: 'Offices chosen', referred: 'Referred', 'referral received': 'Received (referred)', 'referral back': 'Sent back',
+  started: 'Started', released: 'Released', returned: 'Returned', completed: 'Processed', cancelled: 'Cancelled', assigned: 'Assigned',
+  route: 'Offices chosen', referred: 'Referred', 'referral back': 'Sent back',
 };
 
 // The preparer chooses which office handles each step that has alternates (e.g. the Mayor or the
@@ -52,7 +52,7 @@ function ReferPanel({ me, busy, onRefer, onCancel }) {
         <span className="field-label">What should they do? (optional)</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
-      <p className="xs muted">They receive it in their Notifications, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
+      <p className="xs muted">They find it in their Notifications, act on it (they can sign the PDF) and send it back to you. The route then goes on.</p>
       <div className="row gap">
         <button type="button" className="btn btn-primary btn-sm" disabled={busy || !person} onClick={() => onRefer(person, note)}>Refer to {person?.displayName || 'this person'}</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
@@ -61,7 +61,7 @@ function ReferPanel({ me, busy, onRefer, onCancel }) {
   );
 }
 
-// The route of a document: each office on it, where the document is now, who received and
+// The route of a document: each office on it, where the document is now, who acted and
 // released it and when, and the actions open to the office holding it.
 // What the office holding the document does at its step before releasing it: fill in details
 // (e.g. Check/ADA No., date, bank) and upload a file (e.g. the DV signed by the payee in Box E).
@@ -125,7 +125,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
             <button className="btn btn-primary" disabled={busy} onClick={onStart}>Start workflow</button>
           </>
         ) : <p className="small muted">The workflow starts when the document is converted to PDF: the PDF then goes from office to
-          office along its route, to be received, signed and released.</p>}
+          office along its route, to be signed and released.</p>}
       </section>
     );
   }
@@ -155,17 +155,17 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
       <ol className="wf-steps">
         {wf.steps.map((step, i) => {
           const state = wf.state === 'done' || i < wf.stage ? 'done' : i === wf.stage && wf.state === 'in-progress' ? 'current' : 'pending';
-          const events = wf.events.filter((e) => e.stage === i);
+          const events = wf.events.filter((e) => e.stage === i && !HIDDEN_EVENTS.has(e.type));
           return (
             <li key={i} className={`wf-${state}`}>
               <span className="wf-dot">{state === 'done' ? '✓' : i + 1}</span>
               <div>
                 <div className="wf-office">{nameOf(step)}{wf.choose && step.alternates?.length > 0 && <span className="small muted"> (or {step.alternates.map((o) => o || "Preparer's office").join(' or ')}: to choose)</span>}</div>
                 <div className="small"><b>{step.action}</b>{step.positions?.length > 0 && <span className="muted"> · by the {step.positions.join(' or ')}</span>}{step.sign && <span className="muted"> · signs the PDF</span>}
-                  {step.assign && <span className="muted"> · assigns the {fieldLabel(step.assign.field)} on receiving</span>}</div>
-                {state === 'current' && !referral && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
+                  {step.assign && <span className="muted"> · assigns the {fieldLabel(step.assign.field)}</span>}</div>
+                {state === 'current' && !referral && <div className="small wf-now">Here now</div>}
                 {state === 'current' && referral && (
-                  <div className="small wf-now">Referred to <b>{referral.name}</b>{referral.office ? ` (${referral.office})` : ''}: {referral.received ? 'with them now' : 'waiting to be received'}</div>
+                  <div className="small wf-now">Referred to <b>{referral.name}</b>{referral.office ? ` (${referral.office})` : ''}: with them now</div>
                 )}
                 {events.map((e, j) => (
                   <div key={j} className={`small ${e.type === 'returned' ? 'wf-returned' : 'muted'}`}>
@@ -187,8 +187,8 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
       </ol>
 
       {onlyPositions && (
-        <div className="alert-info small no-print">This step is for the <b>{onlyPositions.join(' or ')}</b> of your office: only they (or the office head) can receive,
-          sign and release it.</div>
+        <div className="alert-info small no-print">This step is for the <b>{onlyPositions.join(' or ')}</b> of your office: only they (or the office head) can sign
+          and release it.</div>
       )}
       {showChoice && <OfficeChoice key={JSON.stringify(wf.steps.map((s) => s.routedTo))} doc={doc} busy={busy} onChoose={onChooseOffices} />}
 
@@ -196,16 +196,13 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
         <div className="wf-actions no-print">
           <div className="alert-info small">
             <b>{referral.by}</b> ({referral.fromOffice || 'the office holding it'}) referred this document to you{referral.note ? <>: <i>{referral.note}</i></> : '.'}
-            {' '}{referral.received ? 'Act on it (you can sign the PDF), then send it back.' : 'Receive it to act on it.'}
+            {' '}Act on it (you can sign the PDF), then send it back.
           </div>
-          {referral.received && (
-            <div className="field field-wide" style={{ marginBottom: '.6rem' }}>
-              <label className="field-label" htmlFor="wf-back">Remarks (optional)</label>
-              <input id="wf-back" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-            </div>
-          )}
+          <div className="field field-wide" style={{ marginBottom: '.6rem' }}>
+            <label className="field-label" htmlFor="wf-back">Remarks (optional)</label>
+            <input id="wf-back" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          </div>
           <div className="row gap wrap">
-            {actions.includes('receive') && <button className="btn btn-primary" disabled={busy} onClick={() => act('receive')}>{ACTION_LABELS.receive}</button>}
             {actions.includes('back') && <button className="btn btn-primary" disabled={busy} onClick={() => act('back')}>Send back to {referral.fromOffice || referral.by}</button>}
           </div>
         </div>
@@ -236,26 +233,25 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
                   <input id="wf-note" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
                 </div>
               )}
-              {wf.received && (wf.steps[wf.stage].fills || wf.steps[wf.stage].upload) && (
+              {(wf.steps[wf.stage].fills || wf.steps[wf.stage].upload) && (
                 <StepTasks doc={doc} step={wf.steps[wf.stage]} busy={busy} onFill={onFill} onUpload={onUpload} onOpenFile={onOpenFile}>
                   {!fillsMissing(doc).length && sendPanel}
                 </StepTasks>
               )}
-              {wf.received && (fillsMissing(doc).length > 0 || uploadMissing(doc)) && (
+              {(fillsMissing(doc).length > 0 || uploadMissing(doc)) && (
                 <div className="alert-info small">Before releasing: {[fillsMissing(doc).length && 'fill in and save the details above', uploadMissing(doc) && `upload ${wf.steps[wf.stage].upload}`].filter(Boolean).join(', and ')}.</div>
               )}
-              {refPending && wf.received && (
+              {refPending && (
                 <div className="alert-info small">Put the <b>{refPending.label} {refPending.value}</b> on the PDF under <b>PDF and digital signatures</b>{wf.steps[wf.stage].sign ? ' (with your signature)' : ''}, then release it.</div>
               )}
-              {unsigned && wf.received && (
+              {unsigned && (
                 <div className="alert-info small">This step requires a signature. Sign the PDF under <b>PDF and digital signatures</b>, then release it.</div>
               )}
               <div className="row gap wrap">
-                {actions.includes('receive') && <button className="btn btn-primary" disabled={busy} onClick={() => act('receive')}>{ACTION_LABELS.receive}</button>}
                 {actions.includes('release') && <button className="btn btn-primary" disabled={busy || unsigned || blocked || (wf.stage === 0 && wf.choose)} onClick={() => act('release')}>Release to {nameOf(next)}</button>}
                 {actions.includes('complete') && <button className="btn btn-primary" disabled={busy || unsigned || blocked} onClick={() => act('complete')}>{ACTION_LABELS.complete}</button>}
                 {actions.includes('return') && <button className="btn btn-ghost" disabled={busy} onClick={() => setReturning(true)}>Return to {nameOf(prev)}</button>}
-                {canRefer && wf.received && <button className="btn btn-ghost" disabled={busy} onClick={() => setReferring(true)}>Refer to a person…</button>}
+                {canRefer && <button className="btn btn-ghost" disabled={busy} onClick={() => setReferring(true)}>Refer to a person…</button>}
               </div>
             </>
           )}

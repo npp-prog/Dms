@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { listForwarded, listInbox } from '../lib/api.js';
-import { officeOf } from '../lib/workflow.js';
+import { HIDDEN_EVENTS, officeOf } from '../lib/workflow.js';
 import Select from '../components/Select.jsx';
 import { drnOf } from '../lib/naming.js';
 
@@ -63,9 +63,9 @@ export default function Inbox() {
                     <td className="small">{wf.referral
                       ? <><span className="badge badge-blue">Referred{wf.referral.uid === user.uid ? ' to you' : ''}</span> by {wf.referral.by}{wf.referral.note && <> — <i>{wf.referral.note}</i></>}</>
                       : step.action}</td>
-                    <td>{(wf.referral ? wf.referral.received : wf.received)
-                      ? <span className="badge badge-blue">Received</span>
-                      : <span className="badge badge-yellow">{wf.events.at(-1)?.type === 'returned' ? 'Returned' : 'To receive'}</span>}</td>
+                    <td>{wf.events.filter((e) => !HIDDEN_EVENTS.has(e.type)).at(-1)?.type === 'returned'
+                      ? <span className="badge badge-red">Returned</span>
+                      : <span className="badge badge-blue">{wf.referral ? 'Referred' : 'Released'}</span>}</td>
                     <td className="small">{since(d.updatedAt)}</td>
                   </tr>
                 );

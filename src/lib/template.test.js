@@ -11,7 +11,7 @@ import { DEFAULT_SETTINGS, STARTER_TYPES } from './defaults.js';
 import { fitPage, pageSize } from './paper.js';
 import { isOwnerEmail } from './owner.js';
 import { cleanPart, controlRef, counterFor, fileBase, formatControlNo, fundCode, refNumber, uniqueNamer } from './naming.js';
-import { applyAction, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, refStampMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
+import { applyAction, assignPending, availableActions, buildWorkflow, canAct, chooseOffices, fillsMissing, referDocument, refStampMissing, resolveOffice, routeFromGuide, routeSteps, signatureMissing, whereIs } from './workflow.js';
 
 const LIBRARY = JSON.parse(readFileSync(new URL('../data/checklists.json', import.meta.url)));
 
@@ -197,10 +197,10 @@ test('document workflow', () => {
   doc.pdf = { files: [{ kind: 'generated', stage: 0, at: 't0' }] };
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't1') };
   assert.equal(doc.currentOffice, 'Municipal Accounting Office');
-  assert.equal(whereIs(doc), 'Municipal Accounting Office (to receive)');
+  assert.equal(whereIs(doc), 'Municipal Accounting Office');
   const acct = { uid: 'a1', displayName: 'Ana', office: 'Municipal Accounting Office' };
   assert.ok(canAct(doc, acct) && !canAct(doc, user));
-  assert.deepEqual(availableActions(doc), ['receive', 'return']);
+  assert.deepEqual(availableActions(doc), ['release', 'return']); // no receiving: it is there
   assert.throws(() => applyAction(doc, 'return', acct, ''), /why/);
   doc = { ...doc, ...applyAction(doc, 'return', acct, 'OBR not attached', 't2') };
   assert.equal(doc.currentOffice, 'Municipal Engineering Office');
@@ -208,7 +208,7 @@ test('document workflow', () => {
   // to the end; the payment step needs the check details and the DV signed in Box E
   while (doc.workflow.state === 'in-progress') {
     const a = availableActions(doc)[0];
-    if (a !== 'receive' && fillsMissing(doc).length) {
+    if (fillsMissing(doc).length) {
       assert.deepEqual(fillsMissing(doc), ['checkNo', 'checkDate', 'bankName']);
       assert.throws(() => applyAction(doc, a, { uid: 'x', displayName: 'X' }), /Fill in/);
       doc.data = { ...doc.data, checkNo: '0012345', checkDate: '2026-10-29', bankName: 'LBP' };
@@ -254,7 +254,6 @@ test('admin route and signature-required steps', () => {
   assert.equal(signatureMissing(doc), false); // this step needs no signature
   // Returned for a correction: back at the first step, already signed, so it can go again at once.
   const budget = { uid: 'b1', displayName: 'Ben' };
-  doc = { ...doc, ...applyAction(doc, 'receive', budget, '', '2026-10-01T03:00:00Z') };
   doc = { ...doc, ...applyAction(doc, 'return', budget, 'Attach OBR', '2026-10-01T03:10:00Z') };
   assert.equal(doc.workflow.stage, 0);
   assert.equal(signatureMissing(doc), false);
@@ -351,7 +350,6 @@ test('alternate offices on a step: the preparer chooses before releasing', () =>
   doc = { ...doc, ...applyAction(doc, 'release', user, '', 't2') };
   assert.throws(() => chooseOffices(doc, { 2: 'Office of the Municipal Mayor' }, user), /before the document is first released/);
   const acct = { uid: 'a1', displayName: 'Rosa', office: 'Municipal Accounting Office' };
-  doc = { ...doc, ...applyAction(doc, 'receive', acct, '', 't3') };
   doc = { ...doc, ...applyAction(doc, 'release', acct, '', 't4') };
   assert.equal(doc.currentOffice, 'Office of the Municipal Vice Mayor');
   // Without alternates: nothing to choose.
@@ -367,16 +365,12 @@ test('referring a document to a person outside the route', () => {
   let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
   doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
   doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
-  assert.throws(() => referDocument(doc, legal, '', ana), /Receive the document/);
-  doc = { ...doc, ...applyAction(doc, 'receive', ana, '', 't2') };
   doc = { ...doc, ...referDocument(doc, legal, 'Please review', ana, 't3') };
   assert.equal(doc.currentOffice, 'person:l1');
   assert.equal(doc.atPreparer, false);
   assert.ok(canAct(doc, legal) && !canAct(doc, ana));
-  assert.deepEqual(availableActions(doc), ['receive']);
-  assert.equal(whereIs(doc), 'Atty. Cruz (referred, to receive)');
-  doc = { ...doc, ...applyAction(doc, 'receive', legal, '', 't4') };
   assert.deepEqual(availableActions(doc), ['back']);
+  assert.equal(whereIs(doc), 'Atty. Cruz (referred)');
   // A signature by the person referred to is not the step's own.
   doc.pdf.files.push({ kind: 'signed', stage: 1, referral: true });
   doc = { ...doc, ...applyAction(doc, 'back', legal, 'Reviewed', 't5') };
@@ -385,7 +379,7 @@ test('referring a document to a person outside the route', () => {
   assert.equal(doc.workflow.stage, 1);
   assert.ok(doc.workflow.received);
   assert.equal(signatureMissing(doc), true);
-  assert.deepEqual(doc.workflow.events.slice(-3).map((e) => e.type), ['referred', 'referral received', 'referral back']);
+  assert.deepEqual(doc.workflow.events.slice(-3).map((e) => e.type), ['released', 'referred', 'referral back']);
 });
 
 test('returned for revision: a new PDF supersedes the signed one and every step signs again', () => {
@@ -396,18 +390,15 @@ test('returned for revision: a new PDF supersedes the signed one and every step 
   let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }, { kind: 'signed', stage: 0 }] } };
   doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
   doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
-  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't2') };
   doc.pdf.files.push({ kind: 'signed', stage: 1 });
   doc = { ...doc, ...applyAction(doc, 'return', rosa, 'Wrong amount', 't3') };
   assert.equal(doc.workflow.stage, 0);
   assert.equal(signatureMissing(doc), false); // still signed: could go again unchanged
-  doc = { ...doc, ...applyAction(doc, 'receive', juan, '', 't3b') };
   doc.pdf.files.push({ kind: 'generated' }); // the preparer edits it and makes a new PDF
   assert.equal(signatureMissing(doc), true);
   assert.throws(() => applyAction(doc, 'release', juan), /requires a signature/);
   doc.pdf.files.push({ kind: 'signed', stage: 0 });
   doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't4') };
-  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't5') };
   assert.equal(signatureMissing(doc), true, 'Accounting signs the new PDF again');
 });
 
@@ -437,8 +428,8 @@ test('a step that assigns a reference no. puts it on the PDF before releasing', 
   let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated', at: '2026-10-30T01:00:00Z' }] } };
   doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
   doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
-  doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't2') };
   assert.equal(refStampMissing(doc), null, 'nothing assigned yet');
+  assert.equal(assignPending(doc), true, 'Accounting gets the number on opening it');
   doc.refNos = { dvNo: { value: '0001', label: 'Disbursement No.', stage: 1, at: '2026-10-30T02:00:00Z' }, dvDate: { value: '2026-10-30', label: 'Date', of: 'dvNo', stage: 1 } };
   assert.deepEqual(refStampMissing(doc), { field: 'dvNo', label: 'Disbursement No.', value: '0001', date: '2026-10-30' });
   assert.throws(() => applyAction(doc, 'release', rosa), /Put the Disbursement No\. on the PDF/);
