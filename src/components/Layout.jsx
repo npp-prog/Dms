@@ -60,6 +60,7 @@ export default function Layout() {
         ['/notifications', 'bell', 'Notifications', false, notices],
         ['/circulars', 'send', 'Circulars'],
         ['/documents', 'documents', isAdmin || isRecords ? 'All Documents' : isHead ? 'Office Documents' : 'My Documents'],
+        ['/folders', 'folder', 'Folders'],
         ['/archive', 'archive', 'Archive'],
         ['/checklists', 'check', 'Checklists'],
       ],

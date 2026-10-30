@@ -90,6 +90,8 @@ A new person can click **Create an account**. An administrator then approves the
 
 **Notifications** (menu, and the bell at the top) has three parts. **Updates**: what happened to the documents you prepared (released, returned, referred, signed, numbered, processed, with who did it and their remarks), circulars for your office, and communities you were added to; new ones are highlighted, click one to open it, **Mark all as read** or × to remove it. **Circulars to receive**: circulars for your office not marked received yet. **Waiting in** your office: the documents to act on. The number next to Notifications counts all of them.
 
+**Folders** (menu, under Documents) keeps every document you may see, prepared in DMS or uploaded, in a folder per document type (DV, OBR, PR, Travel Order…); each folder shows how many documents it holds and when one last changed. Open a folder to see its documents and search them by control no., DRN, payee or preparer. **Tiles** or **List** (top right) switches between tiles and a table, for the folders and inside a folder; DMS remembers your choice on that device. Cancelled documents are left out.
+
 **Archive** (menu, under Documents) holds the **processed** documents: once the last office marks a document processed, it leaves All/Office/My Documents and is kept here. Everyone sees the processed documents they may open; search by control no., DV/OBR no., payee or where it is filed, and filter by year, type or office. The **Records Officer** (a position in Users; administrators too) sees the whole archive and controls it:
 
 - **Where it is filed.** Under **Filed at**, **Record where it is filed** (or **Change**): the cabinet, box or shelf of the paper, and a note.
