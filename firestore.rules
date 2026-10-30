@@ -52,6 +52,32 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---- Messages between two users: only the two of them read or write them ----
+    // The conversation's id is the two uids, sorted, joined by '_'.
+    match /conversations/{cid} {
+      function members() {
+        return request.resource.data.members;
+      }
+      allow read: if isActive() && request.auth.uid in resource.data.members;
+      allow create: if isActive() && members().size() == 2 && request.auth.uid in members()
+        && members()[0] < members()[1] && cid == members()[0] + '_' + members()[1]
+        && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
+        && request.resource.data.lastBy == request.auth.uid;
+      allow update: if isActive() && request.auth.uid in resource.data.members
+        && request.resource.data.members == resource.data.members
+        && request.resource.data.keys().hasOnly(['members', 'names', 'lastText', 'lastAt', 'lastBy', 'readAt'])
+        && (request.resource.data.get('lastBy', '') == resource.data.get('lastBy', '') || request.resource.data.lastBy == request.auth.uid);
+      match /messages/{mid} {
+        allow read: if isActive() && exists(/databases/$(database)/documents/conversations/$(cid))
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(cid)).data.members;
+        allow create: if isActive() && request.resource.data.from == request.auth.uid
+          && request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(cid)).data.members
+          && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+
     // ---- Personal notes and reminders (Dashboard): only their owner reads or writes them ----
     match /users/{uid}/notes/{noteId} {
       allow read, delete: if isActive() && request.auth.uid == uid;

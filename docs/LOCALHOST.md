@@ -86,6 +86,8 @@ A new person can click **Create an account**. An administrator then approves the
 
 **My notes** (Dashboard) keeps your own notes and reminders; nobody else can see them, administrators included. Type one and click **Add** (or press Enter); **+ Date** adds a date to be reminded on, shown as *Today* or *Overdue*. Tick a note when it is done: it is archived at once, under **Archived**, where you can untick it to bring it back or delete it with ×.
 
+**Messages** (menu, under Account) is for messages between users. **+ New message**, type a name or email, and write; Enter sends, Shift+Enter starts a new line. Replies appear at once, and the menu shows how many conversations have something new. Only the two people in a conversation can read it, administrators included.
+
 The dashboard shows:
 
 - the five-step flow: choose the format → encode → checklist → print → process;

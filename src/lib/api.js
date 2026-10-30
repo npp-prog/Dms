@@ -1,5 +1,5 @@
 import {
-  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, limit, orderBy, query,
+  addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
@@ -67,6 +67,49 @@ export async function listDirectory() {
 export function updateUser(uid, patch) {
   return updateDoc(doc(db, 'users', uid), patch);
 }
+
+// ---------- Messages between users ----------
+// conversations/{a_b} (the two uids, sorted): { members: [a, b], names: { uid: name }, lastText,
+// lastAt, lastBy, readAt: { uid: iso } }; conversations/{id}/messages/{id}: { from, text, at }.
+// Only the two members read or write them (firestore.rules).
+
+export const conversationId = (a, b) => [a, b].sort().join('_');
+
+// Live list of the user's conversations, newest first. Returns the unsubscribe function.
+export function watchConversations(uid, onChange, onError) {
+  return onSnapshot(query(collection(db, 'conversations'), where('members', 'array-contains', uid)),
+    // saved: false while a new conversation is still on its way to the server
+    (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data(), saved: !d.metadata.hasPendingWrites })).sort((x, y) => (y.lastAt || '').localeCompare(x.lastAt || ''))),
+    onError);
+}
+
+export function watchMessages(id, onChange, onError) {
+  return onSnapshot(query(collection(db, 'conversations', id, 'messages'), orderBy('at'), limit(500)),
+    (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), onError);
+}
+
+export async function sendMessage(me, other, text) {
+  const body = String(text || '').trim().slice(0, 2000);
+  if (!body) return;
+  const id = conversationId(me.uid, other.uid);
+  const at = new Date().toISOString();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'conversations', id), {
+    members: [me.uid, other.uid].sort(),
+    names: { [me.uid]: me.displayName || me.email || '', [other.uid]: other.displayName || other.email || '' },
+    lastText: body.slice(0, 140), lastAt: at, lastBy: me.uid,
+    readAt: { [me.uid]: at },
+  }, { merge: true });
+  batch.set(doc(collection(db, 'conversations', id, 'messages')), { from: me.uid, text: body, at });
+  await batch.commit();
+}
+
+export function markConversationRead(id, uid) {
+  return updateDoc(doc(db, 'conversations', id), { [`readAt.${uid}`]: new Date().toISOString() });
+}
+
+// Has a conversation a message the user has not seen?
+export const isUnread = (c, uid) => Boolean(c.lastAt && c.lastBy !== uid && (!c.readAt?.[uid] || c.readAt[uid] < c.lastAt));
 
 // ---------- Personal notes (Dashboard) ----------
 // users/{uid}/notes/{id}: { text, due ('YYYY-MM-DD' or ''), done, createdAt, doneAt }. Checked

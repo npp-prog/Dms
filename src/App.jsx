@@ -11,6 +11,7 @@ import Inbox from './pages/Inbox.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import DocCheck from './pages/DocCheck.jsx';
+import Messages from './pages/Messages.jsx';
 import UploadDocument from './pages/UploadDocument.jsx';
 import Tracking from './pages/Tracking.jsx';
 import Workflow from './pages/admin/Workflow.jsx';
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="messages" element={<Messages />} />
         <Route path="verify" element={<Verify />} />
         <Route path="v/:docId" element={<DocCheck />} />
         <Route path="tracking" element={<Tracking />} />

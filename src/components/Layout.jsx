@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon, { Avatar } from './Icon.jsx';
 import BackButton from './BackButton.jsx';
-import { listInbox } from '../lib/api.js';
+import { isUnread, listInbox, watchConversations } from '../lib/api.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
 
@@ -19,6 +19,13 @@ export default function Layout() {
     listInbox({ office: profile.office, uid: user.uid, head: isHead || isAdmin }).then((d) => setWaiting(d.length)).catch(() => {});
   }, [location.pathname, profile?.office, profile?.active, isAdmin, isHead, user.uid]);
 
+  // Conversations with a message not seen yet (live).
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!profile?.active) return undefined;
+    return watchConversations(user.uid, (list) => setUnread(list.filter((c) => isUnread(c, user.uid)).length), () => setUnread(0));
+  }, [user.uid, profile?.active]);
+
   const groups = [
     { items: [['/', 'home', 'Dashboard', true]] },
     {
@@ -30,7 +37,7 @@ export default function Layout() {
         ['/checklists', 'check', 'Checklists'],
       ],
     },
-    { label: 'Account', items: [['/profile', 'user', 'My Profile']] },
+    { label: 'Account', items: [['/messages', 'chat', 'Messages', false, unread], ['/profile', 'user', 'My Profile']] },
     isAdmin && {
       label: 'Administration',
       items: [
