@@ -68,9 +68,7 @@ function Routes() {
           <button key={t.id} type="button" className={t.id === selected ? 'active' : ''} onClick={() => setSelected(t.id)}>
             <span className="code">{t.code}</span>
             <span className="t">{t.name}
-              {(t.route?.length > 0 || t.active === false) && (
-                <span className="small muted">{[t.route?.length && `${t.route.length} steps`, t.active === false && 'inactive'].filter(Boolean).join(' · ')}</span>
-              )}
+              {t.active === false && <span className="small muted">inactive</span>}
             </span>
           </button>
         ))}
