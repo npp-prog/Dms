@@ -804,6 +804,15 @@ export const CHECKLIST_LIBRARY_VERSION = 2;
 // The parts of a document type that make up its format (what a starter update replaces).
 export const FORMAT_KEYS = ['template', 'fields', 'steps', 'processing', 'paperSize', 'orientation', 'checklistSource', 'checklist', 'bulkDownload'];
 
+// Positions of people within an office (Users), named on route steps so that only the right person
+// acts: e.g. the Reviewer in Accounting, not the Encoder; the Inspection Officer in the GSO.
+// Admins add more in Settings, Users or Workflow.
+export const DEFAULT_POSITIONS = [
+  'Encoder', 'Reviewer', 'Bookkeeper', 'Cashier', 'Disbursing Officer', 'Inspection Officer', 'Acceptance Officer',
+  'Property Custodian', 'Records Officer', 'Signatory',
+];
+export const positionsOf = (settings) => (settings?.positions?.length ? settings.positions : DEFAULT_POSITIONS);
+
 export const DEFAULT_SETTINGS = {
   checklistLibraryVersion: CHECKLIST_LIBRARY_VERSION,
   // Offices of the LGU. Each user belongs to one (Users), and sees the documents of that office.
@@ -829,6 +838,7 @@ export const DEFAULT_SETTINGS = {
     'Business Permits and Licensing Office',
     'Municipal Tourism Office',
   ],
+  positions: DEFAULT_POSITIONS,
   lguName: 'Municipal Government of Candoni',
   lguAddress: 'Municipal Building, Rizal St., Candoni, Negros Occidental, 6110',
   province: 'Negros Occidental',

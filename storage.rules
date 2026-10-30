@@ -44,10 +44,15 @@ service firebase.storage {
         || (isHead() && (d.get('office', '') == myOffice() || d.get('currentOffice', '') == myOffice()
             || myOffice() in d.get('routeOffices', [])));
     }
+    // At a routed step that names positions, only the people in them (and the office head).
+    function holdsStepPosition(d) {
+      return isHead() || d.workflow.steps[d.workflow.stage].get('positions', []).size() == 0
+        || profile().get('positions', []).hasAny(d.workflow.steps[d.workflow.stage].get('positions', []));
+    }
     // The preparer, or the office now holding the document (its head too).
     function canAdd(d) {
       return isAdmin() || (d.status != 'cancelled'
-        && (d.createdBy == request.auth.uid || heldByMyOffice(d) || referredToMe(d)
+        && (d.createdBy == request.auth.uid || (heldByMyOffice(d) && holdsStepPosition(d)) || referredToMe(d)
             || (isHead() && d.get('currentOffice', '') == myOffice())));
     }
 

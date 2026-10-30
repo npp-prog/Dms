@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, getFileBytes, getPdfBytes, uploadAttachment, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, referDocument, chooseStepOffices } from '../lib/api.js';
-import { canAct, editableByPreparer, isReceived, officeOf } from '../lib/workflow.js';
+import { canAct, editableByPreparer, holdsPosition, isReceived, officeOf } from '../lib/workflow.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
 import AccountingPanel from '../components/AccountingPanel.jsx';
 import BulkDownload from '../components/BulkDownload.jsx';
@@ -171,7 +171,7 @@ export default function DocumentView() {
   const uploaded = Boolean(docData.uploaded);
   const canChange = !uploaded && editable && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
   const canConvert = !uploaded && editable && docData.status === 'complete' && (!hasSignature || revising) && (isAdmin || (isOwner && editableByPreparer(docData)));
-  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead }) : isOwner));
+  const canSign = editable && docData.status === 'complete' && (isAdmin || (wf ? isReceived(wf) && canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] }) : isOwner));
   // (An office signs once it has received the document.)
   // The Accounting panel (DV No., deductions…) only before the document is in PDF, or once it is
   // returned to the preparer's office for revision.
@@ -267,7 +267,7 @@ export default function DocumentView() {
           )}
           {type && (wf || (type.processing || []).length > 0) && docData.status !== 'draft' && (
             <WorkflowCard doc={docData} busy={busy}
-              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead })}
+              canAct={canAct(docData, { uid: user.uid, office: profile.office, isAdmin, isHead, positions: profile.positions || [] })}
               canStart={docData.status === 'complete' && (docData.pdf?.files || []).length > 0 && (isOwner || isAdmin)}
               onStart={() => run(() => startWorkflow(docId, type, actor, settings.offices || []))}
               onAction={(action, remarks, done) => run(async () => {
@@ -282,6 +282,8 @@ export default function DocumentView() {
               })}
               onOpenFile={openFile}
               me={user.uid} canRefer={canRefer}
+              onlyPositions={wf?.state === 'in-progress' && !wf.referral && !isAdmin && profile.office && officeOf(wf.steps[wf.stage], docData) === profile.office
+                && !holdsPosition(wf.steps[wf.stage], profile.positions || [], isHead) ? wf.steps[wf.stage].positions : null}
               onRefer={(to, note, done) => run(async () => { await referDocument(docId, to, note, actor); done(); })}
               onChooseOffices={(picks) => run(() => chooseStepOffices(docId, picks, actor))}
               sendPanel={wf?.steps?.[wf.stage]?.fills && (

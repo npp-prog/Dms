@@ -6,7 +6,7 @@ import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, up
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
-import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES } from './defaults.js';
+import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
 import { checkRecord } from './publicRecord.js';
 import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch } from './workflow.js';
 
@@ -98,6 +98,13 @@ export async function getSettings() {
   return snap.exists() ? snap.data() : {};
 }
 
+// Adds a position to the list (Settings); returns the new list.
+export async function addPosition(settings, name) {
+  const positions = [...new Set([...positionsOf(settings), name])];
+  await saveSettings({ positions });
+  return positions;
+}
+
 export function saveSettings(settings) {
   return setDoc(doc(db, 'meta', 'settings'), { ...settings, updatedAt: serverTimestamp() }, { merge: true });
 }
@@ -136,6 +143,8 @@ const cleanSteps = (route) => route.map((s) => ({
   ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: String(s.assign.pattern || '').trim() } } : {}),
   ...(s.fills?.length ? { fills: [...s.fills] } : {}),
   ...(String(s.upload || '').trim() ? { upload: String(s.upload).trim() } : {}),
+  // who in the office acts on it (positions); none: anyone in the office
+  ...(s.positions?.length && s.office ? { positions: [...new Set(s.positions)] } : {}),
   // other offices that may handle the step instead (the preparer chooses)
   ...(s.alternates?.filter((o) => o !== (s.office || '')).length ? { alternates: [...new Set(s.alternates.filter((o) => o !== (s.office || '')))] } : {}),
 }));

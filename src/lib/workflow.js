@@ -72,6 +72,8 @@ export function routeSteps(type, offices = []) {
   return steps.map((s) => ({
     office: s.office || 'Requesting office', action: s.action || '', routedTo: s.office || '', sign: Boolean(s.sign),
     ...(s.alternates?.length ? { alternates: s.alternates.filter((o) => o !== (s.office || '')) } : {}),
+    // Who in the office acts on it (positions, Users); none: anyone in the office.
+    ...(s.positions?.length && s.office ? { positions: [...s.positions] } : {}),
     // The reference no. this office assigns when it receives the document (e.g. the DV No.).
     ...(s.assign?.field ? { assign: { field: s.assign.field, dateField: s.assign.dateField || '', pattern: s.assign.pattern || '' } } : {}),
     // Fields this office fills in (e.g. Check/ADA No., date, bank) and a file it must upload
@@ -102,9 +104,14 @@ export function placement(workflow, doc) {
   return { currentOffice: current, atPreparer: moving && !workflow.steps[workflow.stage].routedTo, routeOffices: offices };
 }
 
+// Does the user hold a position the step names (or does it name none)? The office head always may.
+export const holdsPosition = (step, positions = [], isHead = false) => isHead || !step?.positions?.length
+  || step.positions.some((p) => positions.includes(p));
+
 // May this user act on the document's current step?
-// At the preparer's step: the preparer (or their office head). At a routed step: the office.
-export function canAct(doc, { uid, office, isAdmin, isHead = false }) {
+// At the preparer's step: the preparer (or their office head). At a routed step: the office, or
+// only its people in the positions the step names (e.g. the Reviewer).
+export function canAct(doc, { uid, office, isAdmin, isHead = false, positions = [] }) {
   const wf = doc?.workflow;
   if (!wf || wf.state !== 'in-progress') return false;
   if (isAdmin) return true;
@@ -112,7 +119,7 @@ export function canAct(doc, { uid, office, isAdmin, isHead = false }) {
   const step = wf.steps[wf.stage];
   const holder = officeOf(step, doc);
   if (!step.routedTo) return doc.createdBy === uid || (isHead && Boolean(office) && office === holder);
-  return Boolean(office) && office === holder;
+  return Boolean(office) && office === holder && holdsPosition(step, positions, isHead);
 }
 
 // The actions available on the current step.

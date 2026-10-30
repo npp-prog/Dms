@@ -108,7 +108,7 @@ function StepTasks({ doc, step, busy, onFill, onUpload, onOpenFile, children }) 
   );
 }
 
-export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, onStart, onFill, onUpload, onOpenFile, sendPanel, me, canRefer, onRefer, onChooseOffices }) {
+export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, onStart, onFill, onUpload, onOpenFile, sendPanel, me, canRefer, onRefer, onChooseOffices, onlyPositions }) {
   const wf = doc.workflow;
   const [returning, setReturning] = useState(false);
   const [referring, setReferring] = useState(false);
@@ -160,7 +160,7 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
               <span className="wf-dot">{state === 'done' ? '✓' : i + 1}</span>
               <div>
                 <div className="wf-office">{nameOf(step)}{wf.choose && step.alternates?.length > 0 && <span className="small muted"> (or {step.alternates.map((o) => o || "Preparer's office").join(' or ')}: to choose)</span>}</div>
-                <div className="small"><b>{step.action}</b>{step.sign && <span className="muted"> · signs the PDF</span>}
+                <div className="small"><b>{step.action}</b>{step.positions?.length > 0 && <span className="muted"> · by the {step.positions.join(' or ')}</span>}{step.sign && <span className="muted"> · signs the PDF</span>}
                   {step.assign && <span className="muted"> · assigns the {fieldLabel(step.assign.field)} on receiving</span>}</div>
                 {state === 'current' && !referral && <div className="small wf-now">{wf.received ? 'Here now' : 'Waiting to be received'}</div>}
                 {state === 'current' && referral && (
@@ -185,6 +185,10 @@ export default function WorkflowCard({ doc, canAct, canStart, busy, onAction, on
         })}
       </ol>
 
+      {onlyPositions && (
+        <div className="alert-info small no-print">This step is for the <b>{onlyPositions.join(' or ')}</b> of your office: only they (or the office head) can receive,
+          sign and release it.</div>
+      )}
       {showChoice && <OfficeChoice key={JSON.stringify(wf.steps.map((s) => s.routedTo))} doc={doc} busy={busy} onChoose={onChooseOffices} />}
 
       {referral && actions.length > 0 && (

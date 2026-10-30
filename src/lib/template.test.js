@@ -410,3 +410,21 @@ test('returned for revision: a new PDF supersedes the signed one and every step 
   doc = { ...doc, ...applyAction(doc, 'receive', rosa, '', 't5') };
   assert.equal(signatureMissing(doc), true, 'Accounting signs the new PDF again');
 });
+
+test('positions: only the named positions in the office act on a step (the office head always may)', () => {
+  const offices = DEFAULT_SETTINGS.offices;
+  const type = { route: [{ office: '', action: 'Box A', positions: ['Reviewer'] }, { office: 'Municipal Accounting Office', action: 'Pre-audit', positions: ['Reviewer'] }] };
+  const steps = routeSteps(type, offices);
+  assert.equal(steps[0].positions, undefined, 'not on the preparer\'s own step');
+  assert.deepEqual(steps[1].positions, ['Reviewer']);
+  const juan = { uid: 'u1', displayName: 'Juan' };
+  let doc = { createdBy: 'u1', office: 'Municipal Engineering Office', pdf: { files: [{ kind: 'generated' }] } };
+  doc = { ...doc, ...buildWorkflow(type, doc, offices, juan, 't0') };
+  doc = { ...doc, ...applyAction(doc, 'release', juan, '', 't1') };
+  const office = 'Municipal Accounting Office';
+  assert.equal(canAct(doc, { uid: 'e1', office, positions: ['Encoder'] }), false);
+  assert.equal(canAct(doc, { uid: 'e2', office }), false);
+  assert.equal(canAct(doc, { uid: 'r1', office, positions: ['Encoder', 'Reviewer'] }), true);
+  assert.equal(canAct(doc, { uid: 'h1', office, isHead: true }), true);
+  assert.equal(canAct(doc, { uid: 'x', office: 'Municipal Budget Office', positions: ['Reviewer'] }), false);
+});

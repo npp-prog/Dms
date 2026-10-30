@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { listUsers, updateUser } from '../../lib/api.js';
+import { addPosition, listUsers, updateUser } from '../../lib/api.js';
+import { positionsOf } from '../../lib/defaults.js';
 import Select from '../../components/Select.jsx';
+import PositionsPicker from '../../components/PositionsPicker.jsx';
 
 export default function Users() {
-  const { user: me, isSuper, settings } = useAuth();
+  const { user: me, isSuper, settings, setSettings } = useAuth();
+  const newPosition = async (name) => {
+    const positions = await addPosition(settings, name);
+    setSettings((s) => ({ ...s, positions }));
+  };
   const offices = settings.offices || [];
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
@@ -28,7 +34,8 @@ export default function Users() {
           <h1>Users</h1>
           <p className="muted">Approve new accounts, assign each to an office and set roles. A user sees the documents they prepared and
             those waiting in their office; the <b>office head</b> sees every document of the office. Only the superadmin can grant admin
-            rights. A user who <b>may route documents to any person</b> can send a document they hold to any active user outside its route
+            rights. Give each user their <b>position</b> in the office (e.g. Reviewer, Inspection Officer): a workflow step can name the
+            positions that act on it. A user who <b>may route documents to any person</b> can send a document they hold to any active user outside its route
             (admins always can). The list of offices is in Settings.</p>
         </div>
         <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -62,6 +69,13 @@ export default function Users() {
                         Office head (sees all documents of the office)
                       </label>
                     ) : u.head && <div className="small"><span className="badge badge-blue">Office head</span></div>)}
+                    {u.office && (canManage(u) || (isSuper && u.id === me.uid) ? (
+                      <div className="user-positions">
+                        <span className="small muted">Position</span>
+                        <PositionsPicker value={u.positions || []} choices={positionsOf(settings)} onNew={newPosition}
+                          onChange={(positions) => change(u, { positions })} />
+                      </div>
+                    ) : u.positions?.length > 0 && <div className="small">{u.positions.join(', ')}</div>)}
                     {u.role === 'user' && (canManage(u) ? (
                       <label className="check small head-check">
                         <input type="checkbox" checked={Boolean(u.canRefer)} onChange={(e) => change(u, { canRefer: e.target.checked })} />

@@ -79,7 +79,7 @@ service cloud.firestore {
             && resource.data.role == 'user' && request.resource.data.role == 'user')
         // Anyone may edit their own name (not their office, office head or routing to any person:
         // they decide what they can see and do).
-        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer']))
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer', 'positions']))
         // The owner becomes superadmin once their email is verified.
         || (request.auth.uid == uid && isOwnerEmail()
             && request.resource.data.role == 'superadmin' && request.resource.data.active == true
@@ -121,6 +121,12 @@ service cloud.firestore {
       // (e.g. sign) and send it back.
       function referredToMe() {
         return holder() == 'person:' + request.auth.uid;
+      }
+      // The route step names who in the office acts (positions): the user holds one, or it names
+      // none. The office head always may.
+      function holdsStepPosition() {
+        let wanted = resource.data.workflow.steps[resource.data.workflow.stage].get('positions', []);
+        return isHead() || wanted.size() == 0 || profile().get('positions', []).hasAny(wanted);
       }
       // The office that referred it keeps seeing it while it is out (read only).
       function referredByMyOffice() {
@@ -176,6 +182,7 @@ service cloud.firestore {
             // (Its office head too, also at the preparer's step.) On receiving, it may assign a
             // reference no.: only the field (and date) its own route step assigns change.
             || ((heldByMyOffice() || (isHead() && holder() == myOffice()))
+                && holdsStepPosition()
                 && request.resource.data.diff(resource.data).affectedKeys()
                      .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards'])
                 && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())

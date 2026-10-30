@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { listDocumentTypes, saveRoute } from '../../lib/api.js';
+import { addPosition, listDocumentTypes, saveRoute } from '../../lib/api.js';
+import { positionsOf } from '../../lib/defaults.js';
+import PositionsPicker from '../../components/PositionsPicker.jsx';
 import { routeFromGuide } from '../../lib/workflow.js';
 import Icon from '../../components/Icon.jsx';
 import { DEFAULT_REF_PATTERN, refNumber } from '../../lib/naming.js';
@@ -15,6 +17,7 @@ const clean = (route) => route.map((s) => ({
   ...(s.fills?.length ? { fills: [...s.fills] } : {}),
   ...(s.upload !== undefined ? { upload: s.upload } : {}),
   ...(s.alternates?.length ? { alternates: [...s.alternates] } : {}),
+  ...(s.positions?.length ? { positions: [...s.positions] } : {}),
 }));
 
 // Administration > Workflow: the route of every document type (which offices receive it, in
@@ -78,6 +81,11 @@ function Routes() {
 }
 
 function RouteEditor({ type, offices, actor, onSaved }) {
+  const { settings, setSettings } = useAuth();
+  const newPosition = async (name) => {
+    const positions = await addPosition(settings, name);
+    setSettings((s) => ({ ...s, positions }));
+  };
   const guide = useMemo(() => routeFromGuide(type, offices), [type, offices]);
   const saved = useMemo(() => clean(type.route?.length ? type.route : guide), [type, guide]);
   const [route, setRoute] = useState(saved);
@@ -158,6 +166,7 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                 <b>{officesOf(s)}</b>
                 <span className="small">{s.action || <i className="muted">No action yet</i>}</span>
                 <span className="route-badges">
+                  {s.positions?.length > 0 && s.office && <span className="badge badge-blue">By {s.positions.join(' or ')}</span>}
                   {s.sign && <span className="sign-tag" title="Signs the PDF"><Icon name="sign" />Signs</span>}
                   {s.assign && <span className="badge badge-blue">Assigns {fieldLabel(s.assign.field)}</span>}
                   {s.fills?.length > 0 && <span className="badge badge-blue">Fills in {s.fills.length} detail{s.fills.length > 1 ? 's' : ''}</span>}
@@ -189,6 +198,14 @@ function RouteEditor({ type, offices, actor, onSaved }) {
                   </Select>
                 </div>
               </div>
+              {s.office !== PREPARER && (
+                <div className="field alt-offices">
+                  <span className="field-label">Who acts <span className="muted">(optional: only these positions in the office receive, sign and release it; the office head always can)</span></span>
+                  <PositionsPicker value={s.positions || []} choices={positionsOf(settings)} onNew={newPosition}
+                    placeholder={s.positions?.length ? '+ Add a position…' : 'Anyone in the office · + Add a position…'}
+                    onChange={(positions) => set(i, { positions })} />
+                </div>
+              )}
               <label className="field">
                 <span className="field-label">Action</span>
                 <input value={s.action} onChange={(e) => set(i, { action: e.target.value })} />
