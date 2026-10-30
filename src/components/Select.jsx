@@ -1,4 +1,5 @@
-import { Children, isValidElement, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Children, isValidElement, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // Every dropdown in DMS. Used like <select> (value, onChange(e) with e.target.value, <option>
 // children). With more than 5 choices it is searchable: a list that opens with a search box.
@@ -33,7 +34,27 @@ function SearchSelect({ value, onChange, options, disabled, id, className, ariaL
   const box = useRef(null);
   const search = useRef(null);
   const list = useRef(null);
+  const pop = useRef(null);
   const listId = useId();
+  // The list floats above the page (in document.body), so a table or card never cuts it off:
+  // under the box, or above it when there is no room below.
+  const [place, setPlace] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) { setPlace(null); return undefined; }
+    const at = () => {
+      const r = box.current?.getBoundingClientRect();
+      if (!r) return;
+      const below = window.innerHeight - r.bottom;
+      const up = below < 300 && r.top > below;
+      const width = Math.min(Math.max(r.width, 260), 480, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+      setPlace({ left, width, ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }), maxList: Math.max(140, (up ? r.top : below) - 80) });
+    };
+    at();
+    window.addEventListener('scroll', at, true);
+    window.addEventListener('resize', at);
+    return () => { window.removeEventListener('scroll', at, true); window.removeEventListener('resize', at); };
+  }, [open]);
   const current = options.find((o) => o.value === String(value ?? ''));
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const shown = options.filter((o) => words.every((w) => o.label.toLowerCase().includes(w)));
@@ -42,7 +63,7 @@ function SearchSelect({ value, onChange, options, disabled, id, className, ariaL
     if (!open) return undefined;
     setHi(Math.max(0, shown.findIndex((o) => o.value === current?.value)));
     search.current?.focus();
-    const away = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
+    const away = (e) => { if (!box.current?.contains(e.target) && !pop.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', away);
     document.addEventListener('touchstart', away);
     return () => { document.removeEventListener('mousedown', away); document.removeEventListener('touchstart', away); };
@@ -71,12 +92,12 @@ function SearchSelect({ value, onChange, options, disabled, id, className, ariaL
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); } }}>
         <span className={current ? '' : 'muted'}>{current?.label || placeholder || '—'}</span>
       </button>
-      {open && (
-        <div className="ss-pop">
+      {open && place && createPortal(
+        <div className="ss-pop" ref={pop} style={{ left: place.left, width: place.width, top: place.top, bottom: place.bottom }}>
           <input ref={search} className="ss-search" type="search" value={q} placeholder="Search…" aria-label="Search the choices"
             aria-controls={listId} aria-activedescendant={shown[hi] ? `${listId}-${hi}` : undefined}
             onChange={(e) => setQ(e.target.value)} onKeyDown={keys} />
-          <ul className="ss-list" role="listbox" id={listId} ref={list}>
+          <ul className="ss-list" role="listbox" id={listId} ref={list} style={{ maxHeight: Math.min(280, place.maxList) }}>
             {shown.length === 0 && <li className="ss-none">No match</li>}
             {shown.map((o, i) => (
               <li key={`${o.value}|${i}`} id={`${listId}-${i}`} role="option" aria-selected={o.value === current?.value}
@@ -84,7 +105,8 @@ function SearchSelect({ value, onChange, options, disabled, id, className, ariaL
                 onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>{o.label}</li>
             ))}
           </ul>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
