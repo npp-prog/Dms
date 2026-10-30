@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, setDocumentStatus, startWorkflow,
+  BASIS_VERSION, addPdfVersion, checkStorage, documentBasis, getPdfBytes, getSavedCertificate, getSavedCertificateBytes, getSavedMark, setDocumentStatus, startWorkflow, editRefNo,
 } from '../lib/api.js';
 import { addNotes, checkSignedVersion, isValidAt, noteBox, readCertificate, readSignatures, signPdf, stampDate, wrapNote } from '../lib/signing.js';
 import { refStampMissing } from '../lib/workflow.js';
@@ -62,6 +62,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
   const [noteSize, setNoteSize] = useState('M');
   const [target, setTarget] = useState('mark'); // what a tap on the PDF places
   const [refSize, setRefSize] = useState('M');
+  const [refEdit, setRefEdit] = useState(null); // { value, date } while changing the assigned no.
   const placement = placements.mark;
 
   // Load the current PDF and check every signature in it.
@@ -124,6 +125,16 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
       },
     });
   }, [active.join(), tapFor, size, markUrl, saved, myRefs.join(), noteLines.join('\n'), noteSize, refLines.join('\n'), refSize]);
+
+  // The assigned no. is suggested by DMS; the office may change it before it is on the PDF.
+  const saveRef = (e) => {
+    e.preventDefault();
+    run('Saving…', async () => {
+      await editRefNo(docData.id, actor, { stage: wf.stage, value: refEdit.value, date: refEdit.date });
+      setRefEdit(null);
+      onChanged();
+    });
+  };
 
   // The reference no. stamped on its own (a step that does not sign, or signed in Acrobat).
   const stampRef = () => run('Putting it on the PDF…', async () => {
@@ -279,8 +290,26 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           {pendingRef && bytes && (
             <div className="mark-box ref-box">
               <div className="field-label">Put the {pendingRef.label} on the PDF</div>
-              <p className="small"><b>{refLines.join(' · ')}</b></p>
-              <div className="row gap wrap small">
+              {refEdit ? (
+                <form className="ref-edit" onSubmit={saveRef}>
+                  <label className="field"><span className="field-label">{pendingRef.label}</span>
+                    <input value={refEdit.value} autoFocus onChange={(e) => setRefEdit({ ...refEdit, value: e.target.value })} /></label>
+                  {wf.steps[wf.stage].assign?.dateField && (
+                    <label className="field"><span className="field-label">Date</span>
+                      <input type="date" value={refEdit.date} onChange={(e) => setRefEdit({ ...refEdit, date: e.target.value })} /></label>
+                  )}
+                  <div className="row gap">
+                    <button className="btn btn-primary btn-sm" disabled={!!busy || !refEdit.value.trim()}>{busy || 'Save'}</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRefEdit(null)}>Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <div className="ref-value">
+                  <b>{refLines.join(' · ')}</b>
+                  <button type="button" className="link small" disabled={!!busy} onClick={() => setRefEdit({ value: pendingRef.value, date: pendingRef.date })}>Edit</button>
+                </div>
+              )}
+              <div className="row gap wrap small ref-size">
                 Size:
                 {Object.keys(NOTE_SIZES).map((k) => (
                   <button key={k} type="button" className={`chip${refSize === k ? ' active' : ''}`} onClick={() => setRefSize(k)}>{MARK_LABELS[k]}</button>
@@ -305,7 +334,7 @@ export default function PdfCard({ docData, type, settings, actor, canConvert, ca
           )}
 
           {/* Signing first (for the signatory), then viewing and downloading as quieter links. */}
-          {canSign && bytes && (
+          {canSign && bytes && mode !== 'stamp' && !refEdit && (
             <div className="row gap wrap pdf-sign-actions">
               {mode !== 'sign' && <button className="btn btn-primary btn-sm" onClick={() => setMode('sign')}>Sign with PNPKI</button>}
               {mode !== 'upload' && <button className="btn btn-ghost btn-sm" onClick={() => setMode('upload')}>Upload signed PDF</button>}

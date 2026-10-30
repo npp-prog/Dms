@@ -8,7 +8,7 @@ import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
 import { checkRecord } from './publicRecord.js';
-import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch } from './workflow.js';
+import { applyAction, buildWorkflow, cancelWorkflow, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
 
 // ---------- Users ----------
 
@@ -810,6 +810,33 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
     });
   });
   return file;
+}
+
+// The reference no. assigned on receiving (e.g. the DV No.) is a suggestion: the office may change
+// the number and its date until it is on the PDF.
+export async function editRefNo(id, user, { stage, value, date }) {
+  const ref = doc(db, 'documents', id);
+  await runTransaction(db, async (tx) => {
+    const d = (await tx.get(ref)).data();
+    if (d.workflow?.stage !== stage) throw new Error('Someone else acted on this document first. Reload the page.');
+    const pending = refStampMissing(d);
+    if (!pending) throw new Error('It is already on the PDF and can no longer be changed.');
+    const number = String(value || '').trim();
+    if (!number) throw new Error(`Type the ${pending.label.replace(/\.$/, '')}.`);
+    const { assign } = d.workflow.steps[stage];
+    const at = new Date().toISOString();
+    const data = { ...(d.data || {}), [assign.field]: number };
+    const refNos = { ...(d.refNos || {}), [assign.field]: { ...d.refNos[assign.field], value: number, by: user.displayName || user.email, at } };
+    if (assign.dateField && date) {
+      data[assign.dateField] = date;
+      refNos[assign.dateField] = { ...d.refNos[assign.dateField], value: date, at };
+    }
+    const patch = { data, refNos };
+    const changes = [number !== pending.value && `${pending.label} ${pending.value} → ${number}`, assign.dateField && date && date !== pending.date && `date ${pending.date || '—'} → ${date}`].filter(Boolean);
+    if (!changes.length) return;
+    tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history: [...(d.history || []), historyEntry('changed', user, changes.join('; '))] });
+    publishCheck(tx, id, { ...d, ...patch });
+  });
 }
 
 // The details the current step's office fills in (e.g. Check/ADA No., date, bank), recorded like
