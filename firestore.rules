@@ -135,6 +135,17 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isAdmin();
     }
+    // The Archive's settings (backup devices, how often to back up): the Records Officer keeps them.
+    match /meta/archive {
+      allow read: if isActive();
+      allow write: if isRecords() || isAdmin();
+    }
+    // Log of the archive backups (who, when, to which device, how many documents). Never changed.
+    match /backups/{id} {
+      allow read: if isRecords() || isAdmin();
+      allow create: if (isRecords() || isAdmin()) && request.resource.data.by == request.auth.uid;
+      allow update, delete: if false;
+    }
 
     // ---- Messages between two users: only the two of them read or write them ----
     // The conversation's id is the two uids, sorted, joined by '_'.
@@ -279,6 +290,8 @@ service cloud.firestore {
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
         && referralAllowed()
         && (isAdmin()
+            // The Records Officer files a processed document in the Archive (where it is kept).
+            || (isRecords() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archive', 'updatedAt', 'history']))
             // Someone it was sent to for review writes their review (nothing else).
             || (request.auth.uid in resource.data.get('sharedWith', [])
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviews', 'updatedAt', 'history']))

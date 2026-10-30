@@ -1234,3 +1234,11 @@ input[type=file]::file-selector-button:hover { border-color: var(--gold); backgr
 .member-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
 .member-chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--neutral-bg, #eef1f4); border-radius: 999px; padding: .2rem .35rem .2rem .7rem; font-size: .85rem; }
 .member-chip button { border: 0; background: none; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 .25rem; }
+
+/* Archive */
+.archive-file { display: grid; gap: .35rem; min-width: 200px; }
+.archive-run { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .75rem 0 .25rem; }
+.archive-run > * { flex: 1 1 220px; }
+.archive-run .btn { flex: 0 0 auto; }
+.archive-log { margin-top: .75rem; }
+.archive-backup .receipts li { align-items: center; }

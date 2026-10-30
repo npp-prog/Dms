@@ -10,6 +10,7 @@ import Documents from './pages/Documents.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Circulars, { CircularView } from './pages/Circulars.jsx';
 import Communities from './pages/Communities.jsx';
+import Archive from './pages/Archive.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import DocCheck from './pages/DocCheck.jsx';
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="admin/checklists/new" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="admin/checklists/:code" element={<AdminOnly><ChecklistEditor /></AdminOnly>} />
         <Route path="notifications" element={<Inbox />} />
+        <Route path="archive" element={<Archive />} />
         <Route path="circulars" element={<Circulars />} />
         <Route path="circulars/:id" element={<CircularView />} />
         <Route path="communities" element={<Communities />} />

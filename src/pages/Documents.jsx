@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { STATUSES } from '../lib/defaults.js';
 import { whereIs } from '../lib/workflow.js';
+import { isArchived } from '../lib/archive.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 import Select from '../components/Select.jsx';
 import ZipExport from '../components/ZipExport.jsx';
@@ -28,9 +29,10 @@ export default function Documents() {
   const offices = useMemo(() => [...new Set([...(settings.offices || []), ...(docs || []).map((d) => d.office).filter(Boolean)])].sort(), [settings.offices, docs]);
 
   const types = useMemo(() => [...new Set((docs || []).map((d) => d.typeCode))].sort(), [docs]);
+  // Processed documents are in the Archive.
   const shown = useMemo(() => (docs || []).filter((d) => {
     const q = filters.q.toLowerCase();
-    return (!filters.status || d.status === filters.status)
+    return !isArchived(d) && (!filters.status || d.status === filters.status)
       && (!filters.type || d.typeCode === filters.type)
       && (!filters.office || (filters.office === '__none' ? !d.office : d.office === filters.office))
       && (!q || `${d.controlNo} ${d.title} ${d.createdByName} ${Object.values(d.refNos || {}).map((r) => r.value).join(' ')}`.toLowerCase().includes(q));
@@ -76,7 +78,7 @@ export default function Documents() {
               <tr><th>Control No.</th><th title="Document Reference No.: the number assigned along the route (e.g. the DV No.)">DRN</th><th>Type</th><th>Payee / Subject</th>{isAdmin && <th>Office</th>}<th>Prepared by</th><th>Status</th><th>Where</th><th>Updated</th></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={10} className="muted">No documents found.</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={10} className="muted">No documents found. Processed documents are in the <Link to="/archive">Archive</Link>.</td></tr>}
               {shown.map((d) => (
                 <tr key={d.id}>
                   <td><Link to={`/documents/${d.id}`}><b>{d.controlNo}</b></Link></td>
