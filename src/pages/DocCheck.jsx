@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getCheck, sha256Hex } from '../lib/api.js';
-import { verifyPdf } from '../lib/signing.js';
+import { getCheck, getPdfBytes, sha256Hex } from '../lib/api.js';
+import { readSignatures, verifyPdf } from '../lib/signing.js';
+import PdfViewer from '../components/PdfViewer.jsx';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
 // What the QR code on a DMS PDF opens (/v/<document id>), for anyone, signed in or not: DMS's
-// record of the document (number, type, where it is on its route, who signed it) and a check
-// that a copy in hand is a PDF DMS issued for it, with its signatures intact.
+// record of the document (number, type, where it is on its route, who signed it), the document
+// itself (its current PDF), and a check that a copy in hand is a PDF DMS issued for it, with its
+// signatures intact.
 export default function DocCheck({ standalone = false }) {
   const { pathname } = useLocation();
   const id = decodeURIComponent(pathname.split('/')[2] || '');
@@ -15,12 +17,24 @@ export default function DocCheck({ standalone = false }) {
   const [error, setError] = useState('');
   const [copy, setCopy] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [pdf, setPdf] = useState(null); // { bytes, signatures } of the current PDF, or { error }
 
   useEffect(() => {
     setRec(undefined); setError('');
     if (!/^[A-Za-z0-9]{10,40}$/.test(id)) { setRec(null); return; }
     getCheck(id).then(setRec).catch((e) => { setRec(null); setError(e.message); });
   }, [id]);
+
+  // The document itself: its current PDF.
+  useEffect(() => {
+    setPdf(null);
+    if (!rec?.pdf) return undefined;
+    let live = true;
+    getPdfBytes(rec.pdf)
+      .then((bytes) => { if (live) setPdf({ bytes, signatures: readSignatures(bytes) }); })
+      .catch(() => live && setPdf({ error: true }));
+    return () => { live = false; };
+  }, [rec?.pdf]);
 
   const checkCopy = async (f) => {
     if (!f) return;
@@ -67,6 +81,15 @@ export default function DocCheck({ standalone = false }) {
               <dt>Record updated</dt><dd>{when(rec.updatedAt)}</dd>
             </dl>
           </section>
+
+          {rec.pdf && (
+            <section className="card check-pdf">
+              <h3>The document</h3>
+              {!pdf && <div className="spinner" />}
+              {pdf?.error && <p className="small muted">The PDF could not be shown just now. Try again later.</p>}
+              {pdf?.bytes && <PdfViewer bytes={pdf.bytes} signatures={pdf.signatures} title={rec.controlNo} />}
+            </section>
+          )}
 
           {rec.steps?.length > 0 && (
             <section className="card">

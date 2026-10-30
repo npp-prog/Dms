@@ -81,7 +81,10 @@ service firebase.storage {
     }
 
     match /documents/{docId}/{file} {
-      allow read: if isActive() && canRead(docOf(docId));
+      // Anyone, signed in or not, may open the document's current PDF: the one its public record
+      // (checks/{docId}, what the QR code opens) names. Earlier versions stay private.
+      allow read: if (isActive() && canRead(docOf(docId)))
+        || firestore.get(/databases/(default)/documents/checks/$(docId)).data.get('pdf', '') == 'documents/' + docId + '/' + file;
       // resource == null: a new file only, never over an existing version.
       allow create: if resource == null && isActive() && canAdd(docOf(docId))
         && file.matches('[0-9]+-(generated|signed|uploaded|stamped|restored)\\.pdf')

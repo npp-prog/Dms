@@ -530,9 +530,12 @@ function publishCheck(tx, id, d) {
   if ((d.pdf?.files || []).length) tx.set(doc(db, 'checks', id), checkRecord(d));
 }
 
-// A document converted before public records existed gets one when someone handling it opens it.
+// A document converted before public records existed gets one when someone handling it opens it
+// (and one from before the record named its PDF is brought up to date).
 export async function ensureCheck(id, d) {
-  if (!(d.pdf?.files || []).length || (await getCheck(id))) return;
+  if (!(d.pdf?.files || []).length) return;
+  const rec = await getCheck(id);
+  if (rec && rec.pdf === checkRecord(d).pdf) return;
   await setDoc(doc(db, 'checks', id), checkRecord(d));
 }
 

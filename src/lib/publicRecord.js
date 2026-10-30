@@ -2,7 +2,7 @@
 // signed in or not. Only what confirms the paper in hand: no amounts, data fields or remarks.
 import { liveFiles, officeOf } from './workflow.js';
 
-export const CHECK_KEYS = ['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'updatedAt'];
+export const CHECK_KEYS = ['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'pdf', 'updatedAt'];
 
 export function checkRecord(d, at = new Date().toISOString()) {
   const wf = d.workflow;
@@ -33,6 +33,9 @@ export function checkRecord(d, at = new Date().toISOString()) {
     versions: files.map((f, i) => ({ n: i + 1, sha256: f.sha256 || '', kind: f.kind, at: f.at || '' })),
     // reference numbers assigned along the route (e.g. the DV No.), to match the paper
     refNos: Object.values(d.refNos || {}).filter((r) => !r.of).map((r) => `${r.label} ${r.value}`),
+    // the current PDF, which the QR page shows (storage.rules lets anyone open this one file);
+    // none for a cancelled document
+    pdf: d.status === 'cancelled' || wf?.state === 'cancelled' ? '' : files.at(-1)?.path || '',
     updatedAt: at,
   };
 }

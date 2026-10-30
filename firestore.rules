@@ -262,7 +262,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create, update: if isActive()
-        && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'pdf', 'updatedAt'])
         && request.resource.data.controlNo == docAfter().controlNo
         && (isAdmin() || handles(docBefore()) || handles(docAfter()));
       allow delete: if isAdmin();
