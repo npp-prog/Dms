@@ -1304,10 +1304,6 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .wf-views button.stat:hover svg { color: var(--ink); }
 .wf-views button.stat.active { box-shadow: inset 0 -2px 0 var(--primary); }
 .wf-views button.stat.active svg, .wf-views button.stat.active .n, .wf-views button.stat.active .l { color: var(--primary); }
-.drive-accounts { list-style: none; margin: .6rem 0 .8rem; padding: 0; display: grid; gap: .6rem; }
-.drive-account { border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
-.drive-account p { margin: .3rem 0; }
-.drive-account-head { align-items: center; justify-content: space-between; }
 
 /* Archive → Backups to devices */
 .how-it-works { background: var(--hover); border-radius: 10px; padding: .6rem .9rem; margin: 0 0 .9rem; }
@@ -1327,3 +1323,35 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .devices-actions { margin-top: .3rem; }
 .how-it-works summary { margin: 0; padding: 0; line-height: 1.6; }
 .how-it-works:not([open]) { padding: .45rem .9rem; }
+
+/* Users (admin): a compact row per person; Edit opens their settings below */
+.user-list { list-style: none; margin: 0; padding: 0; overflow: visible; }
+.user-row { border-bottom: 1px solid var(--line); }
+.user-row:last-child { border-bottom: 0; }
+.user-main { display: grid; grid-template-columns: 32px minmax(0, 1.2fr) minmax(0, 1.4fr) 270px; gap: .9rem; align-items: center; padding: .75rem 1.1rem; }
+.user-who, .user-office { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.user-name, .user-who .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .2rem; }
+.user-tags .chip { font-size: .72rem; padding: .05rem .5rem; }
+.user-side { display: flex; align-items: center; gap: .6rem; justify-content: flex-end; }
+.user-row.open { background: var(--hover); }
+.user-edit { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: .8rem 1.2rem; padding: .2rem 1.1rem 1rem calc(1.1rem + 32px + .9rem); }
+.user-edit .field { margin: 0; }
+.user-edit .field-wide { grid-column: 1 / -1; }
+.user-checks { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; }
+.user-danger { border-top: 1px solid var(--line); padding-top: .6rem; }
+@media (max-width: 760px) {
+  .user-main { grid-template-columns: 32px minmax(0, 1fr); }
+  .user-office, .user-side { grid-column: 2; justify-content: flex-start; }
+  .user-edit { grid-template-columns: minmax(0, 1fr); padding-left: 1.1rem; }
+}
+.user-role { width: 78px; text-align: right; }
+.user-side .btn { min-width: 64px; }
+@media (max-width: 760px) { .user-role { width: auto; text-align: left; } }
+
+.drive-accounts { list-style: none; margin: .5rem 0 .9rem; padding: 0; border-top: 1px solid var(--line); }
+.drive-account { border-bottom: 1px solid var(--line); padding: .6rem 0; }
+.drive-account p, .drive-account .alert { margin: .4rem 0 0; }
+.drive-account-main { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.drive-account-who { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.drive-account-side { display: flex; align-items: center; gap: .5rem; }

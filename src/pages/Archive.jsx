@@ -124,18 +124,20 @@ const DRIVE_RESULT = {
 function DriveAccount({ a, busy, canDisconnect, onRun, onDisconnect }) {
   return (
     <li className="drive-account">
-      <div className="row gap wrap drive-account-head">
-        <b>{a.email}</b>
-        <span className={`badge ${a.lastError ? 'badge-red' : 'badge-green'}`}>{a.lastError ? 'Problem' : 'Automatic'}</span>
+      <div className="drive-account-main">
+        <div className="drive-account-who">
+          <b>{a.email}</b>
+          <span className="xs muted">Connected by {a.by}{a.mine ? ' (you)' : ''} · {when(a.at)}</span>
+          <span className="xs muted">{a.lastRunAt ? `Last run ${when(a.lastRunAt)}` : 'Not run yet'}{a.documents ? ` · ${a.documents} document(s), ${a.files || 0} file(s)` : ''}{a.lastRunAt && a.caughtUp === false ? ' · still catching up' : ''}</span>
+        </div>
+        <div className="drive-account-side">
+          <span className={`badge ${a.lastError ? 'badge-red' : 'badge-green'}`}>{a.lastError ? 'Problem' : 'Automatic'}</span>
+          <button type="button" className="btn btn-sm" disabled={!!busy} onClick={onRun}>{busy === `run:${a.uid}` ? 'Backing up…' : 'Back up now'}</button>
+          {canDisconnect && <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={onDisconnect}>Disconnect</button>}
+        </div>
       </div>
-      <p className="small muted">Connected by {a.by}{a.mine ? ' (you)' : ''} on {when(a.at)}. It reads the archive as {a.by}: if they stop being the Records Officer or an administrator, connect it again.</p>
-      <p className="small muted">{a.lastRunAt ? `Last run ${when(a.lastRunAt)}` : 'Not run yet'}{a.documents ? ` · ${a.documents} document backup(s), ${a.files || 0} file(s) so far` : ''}{a.lastRunAt && a.caughtUp === false ? ' · still catching up' : ''}.</p>
-      {a.lastMissing?.length > 0 && <p className="small muted">Files that could not be read last time: {a.lastMissing.join('; ')}.</p>}
+      {a.lastMissing?.length > 0 && <p className="xs muted">Files that could not be read last time: {a.lastMissing.join('; ')}.</p>}
       {a.lastError && <div className="alert small">Last run failed: {a.lastError}</div>}
-      <div className="row gap wrap">
-        <button type="button" className="btn btn-sm" disabled={!!busy} onClick={onRun}>{busy === `run:${a.uid}` ? 'Backing up…' : 'Back up now'}</button>
-        {canDisconnect && <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={onDisconnect}>Disconnect</button>}
-      </div>
     </li>
   );
 }
@@ -181,9 +183,8 @@ function DriveBackup() {
         <span className={`badge ${accounts.length ? (accounts.some((a) => a.lastError) ? 'badge-red' : 'badge-green') : 'badge-gray'}`}>
           {accounts.length ? `${accounts.length} account${accounts.length === 1 ? '' : 's'}` : 'Not connected'}</span>
       </div>
-      <p className="small">Every processed document is copied automatically, every 10 minutes and with no one needing to be signed in, to the folder
-        <b> DMS Archive</b> of each Google account below (by year and type, a folder per document with its PDFs, attachments and record).
-        The Records Officer and each administrator can connect their own account; each keeps a full copy.</p>
+      <p className="small muted">Every 10 minutes, processed documents are copied automatically to the folder <b>DMS Archive</b> in each account below.
+        The Records Officer and each administrator can connect their own; each keeps a full copy. If someone who connected one stops being the Records Officer or an administrator, connect it again.</p>
       {accounts.length > 0 && (
         <ul className="drive-accounts">
           {accounts.map((a) => (
