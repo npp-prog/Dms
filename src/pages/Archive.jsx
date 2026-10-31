@@ -235,12 +235,22 @@ function Backups({ docs, me }) {
   return (
     <section className="card archive-backup">
       <div className="card-head">
-        <h3>Backups</h3>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Devices and schedule'}</button>
+        <h3>Backups to devices</h3>
+        {!editing && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>Devices and schedule</button>}
       </div>
-      {editing ? <Devices settings={settings} onSaved={(s) => { setSettings(s); setEditing(false); setForm((f) => ({ ...f, device: s.devices.some((d) => d.id === f.device) ? f.device : s.devices[0]?.id || '' })); }} /> : (
+      {editing ? <Devices settings={settings} onCancel={() => setEditing(false)} onSaved={(s) => { setSettings(s); setEditing(false); setForm((f) => ({ ...f, device: s.devices.some((d) => d.id === f.device) ? f.device : s.devices[0]?.id || '' })); }} /> : (
         <>
-          {status.length === 0 && <p className="small muted">No backup device yet. Click <b>Devices and schedule</b> and add the computer, external drive or other device the archive is backed up to.</p>}
+          <details className="how-it-works" open={status.length === 0}>
+            <summary className="small"><b>How it works</b></summary>
+            <ol className="small">
+              <li><b>Add your devices once</b> (<b>Devices and schedule</b>): the Records Office computer, external drive, flash drive or network storage that keeps copies, and how often to back up.</li>
+              <li><b>Back up when it is due.</b> DMS shows <b>Due</b> here and reminds you on the Dashboard. Plug in the device, choose it below and click <b>Back up</b>.</li>
+              <li><b>Save the ZIP to the device.</b> DMS makes one ZIP file (each document's PDFs, attachments and record, by year and type, with an index). On a computer with Chrome or Edge a window opens: choose a folder on the device. On other browsers, tablets and phones it goes to Downloads: move it to the device.</li>
+              <li><b>It is recorded</b> in the Backup log: when, which device, how many documents, by whom.</li>
+            </ol>
+            <p className="small muted">Nothing is saved to a device by itself: a backup happens only when someone clicks <b>Back up</b>. To stop backing up to a device, remove it in <b>Devices and schedule</b> (its past backups stay in the log); the reminders for it stop too. The copy to Google Drive above is the automatic one.</p>
+          </details>
+          {status.length === 0 && <p className="small muted">No device yet: click <b>Devices and schedule</b> to add one.</p>}
           <ul className="receipts">
             {status.map((d) => (
               <li key={d.id}>
@@ -262,8 +272,7 @@ function Backups({ docs, me }) {
               <button type="button" className="btn btn-primary btn-sm" disabled={!!busy || !batch.length} onClick={run}>{busy || `Back up ${batch.length} document${batch.length === 1 ? '' : 's'}`}</button>
             </div>
           )}
-          <p className="help">Every {settings.everyDays} day{settings.everyDays === 1 ? '' : 's'}. The backup is one ZIP: each document's PDFs, attachments and record, by year and type,
-            with an index. On a computer with Chrome or Edge you choose where to save it (e.g. the external drive); elsewhere it is downloaded, to be moved to the device.</p>
+          {status.length > 0 && <p className="help">Due every {settings.everyDays} day{settings.everyDays === 1 ? '' : 's'} for each device.</p>}
           {msg && <div className={`alert small ${msg.ok ? 'alert-ok' : ''}`}>{msg.text}</div>}
           {backups.length > 0 && (
             <details className="archive-log">
@@ -282,8 +291,8 @@ function Backups({ docs, me }) {
   );
 }
 
-function Devices({ settings, onSaved }) {
-  const [devices, setDevices] = useState(settings.devices);
+function Devices({ settings, onSaved, onCancel }) {
+  const [devices, setDevices] = useState(settings.devices.length ? settings.devices : [{ id: `d${Date.now().toString(36)}`, name: '', note: '' }]);
   const [everyDays, setEveryDays] = useState(settings.everyDays);
   const [error, setError] = useState('');
   const set = (i, patch) => setDevices(devices.map((d, j) => (j === i ? { ...d, ...patch } : d)));
@@ -292,23 +301,31 @@ function Devices({ settings, onSaved }) {
     try { await saveArchiveSettings({ devices: clean, everyDays }); onSaved({ ...settings, devices: clean, everyDays: Number(everyDays) || 7 }); } catch (e) { setError(e.message); }
   };
   return (
-    <div className="fields">
-      <div className="field field-wide"><span className="field-label">Backup devices</span>
+    <div className="devices-editor">
+      <div className="field-label">Devices</div>
+      <div className="help">Where the backups are kept: a computer, external drive, flash drive or network storage. Removing one keeps its past backups in the log.</div>
+      <div className="device-rows">
+        <div className="device-row device-row-head small muted"><span>Name</span><span>Where it is kept</span><span /></div>
         {devices.map((d, i) => (
-          <div key={d.id} className="editor-row compact">
-            <input aria-label="Device name" placeholder="Device name" value={d.name} onChange={(e) => set(i, { name: e.target.value })} />
-            <input aria-label="Where it is kept" placeholder="Where it is kept (optional)" value={d.note || ''} onChange={(e) => set(i, { note: e.target.value })} />
-            <button type="button" className="btn-icon" title="Remove" onClick={() => setDevices(devices.filter((_, j) => j !== i))}>×</button>
+          <div key={d.id} className="device-row">
+            <input aria-label="Device name" placeholder="Name" value={d.name} onChange={(e) => set(i, { name: e.target.value })} />
+            <input aria-label="Where it is kept" placeholder="Optional" value={d.note || ''} onChange={(e) => set(i, { note: e.target.value })} />
+            <button type="button" className="btn-icon" title="Remove this device" onClick={() => setDevices(devices.filter((_, j) => j !== i))}>×</button>
           </div>
         ))}
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDevices([...devices, { id: `d${Date.now().toString(36)}`, name: '', note: '' }])}>+ Device</button>
-        <div className="help">The computer, external drive, flash drive or network storage of the Records Office that keeps the backups. Removing one keeps its backups in the log.</div>
       </div>
-      <div className="field"><label className="field-label" htmlFor="ar-every">Back up every (days)</label>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDevices([...devices, { id: `d${Date.now().toString(36)}`, name: '', note: '' }])}>+ Add device</button>
+      <div className="every-days">
+        <label htmlFor="ar-every" className="field-label">Back up every</label>
         <input id="ar-every" type="number" min={1} max={90} value={everyDays} onChange={(e) => setEveryDays(e.target.value)} />
-        <div className="help">A device not backed up for this long shows as due, here and on the Dashboard.</div></div>
+        <span className="small">days</span>
+      </div>
+      <div className="help">A device not backed up for this long shows as Due, here and on the Dashboard.</div>
       {error && <div className="alert small">{error}</div>}
-      <div className="row gap"><button type="button" className="btn btn-primary btn-sm" onClick={save}>Save</button></div>
+      <div className="row gap devices-actions">
+        <button type="button" className="btn btn-primary btn-sm" onClick={save}>Save</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
     </div>
   );
 }

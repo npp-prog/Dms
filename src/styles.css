@@ -1308,3 +1308,22 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .drive-account { border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
 .drive-account p { margin: .3rem 0; }
 .drive-account-head { align-items: center; justify-content: space-between; }
+
+/* Archive → Backups to devices */
+.how-it-works { background: var(--hover); border-radius: 10px; padding: .6rem .9rem; margin: 0 0 .9rem; }
+.how-it-works summary { cursor: pointer; }
+.how-it-works ol { margin: .5rem 0 .4rem; padding-left: 1.2rem; display: grid; gap: .3rem; }
+.how-it-works p { margin: .3rem 0 0; }
+.devices-editor { display: grid; gap: .5rem; max-width: 640px; }
+.devices-editor .help { margin: 0; }
+.device-rows { display: grid; gap: .4rem; }
+.device-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 28px; gap: .5rem; align-items: center; }
+.device-row-head { font-size: .78rem; }
+.device-row input, .every-days input { padding: .45rem .65rem; font-size: .9rem; min-height: 0; height: 36px; }
+.devices-editor > .btn { justify-self: start; }
+.every-days { display: flex; align-items: center; gap: .5rem; margin-top: .4rem; }
+.every-days .field-label { margin: 0; }
+.every-days input { width: 72px; }
+.devices-actions { margin-top: .3rem; }
+.how-it-works summary { margin: 0; padding: 0; line-height: 1.6; }
+.how-it-works:not([open]) { padding: .45rem .9rem; }
