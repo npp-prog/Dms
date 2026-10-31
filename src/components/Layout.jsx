@@ -6,6 +6,7 @@ import BackButton from './BackButton.jsx';
 import AskDms from './AskDms.jsx';
 import { isUnread, listInbox, watchConversations } from '../lib/api.js';
 import { listCirculars, toReceive, watchCommunities, watchNotifications } from '../lib/social.js';
+import { watchIdle } from '../lib/idle.js';
 
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User', payee: 'Third Party' };
 
@@ -18,6 +19,11 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   useEffect(() => setOpen(false), [location.pathname]);
+  // Signed out after an hour without activity (Data Privacy Act: shared computers).
+  useEffect(() => watchIdle(() => {
+    try { sessionStorage.setItem('dms-signed-out', 'idle'); } catch { /* no notice then */ }
+    logout();
+  }), []);
   // Documents waiting in the user's office (refreshed as the user moves around).
   const [waiting, setWaiting] = useState(0);
   const [circulars, setCirculars] = useState([]); // ids of circulars the office has to receive
@@ -112,7 +118,7 @@ export default function Layout() {
             ))}
           </div>
         ))}
-        <div className="side-foot">Document Management System</div>
+        <div className="side-foot">Document Management System · <a href="/privacy">Privacy</a></div>
       </nav>
       <div className="scrim" onClick={() => setOpen(false)} />
       <div className="shell-main">

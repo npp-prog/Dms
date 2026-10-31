@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import LoginDemo from '../components/LoginDemo.jsx';
+import { IDLE_MINUTES } from '../lib/idle.js';
 
 const MESSAGES = {
   'auth/invalid-credential': 'Incorrect email or password.',
@@ -41,7 +42,13 @@ export default function Login() {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', displayName: '', office: '' });
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [message, setMessage] = useState(() => {
+    try {
+      if (sessionStorage.getItem('dms-signed-out') !== 'idle') return null;
+      sessionStorage.removeItem('dms-signed-out');
+      return { ok: true, text: `You were signed out after ${IDLE_MINUTES} minutes without activity. Sign in again to continue.` };
+    } catch { return null; }
+  });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
@@ -118,7 +125,7 @@ export default function Login() {
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('register')}>Create an account</button>}
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('reset')}>Forgot password?</button>}
           </div>
-          <p className="xs muted" style={{ marginTop: '1.4rem' }}>For official use of the Municipal Government of Candoni. Personal information is processed under the Data Privacy Act of 2012 (RA 10173).</p>
+          <p className="xs muted" style={{ marginTop: '1.4rem' }}>For official use of the Municipal Government of Candoni. Personal information is processed under the Data Privacy Act of 2012 (RA 10173): see the <a href="/privacy">privacy notice</a>.</p>
         </div>
       </section>
       </div>

@@ -166,6 +166,15 @@ export async function getSettings() {
   return snap.exists() ? snap.data() : {};
 }
 
+// The Data Protection Officer's contact for the privacy notice (meta/privacy: public).
+export async function getPrivacy() {
+  const snap = await getDoc(doc(db, 'meta', 'privacy'));
+  return snap.exists() ? snap.data() : {};
+}
+export function savePrivacy(p) {
+  return setDoc(doc(db, 'meta', 'privacy'), { dpoName: '', dpoEmail: '', dpoPhone: '', ...p, updatedAt: serverTimestamp() }, { merge: true });
+}
+
 // Adds a position to the list (Settings); returns the new list.
 export async function addPosition(settings, name) {
   const positions = [...new Set([...positionsOf(settings), name])];

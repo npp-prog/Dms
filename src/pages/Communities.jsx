@@ -145,8 +145,10 @@ function Room({ c, me, manages, onBack, onGone }) {
   const fileRef = useRef(null);
   const end = useRef(null);
 
-  useEffect(() => watchCommunityMessages(c.id, setMessages, (e) => setError(e.message)), [c.id]);
-  useEffect(() => { if (isUnread(c, me.uid)) markCommunityRead(c.id, me.uid).catch(() => {}); }, [c.lastAt]);
+  // Only members read the messages (those who manage it but are not in it change its name and members).
+  const member = c.members.includes(me.uid);
+  useEffect(() => (member ? watchCommunityMessages(c.id, setMessages, (e) => setError(e.message)) : undefined), [c.id, member]);
+  useEffect(() => { if (member && isUnread(c, me.uid)) markCommunityRead(c.id, me.uid).catch(() => {}); }, [c.lastAt]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [messages?.length]);
 
   const days = useMemo(() => {
@@ -175,7 +177,10 @@ function Room({ c, me, manages, onBack, onGone }) {
         <div className="chat-head-t"><b>{c.name}</b><div className="xs muted">{c.members.length} members · {c.office || 'administrators'}</div></div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setManaging(!managing)}>{managing ? 'Close' : manages ? 'Manage' : 'Members'}</button>
       </div>
-      {managing ? <Manage c={c} me={me} manages={manages} onGone={onGone} /> : (
+      {!managing && !member && (
+        <p className="small muted chat-empty">Only the members of a community read its messages and files. You can manage its name and members (Manage).</p>
+      )}
+      {managing ? <Manage c={c} me={me} manages={manages} onGone={onGone} /> : member && (
         <>
           <div className="chat-body">
             {c.description && <p className="small muted chat-empty">{c.description}</p>}
@@ -212,7 +217,7 @@ function Room({ c, me, manages, onBack, onGone }) {
           {file && <div className="chat-attach small">📎 {file.name} <button type="button" className="link small" onClick={() => setFile(null)}>Remove</button></div>}
           <form className="chat-send" onSubmit={send}>
             <button type="button" className="btn-icon" title="Attach a file" aria-label="Attach a file" onClick={() => fileRef.current.click()}>📎</button>
-            <input ref={fileRef} type="file" hidden onChange={(e) => { setFile(e.target.files?.[0] || null); e.target.value = ''; }} />
+            <input ref={fileRef} type="file" hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.zip" onChange={(e) => { setFile(e.target.files?.[0] || null); e.target.value = ''; }} />
             <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} aria-label="Message" placeholder="Write a message…"
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
             <button className="btn btn-primary btn-sm" disabled={busy || (!text.trim() && !file)}>{busy ? '…' : 'Send'}</button>

@@ -1,7 +1,8 @@
 rules_version = '2';
 
-// FTS - Financial Transaction System
-// Roles: superadmin > admin > user. New accounts start inactive until an
+// DMS - Document Management System, Municipal Government of Candoni.
+// Personal data is processed under the Data Privacy Act of 2012 (RA 10173): each person reads only
+// what their work needs (see the Privacy page). Roles: superadmin > admin > user. New accounts start inactive until an
 // admin approves them. The superadmin is the owner's email below (keep it in
 // sync with src/lib/owner.js); it is granted only once Firebase has verified
 // the address (Google sign-in, or the email/password verification link).
@@ -132,8 +133,10 @@ service cloud.firestore {
         function community() {
           return get(/databases/$(database)/documents/communities/$(cid)).data;
         }
+        // Only its members read the messages: those who manage it (its office head, administrators)
+        // change its name and members, but a group's conversation is its members' own.
         allow read: if isStaff() && exists(/databases/$(database)/documents/communities/$(cid))
-          && (isMember(community()) || manages(community()));
+          && isMember(community());
         allow create: if isStaff() && request.resource.data.from == request.auth.uid
           && isMember(getAfter(/databases/$(database)/documents/communities/$(cid)).data)
           && request.resource.data.keys().hasOnly(['from', 'fromName', 'text', 'file', 'at'])
@@ -148,9 +151,14 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isAdmin();
     }
+    // The privacy notice's contacts (the Data Protection Officer): public, like the notice itself.
+    match /meta/privacy {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     // The Archive's settings (backup devices, how often to back up): the Records Officer keeps them.
     match /meta/archive {
-      allow read: if isActive();
+      allow read: if isRecords() || isAdmin();
       allow write: if isRecords() || isAdmin();
     }
     // Log of the archive backups (who, when, to which device, how many documents). Never changed.
@@ -338,11 +346,35 @@ service cloud.firestore {
           || (request.resource.data.workflow.state == 'done' && 'workflow' in resource.data
               && resource.data.workflow.stage == resource.data.workflow.steps.size() - 1);
       }
-      // History, reviews: entries are only added, never changed or removed.
-      function appended(key) {
-        let before = resource.data.get(key, []);
-        let after = request.resource.data.get(key, []);
+      // History, reviews, a route's events, PDF versions: entries are only added, never changed or
+      // removed (the record of who did what stays whole).
+      function appendedList(before, after) {
         return after.size() >= before.size() && (before.size() == 0 || after[0:before.size()] == before);
+      }
+      function appended(key) {
+        return appendedList(resource.data.get(key, []), request.resource.data.get(key, []));
+      }
+      function pdfAppended() {
+        return appendedList(resource.data.get('pdf', {}).get('files', []), request.resource.data.get('pdf', {}).get('files', []));
+      }
+      // The route keeps its record: events are only added, and its steps stay those it started with
+      // (the preparer chooses alternate offices and third parties before it first leaves the
+      // office: routeOffices holds only that office then).
+      function routeRecordKept() {
+        let w0 = resource.data.get('workflow', {});
+        let w1 = request.resource.data.get('workflow', {});
+        return !('workflow' in resource.data)
+          || (appendedList(w0.get('events', []), w1.get('events', []))
+              && (w1.get('steps', []) == w0.get('steps', []) || resource.data.get('routeOffices', []).size() <= 1));
+      }
+      // The office holding it (or the person it is with) moves it one step on or back, or closes it
+      // at its last step; never further, never back to an earlier office in one go.
+      function routeMoveOk() {
+        let w0 = resource.data.workflow;
+        let w1 = request.resource.data.workflow;
+        return w1.stage >= w0.stage - 1 && w1.stage <= w0.stage + 1
+          && (w1.state == 'in-progress'
+              || (w1.state == 'done' && w1.stage == w0.stage && w0.stage == w0.steps.size() - 1));
       }
       allow update: if isActive()
         && unchanged(['createdBy', 'createdAt', 'typeId', 'controlNo', 'typeSnapshot', 'office'])
@@ -365,13 +397,15 @@ service cloud.firestore {
             // The person it is referred to receives it, signs its PDF and sends it back.
             || (referredToMe()
                 && request.resource.data.diff(resource.data).affectedKeys()
-                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'supplements']))
+                     .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'supplements'])
+                && appended('history') && pdfAppended() && routeRecordKept() && routeMoveOk())
             // The preparer (or an editor) edits the document; its route only while it is with their
             // office (or before it is routed).
             // Not once processed (it is in the Archive), and never the archive entry, reviews or access.
             || (actsAsPreparer() && resource.data.status != 'cancelled'
                 && resource.data.get('workflow', {}).get('state', '') != 'done'
                 && unchanged(['archive', 'reviews', 'access', 'editors', 'restricted'])
+                && appended('history') && pdfAppended() && routeRecordKept()
                 && (workflowUntouched()
                     || ((!('workflow' in resource.data)
                         || (resource.data.workflow.state == 'in-progress' && (holder() == '' || holder() == myOffice())))
@@ -384,6 +418,7 @@ service cloud.firestore {
                 && request.resource.data.diff(resource.data).affectedKeys()
                      .hasOnly(['workflow', 'currentOffice', 'routeOffices', 'atPreparer', 'pdf', 'updatedAt', 'history', 'data', 'refNos', 'stepFiles', 'sharedWith', 'forwards', 'supplements', 'referred'])
                 && request.resource.data.get('referred', []).hasAll(resource.data.get('referred', []))
+                && appended('history') && pdfAppended() && routeRecordKept() && routeMoveOk()
                 && request.resource.data.get('data', {}).diff(resource.data.get('data', {})).affectedKeys().hasOnly(assignedKeys())
                 && request.resource.data.get('refNos', {}).diff(resource.data.get('refNos', {})).affectedKeys().hasOnly(assignedKeys())));
       // The preparer deletes only a draft never converted to PDF nor routed (no signatures, no
@@ -494,9 +529,9 @@ service cloud.firestore {
 
     // ---- Control number sequences ----
     match /counters/{counterId} {
-      allow read: if isActive();
-      allow create: if isActive() && request.resource.data.value == 1;
-      allow update: if isActive() && request.resource.data.value == resource.data.value + 1;
+      allow read: if isStaff();
+      allow create: if isStaff() && request.resource.data.value == 1;
+      allow update: if isStaff() && request.resource.data.value == resource.data.value + 1;
       allow delete: if isSuper();
     }
   }

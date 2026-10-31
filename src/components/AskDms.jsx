@@ -83,7 +83,8 @@ export default function AskDms() {
               onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }} />
             <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()}>Ask</button>
           </form>
-          <p className="xs muted ask-note">AI answers can be wrong. It cannot see your documents.</p>
+          <p className="xs muted ask-note">AI answers can be wrong. It cannot see your documents. Do not type personal information
+            (names, TIN, account numbers): your question is sent to an AI service (Anthropic) to answer it. <a href="/privacy">Privacy</a></p>
         </section>
       )}
       <button type="button" className="ask-fab" title="Ask DMS" aria-expanded={open} onClick={() => setOpen(!open)}>

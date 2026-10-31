@@ -1476,3 +1476,12 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .filters { flex-wrap: wrap; }
 .filters > .search, .filters > input:not([type=checkbox]):not([type=radio]) { flex: 2 1 260px; max-width: none; width: auto; }
 .filters > select, .filters > .ss { flex: 1 1 150px; min-width: 0; width: auto; }
+
+/* Privacy notice */
+.privacy { max-width: 760px; }
+.privacy h1 { margin-bottom: .6rem; }
+.privacy h2 { font-size: 1.1rem; margin: 1.4rem 0 .4rem; }
+.privacy p, .privacy li { line-height: 1.6; }
+.privacy ul { padding-left: 1.2rem; display: grid; gap: .35rem; }
+.privacy-standalone { max-width: 760px; margin: 1rem auto 3rem; }
+.side-foot a { color: inherit; }

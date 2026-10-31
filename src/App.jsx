@@ -12,6 +12,7 @@ import Circulars, { CircularView } from './pages/Circulars.jsx';
 import Communities from './pages/Communities.jsx';
 import Archive from './pages/Archive.jsx';
 import Folders from './pages/Folders.jsx';
+import Privacy from './pages/Privacy.jsx';
 import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import DocCheck from './pages/DocCheck.jsx';
@@ -41,6 +42,8 @@ export default function App() {
   if (loading) return <div className="center-screen"><div className="spinner" /></div>;
   // Anyone can verify a document, signed in or not.
   if (location.pathname === '/verify' && (!user || !profile?.active)) return <Verify standalone />;
+  // The privacy notice: for anyone.
+  if (location.pathname === '/privacy' && (!user || !profile?.active)) return <Privacy standalone />;
   // The page a document's QR code opens: also for anyone.
   if (location.pathname.startsWith('/v/') && (!user || !profile?.active)) return <DocCheck standalone />;
   if (!user) return <Login />;
@@ -71,6 +74,7 @@ export default function App() {
         <Route path="profile" element={<Profile />} />
         <Route path="messages" element={<Messages />} />
         <Route path="verify" element={<Verify />} />
+        <Route path="privacy" element={<Privacy />} />
         <Route path="v/:docId" element={<DocCheck />} />
         <Route path="tracking" element={<Tracking />} />
         <Route path="workflow" element={<Navigate to="/tracking" replace />} />

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { saveSettings } from '../../lib/api.js';
+import { getPrivacy, savePrivacy, saveSettings } from '../../lib/api.js';
 import { SIGNATORY_ROLES, signatoriesFrom } from '../../lib/signatories.js';
 import { fundsOf, positionsOf } from '../../lib/defaults.js';
 
@@ -15,6 +15,10 @@ export default function Settings() {
   const [officeText, setOfficeText] = useState((settings.offices || []).join('\n'));
   const [positionText, setPositionText] = useState(positionsOf(settings).join('\n'));
   const [fundText, setFundText] = useState(fundsOf(settings).join('\n'));
+  // The Data Protection Officer: shown on the public Privacy page (meta/privacy).
+  const [dpo, setDpo] = useState({ dpoName: '', dpoEmail: '', dpoPhone: '' });
+  useEffect(() => { getPrivacy().then((p) => setDpo((d) => ({ ...d, ...p }))).catch(() => {}); }, []);
+  const setD = (k) => (e) => setDpo({ ...dpo, [k]: e.target.value });
   const setContact = (office, k) => (e) => setForm({
     ...form, officeContacts: { ...form.officeContacts, [office]: { ...form.officeContacts?.[office], [k]: e.target.value } },
   });
@@ -26,6 +30,8 @@ export default function Settings() {
       const { updatedAt, ...rest } = form;
       const clean = { ...rest, offices: lines(officeText), positions: lines(positionText), funds: lines(fundText) };
       await saveSettings(clean);
+      const { updatedAt: _u, ...privacy } = dpo;
+      await savePrivacy(privacy);
       setSettings(clean);
       setStatus('Saved.');
     } catch (err) {
@@ -103,6 +109,17 @@ export default function Settings() {
           <div className="field field-wide">
             <textarea rows={8} value={positionText} onChange={(e) => setPositionText(e.target.value)} aria-label="Positions" />
           </div>
+        </div>
+        <h3>Data Protection Officer</h3>
+        <p className="small muted">Shown on the Privacy page (linked from the sign-in page), as the contact for questions and requests about
+          personal data under the Data Privacy Act of 2012.</p>
+        <div className="fields">
+          <div className="field"><label className="field-label" htmlFor="dpo-name">Name</label>
+            <input id="dpo-name" value={dpo.dpoName || ''} onChange={setD('dpoName')} /></div>
+          <div className="field"><label className="field-label" htmlFor="dpo-email">Email</label>
+            <input id="dpo-email" type="email" value={dpo.dpoEmail || ''} onChange={setD('dpoEmail')} /></div>
+          <div className="field"><label className="field-label" htmlFor="dpo-phone">Contact no.</label>
+            <input id="dpo-phone" value={dpo.dpoPhone || ''} onChange={setD('dpoPhone')} /></div>
         </div>
         <div className="row gap">
           <button className="btn btn-primary">Save settings</button>
