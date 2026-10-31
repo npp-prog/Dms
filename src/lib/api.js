@@ -7,7 +7,7 @@ import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
 import { CHECKLIST_LIBRARY_VERSION, DEFAULT_SETTINGS, FORMAT_KEYS, STARTER_TYPES, positionsOf } from './defaults.js';
-import { checkRecord } from './publicRecord.js';
+import { checkRecord, pdfIsPublic } from './publicRecord.js';
 import { applyAction, assignPending, buildWorkflow, cancelWorkflow, officeOf, chooseOffices, placement, referDocument as referPatch, refStampMissing } from './workflow.js';
 import { withApprover } from './approver.js';
 import { localDay } from './archiveFiles.js';
@@ -528,7 +528,8 @@ export async function createSupportingDocument(parent, item, { typeCode = '', fi
   const ref = await addDoc(collection(db, 'documents'), {
     restricted: false,
     typeId: '', typeCode: typeCode || 'DOC', typeName, typeVersion: 1,
-    typeSnapshot: { code: typeCode || 'DOC', name: typeName, fields: [], steps: [], processing: [], template: '' },
+    // a supporting document of a document whose PDF is not public (Payroll) is not public either
+    typeSnapshot: { code: typeCode || 'DOC', name: typeName, fields: [], steps: [], processing: [], template: '', ...(pdfIsPublic(parent) ? {} : { publicPdf: false }) },
     controlNo,
     data: { payee: parent.title || '', fund: parent.data?.fund || '', notes: `Supporting document of ${parent.controlNo}` },
     checklist: {}, additionalDocs: [], links: {}, transaction: null, signatories: null,
@@ -1198,7 +1199,7 @@ export function deleteDocument(id) {
 }
 
 export function snapshotType(type) {
-  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'template', 'paperSize', 'orientation', 'bulkDownload', 'uploadOnly', 'headerOffice'];
+  const keys = ['code', 'name', 'version', 'fields', 'steps', 'checklist', 'checklistSource', 'processing', 'template', 'paperSize', 'orientation', 'bulkDownload', 'uploadOnly', 'headerOffice', 'publicPdf'];
   return Object.fromEntries(keys.filter((k) => type[k] !== undefined).map((k) => [k, type[k]]));
 }
 

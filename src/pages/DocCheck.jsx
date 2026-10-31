@@ -94,6 +94,13 @@ export default function DocCheck({ standalone = false }) {
             </dl>
           </section>
 
+          {!rec.pdf && (rec.versions || []).length > 0 && rec.status !== 'cancelled' && rec.state !== 'cancelled' && (
+            <section className="card check-pdf">
+              <h3>The document</h3>
+              <p className="small muted">This document holds personal information, so its PDF is shown only to signed-in DMS users who handle it.
+                {' '}<a href={`/documents/${encodeURIComponent(id)}`}>Open it in DMS</a>. You can still check a copy you have below.</p>
+            </section>
+          )}
           {rec.pdf && (
             <section className="card check-pdf">
               <h3>The document</h3>

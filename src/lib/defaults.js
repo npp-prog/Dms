@@ -792,6 +792,8 @@ const TO = {
 const PAYROLL = {
   code: 'PAYROLL',
   name: 'Payroll',
+  // its PDF (employees' pay) is shown on the QR page only to signed-in DMS users who handle it
+  publicPdf: false,
   category: 'Disbursement',
   description: 'Group payment of salaries, wages, allowances and benefits. It is paid through a DV, whose checklist depends on the type of payroll (10xx through ATM, 12xx cash advance).',
   paperSize: 'A4',

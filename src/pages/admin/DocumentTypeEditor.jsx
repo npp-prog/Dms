@@ -186,6 +186,12 @@ export default function DocumentTypeEditor() {
             <div className="field"><label className="field-label">Bulk download</label>
               <label className="check"><input type="checkbox" checked={Boolean(type.bulkDownload)} onChange={(e) => patch({ bulkDownload: e.target.checked })} />
                 Download all (ZIP): the document, its checklist and every linked document</label></div>
+            <div className="field"><label className="field-label">Public QR page</label>
+              <label className="check"><input type="checkbox" checked={type.publicPdf === undefined ? type.code !== 'PAYROLL' : type.publicPdf !== false}
+                onChange={(e) => patch({ publicPdf: e.target.checked })} />
+                Show its PDF to anyone who scans the QR code</label>
+              <div className="help">Off: the QR page still shows that the document is genuine, its route and signatories, and checks a copy;
+                its PDF opens only for signed-in DMS users who handle it (for documents with personal data, such as Payroll).</div></div>
             <div className="field field-wide"><label className="field-label">Description</label>
               <textarea rows={3} value={type.description} onChange={(e) => patch({ description: e.target.value })} /></div>
           </div>

@@ -4,6 +4,13 @@ import { liveFiles, officeOf } from './workflow.js';
 
 export const CHECK_KEYS = ['controlNo', 'typeCode', 'typeName', 'title', 'office', 'status', 'state', 'now', 'steps', 'signatures', 'versions', 'refNos', 'pdf', 'updatedAt'];
 
+// Does the QR page show the document's PDF to anyone? Set per document type (Document Types →
+// General); off for Payroll unless an administrator turns it on (employees' pay is not for the public).
+export function pdfIsPublic(d) {
+  const p = d?.typeSnapshot?.publicPdf;
+  return p === undefined ? d?.typeCode !== 'PAYROLL' : p !== false;
+}
+
 export function checkRecord(d, at = new Date().toISOString()) {
   const wf = d.workflow;
   const files = d.pdf?.files || [];
@@ -34,8 +41,8 @@ export function checkRecord(d, at = new Date().toISOString()) {
     // reference numbers assigned along the route (e.g. the DV No.), to match the paper
     refNos: Object.values(d.refNos || {}).filter((r) => !r.of).map((r) => `${r.label} ${r.value}`),
     // the current PDF, which the QR page shows (storage.rules lets anyone open this one file);
-    // none for a cancelled document
-    pdf: d.status === 'cancelled' || wf?.state === 'cancelled' ? '' : files.at(-1)?.path || '',
+    // none for a cancelled document, nor for a type whose PDF is for signed-in users only (Payroll)
+    pdf: d.status === 'cancelled' || wf?.state === 'cancelled' || !pdfIsPublic(d) ? '' : files.at(-1)?.path || '',
     updatedAt: at,
   };
 }

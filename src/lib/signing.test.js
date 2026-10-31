@@ -247,3 +247,16 @@ test('e-signature: the signature mark with "e-signature", name and date, locked 
   const v2 = await signPdf(out, makeP12('MAYOR', PNPKI), 'secret');
   assert.equal(checkSignedVersion(out, v2).ok, true);
 });
+
+test('public record: Payroll keeps its PDF off the public QR page (unless its type allows it)', async () => {
+  const { checkRecord: rec, pdfIsPublic } = await import('./publicRecord.js');
+  const files = [{ path: 'documents/p/0-generated.pdf', kind: 'generated', sha256: 'a' }];
+  const payroll = { typeCode: 'PAYROLL', typeSnapshot: { code: 'PAYROLL' }, status: 'complete', pdf: { files } };
+  assert.equal(pdfIsPublic(payroll), false);
+  assert.equal(rec(payroll).pdf, '');
+  assert.equal(rec(payroll).versions.length, 1); // a copy can still be checked
+  assert.equal(rec({ ...payroll, typeSnapshot: { code: 'PAYROLL', publicPdf: true } }).pdf, files[0].path);
+  const dv = { typeCode: 'DV', typeSnapshot: { code: 'DV' }, status: 'complete', pdf: { files } };
+  assert.equal(rec(dv).pdf, files[0].path);
+  assert.equal(rec({ ...dv, typeSnapshot: { code: 'DV', publicPdf: false } }).pdf, '');
+});
