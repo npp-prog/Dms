@@ -2,8 +2,8 @@
 // document of its own: a control no., the QR code on its PDF, a place in All Documents, and the DMS
 // file name (Fund_Payee_No._Type_Control No.). Its file is stored with the parent document.
 import { createSupportingDocument, finishSupportingDocument, uploadAttachment } from './api.js';
-import { addQrStamps, readSignatures } from './signing.js';
-import { qrAppearance, verifyUrl } from './qr.js';
+import { verifyUrl } from './qr.js';
+import { withDmsQr } from './qrStamp.js';
 import { imageToPdf } from './imagePdf.js';
 import { controlRef, fileBase } from './naming.js';
 
@@ -17,7 +17,7 @@ export async function uploadSupporting({ parent, slot, label, code = '', number 
   const typeCode = /^[A-Z]{2,8}$/.test(code) ? code : '';
   const created = await createSupportingDocument(parent, { label }, { typeCode, fileName: file.name }, actor);
   try {
-    if (!readSignatures(pdf).length) pdf = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
+    pdf = (await withDmsQr(pdf, verifyUrl(created.id), ['Scan to verify', created.controlNo])).bytes;
   } catch { /* kept without the code */ }
   const name = `${fileBase({ fund: parent.data?.fund, subject: parent.data?.payee || parent.title, number, type: typeCode || 'DOC', ref: controlRef(created.controlNo) })}.pdf`;
   const stored = await uploadAttachment(parent.id, slot, new File([pdf], name, { type: 'application/pdf' }), actor,

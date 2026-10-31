@@ -403,13 +403,45 @@ export function verifyPdf(pdfBytes) {
   const bytes = pdfBytes instanceof Uint8Array ? pdfBytes : new Uint8Array(pdfBytes);
   const signatures = readSignatures(bytes);
   const last = signatures.at(-1);
-  // A few bytes after the last signature (line ends) are not a change.
+  // A few bytes after the last signature (line ends) are not a change; nor is DMS's QR code.
   const tail = last ? latin1(bytes.subarray(last.signedUpTo)).trim() : '';
+  const qrOnly = Boolean(tail) && qrStampOnly(bytes, last.signedUpTo);
   return {
     signatures,
     allValid: signatures.length > 0 && signatures.every((x) => x.valid),
-    changedAfterLast: Boolean(last) && tail.length > 0,
+    changedAfterLast: Boolean(last) && tail.length > 0 && !qrOnly,
+    qrAdded: qrOnly,
   };
+}
+
+// Is everything after byte `from` only DMS's QR code (addQrStamps)? Its appearance (a form of
+// filled rectangles and text), its locked stamps, and the pages it was put on, each the same as
+// before but for the stamp in its /Annots; nothing else.
+export function qrStampOnly(bytes, from) {
+  const text = latin1(bytes);
+  const before = text.slice(0, from);
+  const tail = text.slice(from);
+  const objects = [...tail.matchAll(/(\d+) 0 obj\n([\s\S]*?)\nendobj/g)];
+  if (!objects.length) return false;
+  const rest = objects.reduce((t, m) => t.replace(m[0], ''), tail);
+  if (!/^\s*xref\n[\d\sfn]*trailer\s*<<[\s\S]*?>>\s*startxref\s*\d+\s*%%EOF\s*$/.test(rest)) return false;
+  const stamps = new Set();
+  const withoutAnnots = (d) => d.replace(/\/Annots\s*\[[^\]]*\]/, '').replace(/[<>\s]/g, '');
+  for (const [, id, body] of objects) {
+    if (/^<< \/Type \/XObject \/Subtype \/Form \/BBox/.test(body)) {
+      const ops = body.slice(body.indexOf('stream\n') + 7, body.lastIndexOf('\nendstream'));
+      if (!ops.split('\n').filter(Boolean).every((l) => /^[\d.\s-]+(rg|re f)$/.test(l) || /^BT \/F1 [\d.]+ Tf [\d.\s-]+ Td \((?:[^()\\]|\\.)*\) Tj ET$/.test(l))) return false;
+    } else if (/^<< \/Type \/Annot \/Subtype \/Stamp \/Name \/DMSVerify /.test(body)) {
+      stamps.add(id);
+    } else {
+      const prev = [...before.matchAll(new RegExp(`(?:^|\\s)${id} 0 obj\\s*([\\s\\S]*?)endobj`, 'g'))].at(-1);
+      if (!prev || withoutAnnots(prev[1]) !== withoutAnnots(body)) return false;
+      const added = (body.match(/\/Annots\s*\[([^\]]*)\]/)?.[1] || '').match(/\d+(?=\s+0\s+R)/g) || [];
+      const had = (prev[1].match(/\/Annots\s*\[([^\]]*)\]/)?.[1] || '').match(/\d+(?=\s+0\s+R)/g) || [];
+      if (!added.filter((x) => !had.includes(x)).every((x) => objects.some((m) => m[1] === x && m[2].includes('/DMSVerify')))) return false;
+    }
+  }
+  return stamps.size > 0;
 }
 
 // Uploaded PDFs: the document's QR code (lib/qr.js qrAppearance) as a locked stamp in the bottom

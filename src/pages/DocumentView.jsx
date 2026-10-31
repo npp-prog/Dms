@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess, setDocumentRestricted } from '../lib/api.js';
+import { deleteDocument, ensureCheck, getDocument, getTypeForDocument, saveAccountingEntries, saveDocumentLinks, saveExtraItems, getFileBytes, getPdfBytes, uploadAttachment, saveSupplements, fillStepFields, addStepFile, forwardDocument, reviewDocument, setDocumentStatus, startWorkflow, workflowAction, assignRefNo, referDocument, chooseStepOffices, setDocumentAccess, setDocumentRestricted, addPdfVersion } from '../lib/api.js';
 import { assignPending, canAct, editableByPreparer, holdsPosition, isPreparer, isReceived, liveFiles, officeOf } from '../lib/workflow.js';
 import { readSignatures } from '../lib/signing.js';
 import { effectiveChecklist, isChecked, itemTypeCode, missingRequired } from '../lib/checklists.js';
@@ -21,6 +21,8 @@ import AccessCard from '../components/AccessCard.jsx';
 import { pdfFileName } from '../components/printables.jsx';
 import { uploadSupporting } from '../lib/supporting.js';
 import PdfViewer from '../components/PdfViewer.jsx';
+import { verifyUrl } from '../lib/qr.js';
+import { hasDmsQr, withDmsQr } from '../lib/qrStamp.js';
 
 function downloadBytes(bytes, name, type) {
   const a = document.createElement('a');
@@ -308,6 +310,17 @@ function DocumentPage({ docId }) {
         </div>
       </div>
 
+      {/* Uploaded before every upload got one: put its QR code on it (a new version of the PDF). */}
+      {uploaded && editable && pdfView && (isAdmin || (isOwner && wf?.state !== 'done')) && !hasDmsQr(pdfView.bytes) && (
+        <div className="alert-info no-print row gap wrap qr-missing">
+          <span>This PDF has no DMS QR code yet.</span>
+          <button className="btn btn-sm" disabled={busy} onClick={() => run(async () => {
+            const { bytes, stamped } = await withDmsQr(pdfView.bytes, verifyUrl(docId), ['Scan to verify', docData.controlNo]);
+            if (!stamped) throw new Error('DMS cannot add a QR code to this PDF without breaking its signature.');
+            await addPdfVersion(docId, bytes, actor, { kind: 'stamped', reason: 'QR code' });
+          })}>Add QR code</button>
+        </div>
+      )}
       {docData.status === 'draft' && (isOwner || isAdmin) && (
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}

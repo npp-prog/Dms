@@ -42,7 +42,7 @@ export default function Verify({ standalone = false }) {
     : !result.signatures.length ? { tone: 'warn', text: 'This PDF has no digital signature.' }
       : !result.allValid ? { tone: 'bad', text: 'A signature is NOT valid: the document was altered, or a signature is damaged.' }
         : result.changedAfterLast ? { tone: 'warn', text: 'The signatures are valid, but something was added to the file after the last signature.' }
-          : { tone: 'ok', text: `Valid: ${result.signatures.length === 1 ? 'the signature is' : `all ${result.signatures.length} signatures are`} intact, and nothing was changed after signing.` };
+          : { tone: 'ok', text: `Valid: ${result.signatures.length === 1 ? 'the signature is' : `all ${result.signatures.length} signatures are`} intact, and nothing was changed after signing${result.qrAdded ? ' (DMS only added its QR code to the pages)' : ''}.` };
 
   const body = (
     <div className={standalone ? 'verify-page' : 'page'}>

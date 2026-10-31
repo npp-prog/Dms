@@ -911,7 +911,7 @@ export async function addPdfVersion(id, bytes, user, { kind, method = 'dms', sig
       // basisV: how the basis was computed (bases computed another way are not compared).
       pdf,
       updatedAt: serverTimestamp(),
-      history: [...(d.history || []), historyEntry(kind === 'signed' || kind === 'esigned' ? 'signed' : kind === 'stamped' ? 'reference no. put on the PDF' : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
+      history: [...(d.history || []), historyEntry(kind === 'signed' || kind === 'esigned' ? 'signed' : kind === 'stamped' ? (reason === 'QR code' ? 'QR code put on the PDF' : 'reference no. put on the PDF') : kind === 'restored' ? `PDF back to version ${restores + 1}` : 'converted to PDF', user, kind === 'restored' ? reason : note)],
     });
   });
   if (kind === 'signed' || kind === 'esigned') tellPreparer(d, id, `${kind === 'esigned' ? 'e-signed' : 'signed'} by ${signer?.name || user.displayName || user.email}${reason ? ` — ${reason}` : ''}.`, user);

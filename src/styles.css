@@ -1465,3 +1465,4 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 @keyframes pending-pulse { 50% { box-shadow: 0 0 0 7px rgba(61, 107, 133, .08); } }
 @media (prefers-reduced-motion: reduce) { .pending-steps .now .pending-dot { animation: none; } }
 .pending-actions { justify-content: center; }
+.qr-missing { align-items: center; justify-content: space-between; }

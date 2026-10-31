@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import { addPdfVersion, createUploadedDocument, deleteDocument, getDocument, listDocumentTypes, setDocumentStatus, startWorkflow } from '../lib/api.js';
 import Select from '../components/Select.jsx';
-import { addQrStamps, readSignatures } from '../lib/signing.js';
-import { qrAppearance, verifyUrl } from '../lib/qr.js';
+import { verifyUrl } from '../lib/qr.js';
+import { withDmsQr } from '../lib/qrStamp.js';
 import { imageToPdf } from '../lib/imagePdf.js';
 import { fundsOf } from '../lib/defaults.js';
 
@@ -48,12 +48,10 @@ export default function UploadDocument() {
       setBusy('Saving…');
       // A draft until its file is stored: if the upload fails, the draft is removed again.
       const created = await createUploadedDocument(type, { ...form, title: form.title.trim(), fileName: file.name }, actor);
-      // The QR code of its public check page on every page, unless the PDF is already signed
-      // (anything added after a signature shows as a change to it).
-      let stamped = pdf;
-      try {
-        if (!readSignatures(pdf).length) stamped = await addQrStamps(pdf, qrAppearance(verifyUrl(created.id), ['Scan to verify', created.controlNo]));
-      } catch { stamped = pdf; }
+      // The QR code of its public check page on every page (lib/qrStamp.js: also on a signed PDF,
+      // in an update after its signatures, where the PDF allows it).
+      setBusy('Adding the QR code…');
+      const { bytes: stamped } = await withDmsQr(pdf, verifyUrl(created.id), ['Scan to verify', created.controlNo]);
       try {
         await addPdfVersion(created.id, stamped, actor, { kind: 'uploaded', onProgress: (x) => setBusy(`Uploading… ${Math.round(x * 100)}%`) });
       } catch (err) {
