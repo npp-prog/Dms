@@ -6,7 +6,8 @@ import { getStore } from '@netlify/blobs';
 //   acct/<uid>/...         one connection per DMS user (the Records Officer, an administrator):
 //                          'secret', 'state', 'doc/<id>' (lib/driveBackup.mjs), backed up apart.
 export function backupStore() {
-  const s = getStore('drive-backup');
+  // Strong: a connection just made shows at once (the default may lag up to a minute).
+  const s = getStore({ name: 'drive-backup', consistency: 'strong' });
   return {
     get: (k) => s.get(k, { type: 'json' }),
     set: (k, v) => s.setJSON(k, v),
