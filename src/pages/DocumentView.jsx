@@ -200,6 +200,7 @@ function DocumentPage({ docId }) {
   // Working copy of the data while the Accounting Office fills in its part.
   const [draft, setDraft] = useState(null);
 
+  const assigning = useRef(new Set());
   const load = async () => {
     try {
       let d = await getDocument(docId);
@@ -209,7 +210,11 @@ function DocumentPage({ docId }) {
       if (d.status !== 'cancelled' && assignPending(d)
         && canAct(d, { uid: user.uid, office: profile.office, isAdmin: false, isHead, positions: profile.positions || [], grant: folderGrant })) {
         try {
-          await assignRefNo(docId, actor);
+          // Once per document at a time (React runs this twice in development; a reload while it runs).
+          if (!assigning.current.has(docId)) {
+            assigning.current.add(docId);
+            try { await assignRefNo(docId, actor); } finally { assigning.current.delete(docId); }
+          }
           d = (await getDocument(docId)) || d;
         } catch (e) {
           setActionError(`The reference no. could not be assigned: ${e.message}`);
@@ -325,7 +330,7 @@ function DocumentPage({ docId }) {
         <div className="alert-info no-print">This document is still a <b>draft</b>. Edit it to finish encoding and mark it complete.</div>
       )}
       {docData.status === 'complete' && !wf && !uploaded && (isOwner || isAdmin) && (
-        <div className="alert alert-ok no-print"><b>Encoding complete.</b> Check the document, then click <b>Convert to PDF</b> under
+        <div className="alert alert-ok no-print"><b>Encoding complete.</b> Check the document, then click <b>Convert to PDF</b> under{' '}
           <b>PDF and digital signatures</b>: the PDF then follows its workflow from office to office.</div>
       )}
 

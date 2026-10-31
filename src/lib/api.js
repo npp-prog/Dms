@@ -685,7 +685,8 @@ export async function workflowAction(id, action, user, { stage, remarks = '' } =
 export async function assignRefNo(id, user) {
   const ref = doc(db, 'documents', id);
   let assigned = null;
-  await runTransaction(db, async (tx) => {
+  try {
+    await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const d = snap.data();
     if (!d || !assignPending(d)) return;
@@ -717,7 +718,14 @@ export async function assignRefNo(id, user) {
     assigned = { d, text: `${field?.label || assign.field} ${number} assigned by ${user.displayName || user.email} (${step.routedTo || d.office || ''}).` };
     tx.update(ref, { ...patch, updatedAt: serverTimestamp(), history });
     publishCheck(tx, id, { ...d, ...patch });
-  });
+    });
+  } catch (e) {
+    // Someone else (or another tab) assigned it at the same moment: their save went through and
+    // ours was refused (it would have reused the number). Nothing left to do.
+    const now = await getDoc(ref).catch(() => null);
+    if (e?.code === 'permission-denied' && now?.exists() && !assignPending(now.data())) return;
+    throw e;
+  }
   if (assigned) tellPreparer(assigned.d, id, assigned.text, user);
 }
 
