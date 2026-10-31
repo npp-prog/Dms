@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Select from '../../components/Select.jsx';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
@@ -18,6 +19,8 @@ export default function DocumentTypes() {
   const [types, setTypes] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('all');
   const fileRef = useRef(null);
 
   const load = () => listDocumentTypes().then(setTypes).catch((e) => setError(e.message));
@@ -40,6 +43,9 @@ export default function DocumentTypes() {
     if (!window.confirm(`Replace the format of ${t.code} with the latest DMS starter format? Your changes to its fields, steps, processing guide and template are replaced. Documents already prepared keep their own copy.`)) return;
     run(() => applyStarterFormat(t.id, starter));
   };
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = (types || []).filter((t) => (status === 'all' || (status === 'active') === (t.active !== false))
+    && words.every((w) => `${t.code} ${t.name} ${t.category || ''}`.toLowerCase().includes(w)));
   const missingStarters = STARTER_TYPES.filter((t) => !existingCodes.has(t.code));
 
   const exportAll = () => {
@@ -80,6 +86,16 @@ export default function DocumentTypes() {
           <Link to="/admin/types/new" className="btn btn-primary btn-sm">+ New document type</Link>
         </div>
       </div>
+      {types?.length > 0 && (
+        <div className="filters">
+          <input className="search" placeholder="Search code, name or category…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </Select>
+        </div>
+      )}
       {error && <div className="alert">{error}</div>}
       {!types && !error && <div className="spinner" />}
       {types && (
@@ -88,7 +104,8 @@ export default function DocumentTypes() {
             <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Fields</th><th>Steps</th><th>Checklist</th><th>Version</th><th>Status</th><th /></tr></thead>
             <tbody>
               {types.length === 0 && <tr><td colSpan={9} className="muted">No document types yet. Load the starter formats or create one.</td></tr>}
-              {types.map((t) => (
+              {types.length > 0 && shown.length === 0 && <tr><td colSpan={9} className="muted">No document type matches.</td></tr>}
+              {shown.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.code}</b></td>
                   <td className="type-name"><Link to={`/admin/types/${t.id}`}>{t.name}</Link></td>

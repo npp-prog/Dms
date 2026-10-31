@@ -1472,3 +1472,7 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 @media (max-width: 640px) {
   .stats.wf-views { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* Filter rows fill the width: the search box takes twice the room of each dropdown */
+.filters { flex-wrap: wrap; }
+.filters > .search, .filters > input:not([type=checkbox]):not([type=radio]) { flex: 2 1 260px; max-width: none; width: auto; }
+.filters > select, .filters > .ss { flex: 1 1 150px; min-width: 0; width: auto; }

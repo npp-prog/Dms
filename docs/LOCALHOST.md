@@ -283,7 +283,7 @@ The editor shows the printed checklist as you edit. Each item has a **document t
 
 ### Document types
 
-Each document type has six tabs: **General** (code, name, paper size: **A4**, **Folio (8.5 × 13 in)**, Letter or Legal), **Guided Steps**, **Fields**, **Checklist**, **Processing Guide** and **Format / Template**.
+The list can be searched by code, name or category, and shown by status (**Active** or **Inactive**). Each document type has six tabs: **General** (code, name, paper size: **A4**, **Folio (8.5 × 13 in)**, Letter or Legal), **Guided Steps**, **Fields**, **Checklist**, **Processing Guide** and **Format / Template**.
 
 In the **Checklist** tab, **Checklist source** decides where the checklist comes from:
 
