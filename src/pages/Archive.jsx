@@ -109,17 +109,39 @@ export default function Archive() {
 }
 
 const DRIVE_RESULT = {
-  connected: { ok: true, text: 'Google Drive connected. The archive is backed up to it every 10 minutes.' },
+  connected: { ok: true, text: 'Your Google Drive is connected. The archive is backed up to it every 10 minutes.' },
   cancelled: { ok: false, text: 'Not connected: the Google sign-in was cancelled.' },
   expired: { ok: false, text: 'Not connected: the sign-in took too long. Try again.' },
   'no-token': { ok: false, text: 'Not connected: Google gave no lasting access. Remove DMS from the account (myaccount.google.com → Security → Third-party access) and connect again.' },
   failed: { ok: false, text: 'Not connected: Google refused. See the error below.' },
   'not-set-up': { ok: false, text: 'The Google Drive backup is not set up in Netlify yet (see the README).' },
+  taken: { ok: false, text: 'Not connected: that Google account is already connected by someone else. Use another Google account.' },
 };
 
 // Automatic backup to Google Drive: every 10 minutes, a server function copies new and changed
-// processed documents to the connected account's Drive (folder DMS Archive).
+// processed documents to each connected account's Drive (folder DMS Archive). Each Records Officer
+// or administrator may connect their own Google account; each Drive keeps its own full copy.
+function DriveAccount({ a, busy, canDisconnect, onRun, onDisconnect }) {
+  return (
+    <li className="drive-account">
+      <div className="row gap wrap drive-account-head">
+        <b>{a.email}</b>
+        <span className={`badge ${a.lastError ? 'badge-red' : 'badge-green'}`}>{a.lastError ? 'Problem' : 'Automatic'}</span>
+      </div>
+      <p className="small muted">Connected by {a.by}{a.mine ? ' (you)' : ''} on {when(a.at)}. It reads the archive as {a.by}: if they stop being the Records Officer or an administrator, connect it again.</p>
+      <p className="small muted">{a.lastRunAt ? `Last run ${when(a.lastRunAt)}` : 'Not run yet'}{a.documents ? ` · ${a.documents} document backup(s), ${a.files || 0} file(s) so far` : ''}{a.lastRunAt && a.caughtUp === false ? ' · still catching up' : ''}.</p>
+      {a.lastMissing?.length > 0 && <p className="small muted">Files that could not be read last time: {a.lastMissing.join('; ')}.</p>}
+      {a.lastError && <div className="alert small">Last run failed: {a.lastError}</div>}
+      <div className="row gap wrap">
+        <button type="button" className="btn btn-sm" disabled={!!busy} onClick={onRun}>{busy === `run:${a.uid}` ? 'Backing up…' : 'Back up now'}</button>
+        {canDisconnect && <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={onDisconnect}>Disconnect</button>}
+      </div>
+    </li>
+  );
+}
+
 function DriveBackup() {
+  const { isAdmin } = useAuth();
   const [s, setS] = useState(null);
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState(() => DRIVE_RESULT[new URLSearchParams(window.location.search).get('drive')] || null);
@@ -129,12 +151,13 @@ function DriveBackup() {
     setBusy(label); setMsg(null);
     try { await fn(); } catch (e) { setMsg({ ok: false, text: e.message }); } finally { setBusy(''); load(); }
   };
-  const connect = () => act('Opening Google…', async () => { window.location.href = (await driveCall('drive-auth', { action: 'start' })).url; });
-  const disconnect = () => window.confirm('Stop backing up to this Google account? The files already there stay in its Drive.')
-    && act('Disconnecting…', () => driveCall('drive-auth', { action: 'disconnect' }));
-  const now = () => act('Backing up…', async () => {
-    const r = await driveCall('drive-backup-now', { action: 'run' });
-    setMsg(r.skipped ? { ok: false, text: r.skipped } : { ok: true, text: `Backed up ${r.documents} document(s), ${r.files} new file(s)${r.caughtUp ? '. Everything is backed up.' : '. More to go: it goes on every 10 minutes.'}` });
+  const connect = () => act('connect', async () => { window.location.href = (await driveCall('drive-auth', { action: 'start' })).url; });
+  const disconnect = (a) => window.confirm(`Stop backing up to ${a.email}? The files already there stay in its Drive.`)
+    && act(`off:${a.uid}`, () => driveCall('drive-auth', { action: 'disconnect', uid: a.uid }));
+  const run = (a) => act(`run:${a.uid}`, async () => {
+    const r = await driveCall('drive-backup-now', { action: 'run', uid: a.uid });
+    setMsg(r.skipped ? { ok: false, text: r.skipped } : r.error ? { ok: false, text: r.error }
+      : { ok: true, text: `${a.email}: backed up ${r.documents} document(s), ${r.files} new file(s)${r.caughtUp ? '. Everything is backed up.' : '. More to go: it goes on every 10 minutes.'}` });
   });
   if (!s) return null;
   if (s.unavailable || s.configured === false) {
@@ -145,32 +168,27 @@ function DriveBackup() {
       </section>
     );
   }
+  const accounts = s.accounts || [];
+  const mine = accounts.some((a) => a.mine);
   return (
     <section className="card archive-backup">
       <div className="card-head">
         <h3>Google Drive</h3>
-        <span className={`badge ${s.connected ? (s.lastError ? 'badge-red' : 'badge-green') : 'badge-gray'}`}>{s.connected ? (s.lastError ? 'Problem' : 'Automatic') : 'Not connected'}</span>
+        <span className={`badge ${accounts.length ? (accounts.some((a) => a.lastError) ? 'badge-red' : 'badge-green') : 'badge-gray'}`}>
+          {accounts.length ? `${accounts.length} account${accounts.length === 1 ? '' : 's'}` : 'Not connected'}</span>
       </div>
-      {s.connected ? (
-        <>
-          <p className="small">Backed up automatically every 10 minutes to <b>{s.email}</b>, folder <b>DMS Archive</b> (by year and type, a folder per document
-            with its PDFs, attachments and record).</p>
-          <p className="small muted">Connected by {s.by} on {when(s.at)}. It reads the archive as {s.by}: if they stop being the Records Officer, connect it again.</p>
-          <p className="small muted">{s.lastRunAt ? `Last run ${when(s.lastRunAt)}` : 'Not run yet'}{s.documents ? ` · ${s.documents} document backup(s), ${s.files || 0} file(s) so far` : ''}{s.lastRunAt && s.caughtUp === false ? ' · still catching up' : ''}.</p>
-          {s.lastMissing?.length > 0 && <p className="small muted">Files that could not be read last time: {s.lastMissing.join('; ')}.</p>}
-          {s.lastError && <div className="alert small">Last run failed: {s.lastError}</div>}
-          <div className="row gap wrap">
-            <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={now}>{busy === 'Backing up…' ? busy : 'Back up now'}</button>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={disconnect}>Disconnect</button>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="small">Connect the Google account whose Drive keeps the archive. From then on, every processed document is copied there
-            automatically, with no one needing to be signed in.</p>
-          <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={connect}>{busy || 'Connect Google Drive'}</button>
-        </>
+      <p className="small">Every processed document is copied automatically, every 10 minutes and with no one needing to be signed in, to the folder
+        <b> DMS Archive</b> of each Google account below (by year and type, a folder per document with its PDFs, attachments and record).
+        The Records Officer and each administrator can connect their own account; each keeps a full copy.</p>
+      {accounts.length > 0 && (
+        <ul className="drive-accounts">
+          {accounts.map((a) => (
+            <DriveAccount key={a.uid} a={a} busy={busy} canDisconnect={a.mine || isAdmin}
+              onRun={() => run(a)} onDisconnect={() => disconnect(a)} />
+          ))}
+        </ul>
       )}
+      {!mine && <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={connect}>{busy === 'connect' ? 'Opening Google…' : accounts.length ? 'Connect my Google Drive too' : 'Connect Google Drive'}</button>}
       {msg && <div className={`alert small ${msg.ok ? 'alert-ok' : ''}`}>{msg.text}</div>}
     </section>
   );

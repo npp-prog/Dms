@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runBackup } from '../../netlify/lib/driveBackup.mjs';
+import { accountStore, listAccounts } from '../../netlify/lib/store.mjs';
 
 // A fake Drive and a fake archive: what the automatic Google Drive backup uploads, and when.
 function fakes(docs) {
@@ -98,4 +99,28 @@ test('the time running out inside a document never uploads a file twice', async 
   assert.equal(r1.caughtUp, false);
   await runBackup({ ...f });
   assert.equal(f.log.filter((x) => x.startsWith('new PDF')).length, 4, 'each PDF once');
+});
+
+test('several Google accounts: each connection backs up on its own', async () => {
+  const blobs = new Map();
+  const base = { get: async (k) => blobs.get(k) ?? null, set: async (k, v) => { blobs.set(k, v); }, delete: async (k) => { blobs.delete(k); },
+    keys: async (prefix) => [...blobs.keys()].filter((k) => k.startsWith(prefix)) };
+  const done = { controlNo: 'DMS-2026-000200', typeCode: 'DV', title: 'X', workflow: { state: 'done', events: [{ type: 'completed', at: '2026-10-30T01:00:00Z' }] },
+    pdf: { files: [{ path: 'documents/z/0-generated.pdf', kind: 'generated' }] } };
+  const docs = [{ id: 'z', raw: '2026-10-30T01:00:00Z', data: done }];
+  const one = fakes(docs); const two = fakes(docs);
+  const a = accountStore(base, 'uidRecords'); const b = accountStore(base, 'uidAdmin');
+  await a.set('secret', { googleRefreshToken: 't1', email: 'records@example.org' });
+  await b.set('secret', { googleRefreshToken: 't2', email: 'admin@example.org' });
+  await runBackup({ source: one.source, drive: one.drive, store: a });
+  assert.equal(one.files().length, 2);
+  // The second account is not backed up yet: it has its own record of what is done.
+  assert.equal((await b.get('state')), null);
+  await runBackup({ source: two.source, drive: two.drive, store: b });
+  assert.deepEqual(two.files(), one.files());
+  const list = await listAccounts(base);
+  assert.deepEqual(list.map((x) => x.secret.email).sort(), ['admin@example.org', 'records@example.org']);
+  await a.clearAll();
+  assert.deepEqual((await listAccounts(base)).map((x) => x.uid), ['uidAdmin']);
+  assert.ok((await b.get('state')).documents === 1);
 });

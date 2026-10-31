@@ -1304,3 +1304,7 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .wf-views button.stat:hover svg { color: var(--ink); }
 .wf-views button.stat.active { box-shadow: inset 0 -2px 0 var(--primary); }
 .wf-views button.stat.active svg, .wf-views button.stat.active .n, .wf-views button.stat.active .l { color: var(--primary); }
+.drive-accounts { list-style: none; margin: .6rem 0 .8rem; padding: 0; display: grid; gap: .6rem; }
+.drive-account { border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
+.drive-account p { margin: .3rem 0; }
+.drive-account-head { align-items: center; justify-content: space-between; }

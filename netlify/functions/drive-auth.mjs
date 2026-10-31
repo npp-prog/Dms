@@ -1,34 +1,43 @@
 import { randomBytes } from 'node:crypto';
 import { keepsArchive, userFromRequest } from '../lib/fb.mjs';
 import { authUrl, driveConfigured, exchangeCode, revoke } from '../lib/drive.mjs';
-import { backupStore } from '../lib/store.mjs';
+import { accountStore, backupStore, listAccounts } from '../lib/store.mjs';
 
-// Connecting the Google account the Archive is backed up to (Archive → Google Drive). The backup
-// reads the archive as the Records Officer who connects it (their DMS sign-in, kept with the
-// Google access in Netlify's private storage), so no service account key is needed.
+// Connecting Google accounts the Archive is backed up to (Archive → Google Drive). Each Records
+// Officer or administrator may connect their own; each Drive gets its own full copy. The backup
+// reads the archive as the one who connected it (their DMS sign-in, kept with the Google access in
+// Netlify's private storage), so no service account key is needed.
 //   POST { action: 'start', firebaseRefreshToken } → { url }: Google's consent page
 //   GET  ?code&state                                ← Google, after consent; back to /archive
-//   POST { action: 'disconnect' }                   forgets the account (its files stay in its Drive)
+//   POST { action: 'disconnect', uid? }             forgets a connection (its files stay in its
+//                                                   Drive): one's own; an administrator, anyone's
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const back = (result) => new Response(null, { status: 302, headers: { location: `/archive?drive=${result}` } });
+const isAdmin = (p) => ['admin', 'superadmin'].includes(p?.role);
 
 export default async (req) => {
   if (!driveConfigured()) {
     return req.method === 'GET' ? back('not-set-up') : json(503, { error: 'The Google Drive backup is not set up in Netlify yet (see the README).' });
   }
-  const store = backupStore();
+  const base = backupStore();
   if (req.method === 'GET') {
     const url = new URL(req.url);
-    const pending = await store.get('pending');
-    if (!pending || pending.state !== (url.searchParams.get('state') || '') || Date.now() > pending.exp) return back('expired');
-    await store.delete('pending');
+    const key = `pending/${(url.searchParams.get('state') || '').replace(/[^a-f0-9]/g, '')}`;
+    const pending = await base.get(key);
+    if (!pending || Date.now() > pending.exp) return back('expired');
+    await base.delete(key);
     if (url.searchParams.get('error')) return back('cancelled');
     try {
       const { refreshToken, email } = await exchangeCode(url.searchParams.get('code') || '');
       if (!refreshToken) return back('no-token');
+      // The same Google account twice would fill one Drive with two copies.
+      if ((await listAccounts(base)).some((a) => a.uid !== pending.uid && a.secret.email === email)) {
+        await revoke(refreshToken).catch(() => {});
+        return back('taken');
+      }
+      const store = accountStore(base, pending.uid);
       await store.set('secret', { googleRefreshToken: refreshToken, firebaseRefreshToken: pending.firebaseRefreshToken, email, by: pending.name, uid: pending.uid, at: new Date().toISOString() });
-      // Another Google account than the one backed up to so far (also after a disconnect): back
-      // everything up afresh there.
+      // Another Google account than this person backed up to so far: back everything up afresh.
       const state = (await store.get('state')) || {};
       if ((state.email || '') !== email) {
         await store.clearDocs();
@@ -46,13 +55,16 @@ export default async (req) => {
   if (body.action === 'start') {
     if (!body.firebaseRefreshToken) return json(400, { error: 'Sign in to DMS again, then connect.' });
     const state = randomBytes(24).toString('hex');
-    await store.set('pending', { state, uid: me.uid, name: me.profile.displayName || me.profile.email || '', firebaseRefreshToken: body.firebaseRefreshToken, exp: Date.now() + 10 * 60e3 });
+    await base.set(`pending/${state}`, { uid: me.uid, name: me.profile.displayName || me.profile.email || '', firebaseRefreshToken: body.firebaseRefreshToken, exp: Date.now() + 10 * 60e3 });
     return json(200, { url: authUrl(state) });
   }
   if (body.action === 'disconnect') {
+    const uid = body.uid || me.uid;
+    if (uid !== me.uid && !isAdmin(me.profile)) return json(403, { error: 'Only an administrator can disconnect someone else\'s Google Drive.' });
+    const store = accountStore(base, uid);
     const secret = await store.get('secret');
     if (secret?.googleRefreshToken) await revoke(secret.googleRefreshToken);
-    await store.delete('secret');
+    await store.clearAll();
     return json(200, { ok: true });
   }
   return json(400, { error: 'Unknown action.' });
