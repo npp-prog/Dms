@@ -1486,3 +1486,7 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .privacy-standalone { max-width: 760px; margin: 1rem auto 3rem; }
 .side-foot a { color: inherit; }
 .landing-brand { text-decoration: none; color: inherit; }
+.invite-form { margin-bottom: 1rem; }
+.invite-form .invite-fields { padding: .6rem 0 .8rem; background: none; }
+.users-sub { font-size: .95rem; margin: 1rem 0 .5rem; color: var(--muted); }
+.user-side .btn { min-width: 0; }

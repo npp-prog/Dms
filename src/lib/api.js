@@ -18,17 +18,69 @@ import { notify } from './social.js';
 // Creates the profile on first sign-in. The owner's email (lib/owner.js), once
 // verified by Firebase, is the superadmin; everyone else starts inactive until an
 // admin approves them. The Firestore rules enforce the same.
+// ---------- Users added in advance (invites/{email}) ----------
+// An administrator adds a person by email with their office, role and positions; on their first
+// sign-in with that email, verified (Google, or the link emailed at registration), they get them.
+export const inviteKey = (email) => String(email || '').trim().toLowerCase();
+
+export async function listInvites() {
+  const snap = await getDocs(collection(db, 'invites'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.email.localeCompare(b.email));
+}
+
+export function saveInvite(inv, user) {
+  const email = inviteKey(inv.email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Type a valid email address.');
+  const payee = inv.role === 'payee';
+  return setDoc(doc(db, 'invites', email), {
+    email, displayName: String(inv.displayName || '').trim(), role: inv.role || 'user',
+    office: payee ? '' : inv.office || '', positions: payee ? [] : inv.positions || [],
+    head: !payee && Boolean(inv.head) && Boolean(inv.office), canRefer: !payee && Boolean(inv.canRefer),
+    by: user.uid, byName: user.displayName || user.email || '', at: new Date().toISOString(),
+  });
+}
+
+export function deleteInvite(email) {
+  return deleteDoc(doc(db, 'invites', inviteKey(email)));
+}
+
+// The invitation for this signed-in user's email, if any (their own only).
+export async function myInvite(user) {
+  if (!user?.email) return null;
+  const s = await getDoc(doc(db, 'invites', inviteKey(user.email))).catch(() => null);
+  return s?.exists() ? s.data() : null;
+}
+
+const fromInvite = (inv) => ({
+  role: inv.role, office: inv.office || '', positions: inv.positions || [], head: Boolean(inv.head), canRefer: Boolean(inv.canRefer), active: true,
+});
+
 export async function ensureUserProfile(user, extra = {}) {
   const ref = doc(db, 'users', user.uid);
   const owner = isOwnerEmail(user.email) && user.emailVerified;
   const existing = await getDoc(ref);
+  // Added in advance, and the email is verified: the account is set up as the administrator said.
+  const invite = !owner && user.emailVerified && !(existing.exists() && existing.data().active) ? await myInvite(user) : null;
   if (existing.exists()) {
     const p = existing.data();
     if (owner && (p.role !== 'superadmin' || !p.active)) {
       await updateDoc(ref, { role: 'superadmin', active: true });
       return { id: user.uid, ...p, role: 'superadmin', active: true };
     }
+    if (invite && !p.active) {
+      const patch = { ...fromInvite(invite), ...(invite.displayName ? { displayName: invite.displayName } : {}) };
+      await updateDoc(ref, patch);
+      return { id: user.uid, ...p, ...patch };
+    }
     return { id: user.uid, ...p };
+  }
+  if (invite) {
+    const profile = {
+      email: user.email, displayName: invite.displayName || extra.displayName || user.displayName || user.email,
+      requestedOffice: extra.office || '', ...fromInvite(invite), createdAt: serverTimestamp(),
+    };
+    await setDoc(ref, profile);
+    return { id: user.uid, ...profile };
   }
   const profile = {
     email: user.email,

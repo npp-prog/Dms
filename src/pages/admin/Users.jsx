@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { addPosition, listUsers, syncDirectory, updateUser } from '../../lib/api.js';
+import { addPosition, deleteInvite, inviteKey, listInvites, listUsers, saveInvite, syncDirectory, updateUser } from '../../lib/api.js';
 import { positionsOf } from '../../lib/defaults.js';
 import Select from '../../components/Select.jsx';
 import PositionsPicker from '../../components/PositionsPicker.jsx';
@@ -82,6 +82,59 @@ function UserRow({ u, me, isSuper, settings, offices, canManage, onChange, onNew
   );
 }
 
+// + Add user: a person added by email before they sign up; their first sign-in with that email
+// (Google, or email and password once verified) gives them this office, role and positions.
+function InviteForm({ initial, isSuper, settings, offices, onNewPosition, onSave, onCancel }) {
+  const [f, setF] = useState({ email: '', displayName: '', role: 'user', office: '', positions: [], head: false, canRefer: false, ...initial });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (patch) => setF((x) => ({ ...x, ...patch }));
+  const payee = f.role === 'payee';
+  const submit = async (e) => {
+    e.preventDefault(); setError(''); setBusy(true);
+    try { await onSave(f); } catch (err) { setError(err.message); setBusy(false); }
+  };
+  return (
+    <form className="card invite-form" onSubmit={submit}>
+      <h3>{initial?.email ? 'Edit added user' : 'Add a user'}</h3>
+      <p className="small muted">When this person first signs in with this email (Continue with Google, or an account with email and password once
+        they open the verification link), they get the office, role and positions below, without waiting for approval.</p>
+      <div className="user-edit invite-fields">
+        <label className="field"><span className="field-label">Email *</span>
+          <input type="email" required value={f.email} disabled={Boolean(initial?.email)} onChange={(e) => set({ email: e.target.value })} /></label>
+        <label className="field"><span className="field-label">Name</span>
+          <input value={f.displayName} onChange={(e) => set({ displayName: e.target.value })} /></label>
+        <label className="field"><span className="field-label">Role</span>
+          <Select value={f.role} onChange={(e) => set({ role: e.target.value, ...(e.target.value === 'payee' ? { office: '', positions: [], head: false, canRefer: false } : {}) })}>
+            <option value="user">User</option>
+            <option value="payee">Third Party</option>
+            {isSuper && <option value="admin">Admin</option>}
+          </Select></label>
+        <label className="field"><span className="field-label">Office</span>
+          <Select value={f.office} disabled={payee} onChange={(e) => set({ office: e.target.value, ...(e.target.value ? {} : { head: false }) })}>
+            <option value="">— No office —</option>
+            {offices.map((o) => <option key={o}>{o}</option>)}
+          </Select></label>
+        {!payee && f.office && (
+          <div className="field field-wide"><span className="field-label">Position</span>
+            <PositionsPicker value={f.positions} choices={positionsOf(settings)} onNew={onNewPosition} onChange={(positions) => set({ positions })} /></div>
+        )}
+        {!payee && (
+          <div className="field field-wide user-checks">
+            {f.office && <label className="check small"><input type="checkbox" checked={f.head} onChange={(e) => set({ head: e.target.checked })} /> Office head <span className="muted">(sees all documents of the office)</span></label>}
+            <label className="check small"><input type="checkbox" checked={f.canRefer} onChange={(e) => set({ canRefer: e.target.checked })} /> May route documents to any person</label>
+          </div>
+        )}
+      </div>
+      {error && <div className="alert small">{error}</div>}
+      <div className="row gap">
+        <button className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
 export default function Users() {
   const { user: me, isSuper, settings, setSettings } = useAuth();
   const newPosition = async (name) => {
@@ -93,6 +146,10 @@ export default function Users() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
+  const [invites, setInvites] = useState([]);
+  const [inviting, setInviting] = useState(null); // null, {} (new) or an invite (edit)
+  const loadInvites = () => listInvites().then(setInvites).catch(() => setInvites([]));
+  useEffect(() => { loadInvites(); }, []);
 
   // The directory (finding people by name, e.g. in Messages) follows approvals and office changes.
   const load = () => listUsers().then((u) => { syncDirectory(u).catch(() => {}); return u; }).then((u) => setUsers(u.sort((a, b) => Number(a.active) - Number(b.active) || (a.displayName || '').localeCompare(b.displayName || '')))).catch((e) => setError(e.message));
@@ -100,7 +157,12 @@ export default function Users() {
 
   const change = async (u, patch) => {
     setError('');
-    try { await updateUser(u.id, patch); await load(); } catch (e) { setError(e.message); }
+    try {
+      await updateUser(u.id, patch);
+      // Deactivated: an invitation left for that email would let them back in.
+      if (patch.active === false && u.email) { await deleteInvite(u.email).catch(() => {}); loadInvites(); }
+      await load();
+    } catch (e) { setError(e.message); }
   };
 
   const canManage = (u) => u.id !== me.uid && (isSuper || u.role === 'user' || u.role === 'payee');
@@ -109,6 +171,10 @@ export default function Users() {
     .filter((u) => filter === 'all' || (filter === 'pending' ? !u.active : u.active))
     .filter((u) => words.every((w) => `${u.displayName} ${u.email} ${u.office || ''} ${(u.positions || []).join(' ')} ${ROLE_NAMES[u.role] || u.role}`.toLowerCase().includes(w)));
   const pending = (users || []).filter((u) => !u.active).length;
+  // Added, not signed up yet: no account with that email.
+  const emails = new Set((users || []).map((u) => inviteKey(u.email)));
+  const waiting = invites.filter((i) => !emails.has(i.email))
+    .filter((i) => words.every((w) => `${i.displayName} ${i.email} ${i.office} ${(i.positions || []).join(' ')}`.toLowerCase().includes(w)));
 
   return (
     <div className="page">
@@ -116,7 +182,13 @@ export default function Users() {
         <div>
           <h1>Users</h1>
         </div>
+        {!inviting && <button type="button" className="btn btn-primary btn-sm" onClick={() => setInviting({})}>+ Add user</button>}
       </div>
+      {inviting && (
+        <InviteForm initial={inviting} isSuper={isSuper} settings={settings} offices={offices} onNewPosition={newPosition}
+          onCancel={() => setInviting(null)}
+          onSave={async (f) => { await saveInvite(f, me); setInviting(null); await loadInvites(); }} />
+      )}
       <div className="filters">
         <input className="search" placeholder="Search name, email, office or position…" value={q} onChange={(e) => setQ(e.target.value)} />
         <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Show">
@@ -126,6 +198,34 @@ export default function Users() {
         </Select>
       </div>
       {error && <div className="alert">{error}</div>}
+      {waiting.length > 0 && filter !== 'active' && (
+        <>
+          <h3 className="users-sub">Added, not signed up yet</h3>
+          <ul className="card user-list">
+            {waiting.map((i) => (
+              <li key={i.email} className="user-row">
+                <div className="user-main">
+                  <Avatar name={i.displayName || i.email} size="sm" />
+                  <div className="user-who"><span className="user-name"><b>{i.displayName || i.email}</b></span><span className="small muted">{i.email}</span></div>
+                  <div className="user-office">
+                    <span className="small">{i.office || (i.role === 'payee' ? 'Not LGU personnel' : 'No office')}</span>
+                    {(i.head || (i.positions || []).length > 0 || i.canRefer) && (
+                      <span className="user-tags">{[i.head && 'Office head', ...(i.positions || []), i.canRefer && 'Routes to any person'].filter(Boolean).map((t) => <span key={t} className="chip">{t}</span>)}</span>
+                    )}
+                  </div>
+                  <div className="user-side">
+                    <span className="small muted user-role">{ROLE_NAMES[i.role] || i.role}</span>
+                    <span className="badge badge-gray">Added</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setInviting(i)}>Edit</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => window.confirm(`Remove ${i.email}? They can still sign up, and wait for approval.`) && deleteInvite(i.email).then(loadInvites).catch((e) => setError(e.message))}>Remove</button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <h3 className="users-sub">Users</h3>
+        </>
+      )}
       {!users && !error && <div className="spinner" />}
       {users && (shown.length === 0 ? <p className="muted">No user matches.</p> : (
         <ul className="card user-list">

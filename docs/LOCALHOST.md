@@ -78,7 +78,7 @@ Sign in as **user@fts.local** / **user123**.
 
 ![Sign-in screen](images/01-sign-in.png)
 
-A new person can click **Create an account**. An administrator then approves the account under **Users**.
+A new person can click **Create an account**. An administrator then approves the account under **Users**. If an administrator already added your email in **Users** (**+ Add user**), there is nothing to approve: sign in with **Continue with Google** using that email, or create an account with it and open the verification link sent to your inbox, and DMS opens with the office, role and positions they set.
 
 ### Dashboard
 
@@ -335,6 +335,8 @@ A type with no route yet follows its processing guide; the editor starts from it
 **Tracking** (left menu, for everyone) shows the routed documents you can see: where it is now, its progress along the route, and the last action with any remarks. The tiles filter it (*On the move*, *In your office*, *Returned*, *Processed*, *All routed*), and **Now at** filters by office.
 
 **Users** is where you approve new accounts and **assign each person to an office**. Each person is one row (name, email, office, Office head and positions, role, status); search by name, email, office or position, or show only those **Pending approval**. **Approve** activates a new account; **Edit** opens the person's office, role, positions, **Office head** and **May route documents to any person**, and **Deactivate**. Users see only the documents of their own office (and their own); administrators see all documents and can filter by office. The office someone types when registering is only a request, shown as *Asked for*. The list of offices is in **Settings**. Only the superadmin can make someone an administrator.
+
+**+ Add user** (top of Users) sets up a person before they sign up: their email, name, role (User, Third Party; Admin for the superadmin), office, positions, **Office head** and **May route documents to any person**. They are listed under **Added, not signed up yet** (Edit or Remove). When they first sign in with that email (Continue with Google, or an account with email and password once they open the verification link), their account is active at once with that setup, without approval. An email that is not verified never takes an added setup. Deactivating a user also removes their added setup, so signing in again does not reactivate them.
 
 **Who sees what.** A user sees the documents they prepared and the documents waiting in their office to be signed and released, so a signatory sees what they sign. They don't see a colleague's documents. Tick **Office head** next to a user's office to let them see every document of the office and every document that has reached the office on its route (not one still on its way to it). Administrators see all documents.
 
