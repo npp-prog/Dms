@@ -19,10 +19,10 @@ const MESSAGES = {
 export function LandingBar({ children }) {
   return (
     <header className="landing-bar">
-      <div className="landing-brand">
+      <a className="landing-brand" href="/" title="Home">
         <img src="/municipal-seal.png" alt="Municipal seal" />
         <span><b>DMS</b><span>Municipal Government of Candoni</span></span>
-      </div>
+      </a>
       {children || <a className="landing-link" href="/verify">Verify a document</a>}
     </header>
   );

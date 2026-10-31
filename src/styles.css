@@ -1485,3 +1485,4 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .privacy ul { padding-left: 1.2rem; display: grid; gap: .35rem; }
 .privacy-standalone { max-width: 760px; margin: 1rem auto 3rem; }
 .side-foot a { color: inherit; }
+.landing-brand { text-decoration: none; color: inherit; }
