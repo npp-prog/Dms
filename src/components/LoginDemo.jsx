@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import Icon from './Icon.jsx';
 
-// The sign-in page's demo: a sample document going through DMS, a step at a time (on its own
-// every few seconds, or by choosing a step). Nothing here is real data.
+// The sign-in page's demo: a sample document going through DMS, a step every 3 seconds, round and
+// round. Nothing here is real data.
+const STEP_MS = 3000;
 const STEPS = [
   { key: 'prepare', label: 'Prepare or upload', icon: 'new', text: 'Fill in the official format step by step, with its checklist of requirements, or upload a file you already have.' },
   { key: 'sign', label: 'Sign', icon: 'sign', text: 'Sign the PDF in DMS with your DICT PNPKI digital signature, or your e-signature mark if you have no PNPKI.' },
@@ -37,38 +38,26 @@ function Sheet({ step, signed }) {
 
 export default function LoginDemo() {
   const [step, setStep] = useState(0);
-  const [auto, setAuto] = useState(true);
   const [signed, setSigned] = useState(false);
   useEffect(() => {
-    if (!auto) return undefined;
-    const t = setTimeout(() => setStep((s) => (s + 1) % STEPS.length), 4800);
+    const t = setTimeout(() => setStep((s) => (s + 1) % STEPS.length), STEP_MS);
     return () => clearTimeout(t);
-  }, [step, auto]);
-  // On the Sign step it signs itself a moment later (or at once with "Sign this sample").
+  }, [step]);
+  // On the Sign step it signs itself a moment later.
   useEffect(() => {
     setSigned(step > 1);
     if (step !== 1) return undefined;
-    const t = setTimeout(() => setSigned(true), 1400);
+    const t = setTimeout(() => setSigned(true), 700);
     return () => clearTimeout(t);
   }, [step]);
-  const choose = (i) => { setStep(i); setAuto(false); };
   const s = STEPS[step];
   return (
     <section className="demo" aria-label="How DMS works">
-      <div className="demo-tabs" role="tablist">
-        {STEPS.map((x, i) => (
-          <button key={x.key} type="button" role="tab" aria-selected={i === step} className={i === step ? 'active' : ''} onClick={() => choose(i)}>
-            <span className="demo-dot" />{x.label}
-            {i === step && auto && <span className="demo-progress" key={step} />}
-          </button>
-        ))}
-      </div>
       <div className="demo-stage">
         <div className="demo-copy">
           <span className="demo-icon"><Icon name={s.icon} /></span>
           <h3>{s.label}</h3>
           <p>{s.text}</p>
-          {step === 1 && !signed && <button type="button" className="btn btn-sm demo-try" onClick={() => setSigned(true)}><Icon name="sign" /> Sign this sample</button>}
           {step === 0 && <span className="demo-upload"><Icon name="upload" /> Sample.pdf uploaded</span>}
         </div>
         <div className="demo-visual">

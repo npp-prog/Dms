@@ -1382,7 +1382,7 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .demo-tabs button.active .demo-dot { background: var(--primary); }
 .demo-progress { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--primary); animation: demo-progress 4.8s linear forwards; }
 @keyframes demo-progress { from { width: 0; } to { width: 100%; } }
-.demo-stage { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 2rem; align-items: center; background: #fff; border-radius: 18px; margin-top: .5rem; padding: clamp(1.2rem, 3vw, 2.6rem); min-height: 380px; }
+.demo-stage { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 2rem; align-items: center; background: #fff; border-radius: 18px; padding: clamp(1.2rem, 3vw, 2.6rem); min-height: 380px; }
 .demo-copy { animation: demo-in .5s ease both; }
 .demo-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--hover); color: var(--primary); margin-bottom: .9rem; }
 .demo-icon svg { width: 22px; height: 22px; }
@@ -1403,12 +1403,12 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .demo-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .74rem; border-bottom: 1px dashed var(--line); padding-bottom: .35rem; }
 .demo-row span { color: var(--muted); }
 .demo-row b { font-weight: 600; white-space: nowrap; overflow: hidden; }
-.step-0 .demo-row b { animation: demo-type .6s calc(.35s + var(--i) * .35s) steps(14) both; }
+.step-0 .demo-row b { animation: demo-type .45s calc(.2s + var(--i) * .3s) steps(14) both; }
 @keyframes demo-type { from { max-width: 0; } to { max-width: 12rem; } }
 .demo-sign { margin-top: auto; position: relative; display: flex; flex-direction: column; align-items: center; }
 .demo-sign svg { width: 85%; height: 56px; }
 .demo-sign path { fill: none; stroke: #1e3a8a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 420; stroke-dashoffset: 420; }
-.demo-sign svg.drawn path { animation: demo-draw 1.3s ease forwards; }
+.demo-sign svg.drawn path { animation: demo-draw 1s ease forwards; }
 .step-2 .demo-sign svg.drawn path, .step-3 .demo-sign svg.drawn path { animation: none; stroke-dashoffset: 0; }
 @keyframes demo-draw { to { stroke-dashoffset: 0; } }
 .demo-sign-line { width: 80%; border-top: 1px solid var(--ink); font-size: .62rem; color: var(--muted); text-align: center; padding-top: .2rem; }
@@ -1422,9 +1422,9 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .demo-route::before { content: ""; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
 .demo-route li { position: relative; display: flex; align-items: center; gap: .7rem; font-size: .85rem; color: var(--muted); }
 .demo-route li span { position: relative; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #cbd5e1; flex: none; }
-.demo-route li { animation: demo-reach .4s calc(.3s + var(--i) * .6s) ease both; }
+.demo-route li { animation: demo-reach .3s calc(.2s + var(--i) * .45s) ease both; }
 @keyframes demo-reach { to { color: var(--ink); } }
-.demo-route li span { animation: demo-reach-dot .4s calc(.3s + var(--i) * .6s) ease both; }
+.demo-route li span { animation: demo-reach-dot .3s calc(.2s + var(--i) * .45s) ease both; }
 @keyframes demo-reach-dot { to { background: var(--primary); border-color: var(--primary); } }
 .demo-route.done li, .demo-route.done li span { animation: none; color: var(--ink); }
 .demo-route.done li span { background: #15803d; border-color: #15803d; }
