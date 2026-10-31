@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { getStore } from '@netlify/blobs';
 import { firebaseConfig } from '../../src/firebase-config.js';
+import { takeQuestion } from '../lib/askLimit.mjs';
 
 // The "Ask DMS" help assistant. The browser sends the signed-in user's Firebase ID token and the
 // conversation; this function checks the token and that the account is active, then streams
@@ -54,7 +56,7 @@ async function signedInUser(req) {
     if (!r.ok) return null;
     const f = (await r.json()).fields || {};
     if (!f.active?.booleanValue) return null;
-    return { name: f.displayName?.stringValue || '', role: f.role?.stringValue || 'user', office: f.office?.stringValue || '' };
+    return { uid: payload.sub, name: f.displayName?.stringValue || '', role: f.role?.stringValue || 'user', office: f.office?.stringValue || '' };
   } catch {
     return null;
   }
@@ -91,6 +93,14 @@ export default async (req) => {
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
   while (messages.length && messages[0].role !== 'user') messages.shift();
   if (!messages.length || messages.at(-1).role !== 'user') return text(400, 'Ask a question.');
+
+  // A daily limit per person (netlify/lib/askLimit.mjs). If the count cannot be kept, it answers anyway.
+  try {
+    const turn = await takeQuestion(getStore({ name: 'ask-usage', consistency: 'strong' }), user.uid);
+    if (!turn.ok) return text(429, `You have asked ${turn.limit} questions today, the daily limit for Ask DMS. You can ask again tomorrow; the user guide (DMS User Manual) covers the same.`);
+  } catch (e) {
+    console.error('ask limit', e?.message);
+  }
 
   const page = typeof body.page === 'string' ? body.page.slice(0, 100) : '';
   const client = new Anthropic();
