@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
+import LoginDemo from '../components/LoginDemo.jsx';
 
 const MESSAGES = {
   'auth/invalid-credential': 'Incorrect email or password.',
@@ -78,8 +79,20 @@ export default function Login() {
   };
 
   return (
-    <div className="auth">
-      <AuthHero />
+    <div className="landing">
+      <header className="landing-bar">
+        <div className="landing-brand">
+          <img src="/municipal-seal.png" alt="Municipal seal" />
+          <span><b>DMS</b><span>Municipal Government of Candoni</span></span>
+        </div>
+        <a className="landing-link" href="/verify">Verify a document</a>
+      </header>
+      <div className="landing-hero">
+        <div className="landing-copy">
+          <h1>Documents, signed and moving.</h1>
+          <p>Prepare the official formats, sign them digitally, route them office to office and keep every processed record in one place, for the Municipal Government of Candoni.</p>
+          <div className="pillars"><span>ACCOUNTABILITY.</span><span>TRANSPARENCY.</span><span>SERVICE.</span></div>
+        </div>
       <section className="auth-panel">
         <div className="auth-box">
           <h2>{titles[mode]}</h2>
@@ -120,9 +133,11 @@ export default function Login() {
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('register')}>Create an account</button>}
             {mode === 'login' && <button type="button" className="link" onClick={() => setMode('reset')}>Forgot password?</button>}
           </div>
-          <p className="xs muted" style={{ marginTop: '2rem' }}>For official use of the Municipal Government of Candoni. Personal information is processed under the Data Privacy Act of 2012 (RA 10173).</p>
+          <p className="xs muted" style={{ marginTop: '1.4rem' }}>For official use of the Municipal Government of Candoni. Personal information is processed under the Data Privacy Act of 2012 (RA 10173).</p>
         </div>
       </section>
+      </div>
+      <LoginDemo />
     </div>
   );
 }
