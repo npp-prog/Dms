@@ -1297,3 +1297,10 @@ button.stat:focus-visible, a.stat:focus-visible { outline: 2px solid var(--prima
 .restricted-folders > .small { flex: 1 1 260px; }
 .chip.chip-off { text-decoration: line-through; color: var(--muted); }
 .restrict-pick { flex: 0 1 300px; min-width: 220px; }
+
+/* Tracking stages: an icon each; the chosen one in the app's blue */
+.wf-views button.stat { align-items: center; }
+.wf-views button.stat svg { width: 17px; height: 17px; color: var(--muted); align-self: center; }
+.wf-views button.stat:hover svg { color: var(--ink); }
+.wf-views button.stat.active { box-shadow: inset 0 -2px 0 var(--primary); }
+.wf-views button.stat.active svg, .wf-views button.stat.active .n, .wf-views button.stat.active .l { color: var(--primary); }

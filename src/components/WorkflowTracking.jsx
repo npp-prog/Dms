@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { listDocuments } from '../lib/api.js';
 import { HIDDEN_EVENTS, officeOf } from '../lib/workflow.js';
 import Select from './Select.jsx';
+import Icon from './Icon.jsx';
 import { drnOf } from '../lib/naming.js';
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
@@ -19,6 +20,8 @@ export function stateOf(d, office, uid = '') {
   if (wf.events.filter((e) => !HIDDEN_EVENTS.has(e.type)).at(-1)?.type === 'returned') return 'returned';
   return 'moving';
 }
+
+const VIEW_ICONS = { active: 'send', mine: 'inbox', returned: 'return', done: 'check', all: 'workflow' };
 
 // The tracking views and which documents each holds (also the Dashboard's tracking status).
 export function trackingViews(office) {
@@ -64,7 +67,7 @@ export default function WorkflowTracking() {
       <div className="stats wf-views">
         {views.map(([key, label, fn]) => (
           <button key={key} type="button" className={`stat${view === key ? ' active' : ''}`} aria-pressed={view === key} onClick={() => setView(key)}>
-            <span className="n">{docs ? count(fn) : '…'}</span><span className="l">{label}</span>
+            <Icon name={VIEW_ICONS[key]} /><span className="n">{docs ? count(fn) : '…'}</span><span className="l">{label}</span>
           </button>
         ))}
       </div>
