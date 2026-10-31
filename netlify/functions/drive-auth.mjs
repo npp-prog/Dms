@@ -12,7 +12,7 @@ import { accountStore, backupStore, listAccounts } from '../lib/store.mjs';
 //   POST { action: 'disconnect', uid? }             forgets a connection (its files stay in its
 //                                                   Drive): one's own; an administrator, anyone's
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-const back = (result) => new Response(null, { status: 302, headers: { location: `/archive?drive=${result}` } });
+const back = (result, reason = '') => new Response(null, { status: 302, headers: { location: `/archive?drive=${result}${reason ? `&reason=${encodeURIComponent(reason.slice(0, 200))}` : ''}` } });
 const isAdmin = (p) => ['admin', 'superadmin'].includes(p?.role);
 
 export default async (req) => {
@@ -44,8 +44,9 @@ export default async (req) => {
         await store.set('state', { email });
       }
       return back('connected');
-    } catch {
-      return back('failed');
+    } catch (e) {
+      // Google's reason (e.g. invalid_client: the client ID and secret in Netlify do not match).
+      return back('failed', e.message);
     }
   }
   if (req.method !== 'POST') return json(405, { error: 'Use POST.' });

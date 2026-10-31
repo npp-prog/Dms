@@ -113,7 +113,7 @@ const DRIVE_RESULT = {
   cancelled: { ok: false, text: 'Not connected: the Google sign-in was cancelled.' },
   expired: { ok: false, text: 'Not connected: the sign-in took too long. Try again.' },
   'no-token': { ok: false, text: 'Not connected: Google gave no lasting access. Remove DMS from the account (myaccount.google.com → Security → Third-party access) and connect again.' },
-  failed: { ok: false, text: 'Not connected: Google refused. See the error below.' },
+  failed: { ok: false, text: 'Not connected: Google refused. Its reason:' },
   'not-set-up': { ok: false, text: 'The Google Drive backup is not set up in Netlify yet (see the README).' },
   taken: { ok: false, text: 'Not connected: that Google account is already connected by someone else. Use another Google account.' },
 };
@@ -144,7 +144,11 @@ function DriveBackup() {
   const { isAdmin } = useAuth();
   const [s, setS] = useState(null);
   const [busy, setBusy] = useState('');
-  const [msg, setMsg] = useState(() => DRIVE_RESULT[new URLSearchParams(window.location.search).get('drive')] || null);
+  const [msg, setMsg] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    const m = DRIVE_RESULT[q.get('drive')];
+    return m && q.get('reason') ? { ...m, text: `${m.text} ${q.get('reason')}` } : m || null;
+  });
   const load = () => driveCall('drive-backup-now', { action: 'status' }).then(setS).catch((e) => setS({ unavailable: e.message }));
   useEffect(() => { load(); }, []);
   const act = async (label, fn) => {
