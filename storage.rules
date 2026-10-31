@@ -90,6 +90,15 @@ service firebase.storage {
             || (file == 'mark.png' && request.resource.size < 2 * 1024 * 1024));
     }
 
+    // The user's profile picture (My Profile): a square JPEG they replace or remove; signed-in
+    // users see it (its address is in the directory).
+    match /avatars/{uid}/{file} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid && file == 'photo.jpg'
+        && request.resource.contentType == 'image/jpeg' && request.resource.size < 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // A circular's file (letter, executive order, memo): the offices it is sent to read it. The
     // circular is saved first, then its file is added by its sender.
     match /circulars/{id}/{file} {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listDirectory } from '../lib/api.js';
+import { Avatar } from './Icon.jsx';
 
 // Choose an active DMS user by name or email (from the directory of active users).
 // external: suppliers and payees are listed too (to refer a document to them); elsewhere (messages,
@@ -13,8 +14,9 @@ export default function PersonPicker({ value, onChange, exclude = [], external =
   if (value) {
     return (
       <div className="person-chosen">
-        <span><b>{value.displayName || value.email}</b>
-          <span className="small muted">{[value.email, value.office].filter(Boolean).join(' · ')}</span></span>
+        <Avatar name={value.displayName || value.email} photo={value.photo} size="sm" />
+        <span className="grow"><b>{value.displayName || value.email}</b>
+          <span className="small muted">{[value.position, value.email, value.office].filter(Boolean).join(' · ')}</span></span>
         <button type="button" className="link small" onClick={() => onChange(null)}>Change</button>
       </div>
     );
@@ -22,7 +24,7 @@ export default function PersonPicker({ value, onChange, exclude = [], external =
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const matches = words.length
     ? (people || []).filter((p) => !exclude.includes(p.uid) && (external || !p.external) && (!office || p.office === office)
-      && words.every((w) => `${p.displayName} ${p.email || ''} ${p.office}`.toLowerCase().includes(w))).slice(0, 8)
+      && words.every((w) => `${p.displayName} ${p.email || ''} ${p.office} ${p.position || ''} ${p.idNo || ''}`.toLowerCase().includes(w))).slice(0, 8)
     : [];
   return (
     <div className="person-picker">
@@ -34,8 +36,9 @@ export default function PersonPicker({ value, onChange, exclude = [], external =
           {matches.map((p) => (
             <li key={p.uid}>
               <button type="button" onClick={() => { onChange(p); setQ(''); }}>
-                <b>{p.displayName || p.email}</b>
-                <span className="small muted">{[p.email, p.external ? 'Third Party' : p.office].filter(Boolean).join(' · ')}</span>
+                <Avatar name={p.displayName || p.email} photo={p.photo} size="sm" />
+                <span className="person-t"><b>{p.displayName || p.email}</b>
+                  <span className="small muted">{[p.position, p.email, p.external ? 'Third Party' : p.office].filter(Boolean).join(' · ')}</span></span>
               </button>
             </li>
           ))}

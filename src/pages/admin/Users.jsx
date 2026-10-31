@@ -16,10 +16,11 @@ function UserRow({ u, me, isSuper, settings, offices, canManage, onChange, onNew
   return (
     <li className={`user-row${open ? ' open' : ''}`}>
       <div className="user-main">
-        <Avatar name={u.displayName || u.email} size="sm" />
+        <Avatar name={u.displayName || u.email} photo={u.photo} size="sm" />
         <div className="user-who">
           <span className="user-name"><b>{u.displayName || u.email}</b>{u.id === me.uid && <span className="muted"> (you)</span>}</span>
           <span className="small muted">{u.email}</span>
+          {(u.position || u.idNo) && <span className="xs muted">{[u.position, u.idNo && `ID No. ${u.idNo}`].filter(Boolean).join(' · ')}</span>}
         </div>
         <div className="user-office">
           <span className="small">{u.office || (u.role === 'payee' ? 'Not LGU personnel' : 'No office')}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { conversationId, isUnread, markConversationRead, sendMessage, watchConversations, watchMessages } from '../lib/api.js';
+import { conversationId, isUnread, listDirectory, markConversationRead, sendMessage, watchConversations, watchMessages } from '../lib/api.js';
 import PersonPicker from '../components/PersonPicker.jsx';
 import { Avatar } from '../components/Icon.jsx';
 
@@ -27,9 +27,13 @@ export default function Messages() {
     ? 'Messages are not switched on yet: an administrator must publish the latest firestore.rules (Firebase console → Firestore → Rules).'
     : e.message)), [user.uid]);
 
+  // Their profile picture and position (directory of active users).
+  const [people, setPeople] = useState({});
+  useEffect(() => { listDirectory().then((l) => setPeople(Object.fromEntries(l.map((p) => [p.uid, p])))).catch(() => {}); }, []);
+
   const other = (c) => {
     const uid = c.members.find((m) => m !== user.uid);
-    return { uid, displayName: c.names?.[uid] || 'User' };
+    return { uid, displayName: c.names?.[uid] || 'User', photo: people[uid]?.photo || '', position: people[uid]?.position || '' };
   };
   const open = (convos || []).find((c) => c.id === openId);
   const partner = newTo || (open ? other(open) : null);
@@ -62,7 +66,7 @@ export default function Messages() {
                 <li key={c.id}>
                   <button type="button" className={`${c.id === openId ? 'active' : ''}${isUnread(c, user.uid) ? ' unread' : ''}`}
                     onClick={() => { setOpenId(c.id); setNewTo(null); setStarting(false); }}>
-                    <Avatar name={o.displayName} size="sm" />
+                    <Avatar name={o.displayName} photo={o.photo} size="sm" />
                     <span className="chat-list-t">
                       <span className="chat-list-top"><b>{o.displayName}</b><span className="xs muted">{when(c.lastAt)}</span></span>
                       <span className="small muted chat-preview">{c.lastBy === user.uid ? 'You: ' : ''}{c.lastText}</span>
@@ -125,8 +129,8 @@ function Conversation({ me, partner, convo, onBack, onSent }) {
     <>
       <div className="chat-head">
         <button type="button" className="btn-icon chat-back" title="Back" onClick={onBack}>←</button>
-        <Avatar name={partner.displayName} size="sm" />
-        <b>{partner.displayName}</b>
+        <Avatar name={partner.displayName} photo={partner.photo} size="sm" />
+        <span className="chat-who"><b>{partner.displayName}</b>{partner.position && <span className="xs muted">{partner.position}</span>}</span>
       </div>
       <div className="chat-body">
         {messages === null && <div className="spinner" />}

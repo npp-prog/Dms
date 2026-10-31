@@ -80,6 +80,14 @@ Sign in as **user@fts.local** / **user123**.
 
 A new person can click **Create an account**. An administrator then approves the account under **Users**. If an administrator already added your email in **Users** (**+ Add user**), there is nothing to approve: sign in with **Continue with Google** using that email, or create an account with it and open the verification link sent to your inbox, and DMS opens with the office, role and positions they set.
 
+### My Profile: name, position, ID No. and picture
+
+Open **My Profile** (left menu, or click your picture at the top right). Under **Details**, set your **Name**, your **Position** (job title or designation) and your **ID No.** (employee ID number), then click **Save details**. Your name and position show with you across DMS: at the top of the Dashboard, in Users, in Messages and when someone searches for a person to send or refer a document to (they can also search by position or ID No.). The documents you prepare keep your name and position, and print the position under your name (*Prepared by*; templates use `{{preparedByPosition}}` and `{{preparedByIdNo}}`).
+
+**Profile picture.** If you sign in with Google, DMS uses your Google picture until you change it. Otherwise, or to change it, click **Upload picture** (or **Change picture**) and choose a JPG, PNG or WebP: DMS crops the middle into a square and saves it. **Remove** takes it off, and your initials show instead. Everyone in DMS sees your picture next to your name.
+
+Your office, role, Office head and the positions that decide which workflow steps you act on (**Acts as**) are set by an administrator in Users, not here.
+
 ### Dashboard
 
 ![Dashboard](images/02-dashboard.png)

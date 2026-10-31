@@ -81,10 +81,10 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="home-head">
-        <Avatar name={profile.displayName || profile.email} size="lg" />
+        <Avatar name={profile.displayName || profile.email} photo={profile.photo} size="lg" />
         <div className="grow">
           <h1>{greeting()}{firstName ? `, ${firstName}` : ''}</h1>
-          <p>{ROLE_NAMES[profile.role] || profile.role}{profile.office ? ` · ${profile.office}` : ''}</p>
+          <p>{profile.position || ROLE_NAMES[profile.role] || profile.role}{profile.office ? ` · ${profile.office}` : ''}</p>
         </div>
         <Link to="/new" className="btn btn-primary">+ New document</Link>
       </div>

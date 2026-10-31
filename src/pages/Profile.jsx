@@ -1,12 +1,27 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  getSavedCertificate, getSavedCertificateBytes, getSavedMark, removeSavedCertificate, removeSavedMark, saveCertificate, saveMark,
+  getSavedCertificate, getSavedCertificateBytes, getSavedMark, removePhoto, removeSavedCertificate, removeSavedMark, saveCertificate, saveMark,
+  savePhoto,
 } from '../lib/api.js';
 import { REMEMBER_CHOICES, certId, forgetPassword, rememberPassword, rememberedStatus } from '../lib/rememberPassword.js';
 import { isValidAt, readCertificate } from '../lib/signing.js';
 import { prepareMark } from '../lib/markImage.js';
 import Select from '../components/Select.jsx';
+import { Avatar } from '../components/Icon.jsx';
+
+// A square JPEG (320 px) of the middle of the chosen picture, made on the device.
+async function squarePhoto(file) {
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) throw new Error('Choose a picture (JPG, PNG or WebP).');
+  const bmp = await createImageBitmap(file).catch(() => { throw new Error('This picture could not be read. Choose another one.'); });
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 320, 320);
+  ctx.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 320, 320);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.86));
+}
 
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '');
 const ROLE_NAMES = { superadmin: 'Superadmin', admin: 'Administrator', user: 'User' };
@@ -18,6 +33,8 @@ export default function Profile() {
   const { user, profile, isHead, updateMyProfile } = useAuth();
   const id = useId();
   const [name, setName] = useState(profile.displayName || '');
+  const [position, setPosition] = useState(profile.position || '');
+  const [idNo, setIdNo] = useState(profile.idNo || '');
   const [cert, setCert] = useState(undefined);
   const [mark, setMark] = useState(undefined);
   const [file, setFile] = useState(null);
@@ -45,10 +62,24 @@ export default function Profile() {
     try { await fn(); } catch (e) { setMsg({ ok: false, text: e.message }); } finally { setBusy(''); }
   };
 
-  const saveName = () => run('Saving…', async () => {
+  const detailsChanged = name.trim() !== (profile.displayName || '') || position.trim() !== (profile.position || '')
+    || idNo.trim() !== (profile.idNo || '');
+  const saveDetails = () => run('Saving…', async () => {
     if (!name.trim()) throw new Error('Type your name.');
-    await updateMyProfile({ displayName: name.trim() });
-    setMsg({ ok: true, text: 'Your name was saved.' });
+    await updateMyProfile({ displayName: name.trim().slice(0, 120), position: position.trim().slice(0, 120), idNo: idNo.trim().slice(0, 40) });
+    setMsg({ ok: true, text: 'Your details were saved.' });
+  });
+
+  const changePhoto = (f) => run('Saving your picture…', async () => {
+    if (!f) return;
+    const url = await savePhoto(user.uid, await squarePhoto(f));
+    await updateMyProfile({ photo: `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}` });
+    setMsg({ ok: true, text: 'Your profile picture was saved.' });
+  });
+  const dropPhoto = () => run('Removing…', async () => {
+    if (!window.confirm('Remove your profile picture?')) return;
+    if (/firebasestorage|:9199\//.test(profile.photo || '')) await removePhoto(user.uid);
+    await updateMyProfile({ photo: '' });
   });
 
   // The password only checks that this is the user's certificate; it is not stored.
@@ -114,19 +145,38 @@ export default function Profile() {
       <div className="profile-grid">
         <section className="card">
           <h3>Details</h3>
-          <div className="field">
-            <label className="field-label" htmlFor={`${id}-name`}>Name</label>
-            <div className="row gap">
-              <input id={`${id}-name`} value={name} onChange={(e) => setName(e.target.value)} />
-              <button className="btn btn-ghost" disabled={!!busy || name.trim() === (profile.displayName || '')} onClick={saveName}>Save</button>
+          <div className="profile-photo">
+            <Avatar name={profile.displayName || profile.email} photo={profile.photo} size="lg" />
+            <div className="row gap wrap small">
+              <label className="btn btn-ghost btn-sm">
+                {profile.photo ? 'Change picture' : 'Upload picture'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { changePhoto(e.target.files[0]); e.target.value = ''; }} />
+              </label>
+              {profile.photo && <button type="button" className="link" disabled={!!busy} onClick={dropPhoto}>Remove</button>}
             </div>
           </div>
+          <div className="field">
+            <label className="field-label" htmlFor={`${id}-name`}>Name</label>
+            <input id={`${id}-name`} value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor={`${id}-pos`}>Position</label>
+            <input id={`${id}-pos`} value={position} maxLength={120} onChange={(e) => setPosition(e.target.value)} />
+            <span className="xs muted">Your job title or designation. It shows with your name in DMS and prints under your name on the documents you prepare.</span>
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor={`${id}-idno`}>ID No.</label>
+            <input id={`${id}-idno`} value={idNo} maxLength={40} onChange={(e) => setIdNo(e.target.value)} />
+            <span className="xs muted">Your employee ID number.</span>
+          </div>
+          <div><button className="btn btn-primary btn-sm" disabled={!!busy || !detailsChanged} onClick={saveDetails}>Save details</button></div>
           <dl className="details">
             <dt>Email</dt><dd>{profile.email}</dd>
             <dt>Office</dt><dd>{profile.office || '—'}{isHead && <> <span className="badge badge-blue">Office head</span></>}</dd>
             <dt>Role</dt><dd>{ROLE_NAMES[profile.role] || profile.role}</dd>
+            {(profile.positions || []).length > 0 && <><dt>Acts as</dt><dd>{profile.positions.join(', ')}</dd></>}
           </dl>
-          <p className="small muted">Your office and role are set by an administrator.</p>
+          <p className="small muted">Your office, role and the positions that decide which steps you act on (Acts as) are set by an administrator.</p>
         </section>
 
         <section className="card">

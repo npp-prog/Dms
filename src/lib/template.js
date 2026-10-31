@@ -7,7 +7,7 @@ import { localDay } from './archiveFiles.js';
 //   {{field}}                   value of a field (HTML-escaped)
 //   {{field|currency}}          filters: currency, peso, acct, number, date, mdy, upper, words,
 //                               day, ord, monthyear, year (parts of a date)
-//   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, office, controlNo, today, preparedBy)
+//   {{lgu.name}} {{controlNo}}  context values (lgu, sig, docType, office, controlNo, today, preparedBy, preparedByPosition, preparedByIdNo)
 //   {{sum:items.amount|peso}}   sum of a table column
 //   {{table:items}}             auto-rendered HTML table for a table field
 //   {{#each items}}<tr><td>{{@no}}</td><td>{{description}}</td></tr>{{/each}}
@@ -156,7 +156,7 @@ function renderTokens(template, scope, ctx) {
     const out = applyFilters(value ?? '', filters);
     // ctx.caps: encoded entries print in capitals, including formatted dates. Settings
     // (lgu, sig) and the document context (controlNo, today, preparedBy) print as they are.
-    const encoded = !/^(lgu|sig|docType|office)\./.test(head) && !['controlNo', 'today', 'preparedBy'].includes(head)
+    const encoded = !/^(lgu|sig|docType|office)\./.test(head) && !['controlNo', 'today', 'preparedBy', 'preparedByPosition', 'preparedByIdNo'].includes(head)
       && !keptCase(ctx).has(head);
     return escapeHtml(ctx.caps && encoded ? String(out).toUpperCase() : out);
   });
@@ -170,6 +170,9 @@ export function renderTemplate(template, ctx = {}) {
     lgu: ctx.lgu || {},
     docType: ctx.docType || {},
     preparedBy: ctx.preparedBy || '',
+    // The preparer's position and ID no. (My Profile).
+    preparedByPosition: ctx.preparedByPosition || '',
+    preparedByIdNo: ctx.preparedByIdNo || '',
     // The Vice Mayor prints in the Mayor's place when the preparer chose them as approver.
     sig: approverSignatories(ctx.signatories || {}, ctx.data),
     office: ctx.office || {},
@@ -241,7 +244,7 @@ export function generateDefaultTemplate(type) {
   </table>
   ${tables}
   <div class="sig2">
-    <div class="col"><div class="who">Prepared by:</div><div class="name">{{preparedBy|upper}}</div><div class="cap">Signature over Printed Name</div></div>
+    <div class="col"><div class="who">Prepared by:</div><div class="name">{{preparedBy|upper}}</div><div class="cap">{{preparedByPosition}}</div><div class="cap">Signature over Printed Name</div></div>
     <div class="col"><div class="who">Approved by:</div><div class="name">&nbsp;</div><div class="cap">Signature over Printed Name</div></div>
   </div>`;
 }

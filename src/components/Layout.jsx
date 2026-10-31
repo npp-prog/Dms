@@ -136,7 +136,7 @@ export default function Layout() {
             <Icon name="bell" />{notices > 0 && <span className="bell-count">{notices > 99 ? '99+' : notices}</span>}
           </Link>
           <Link to="/profile" className="me" title={`${name} · My Profile`}>
-            <Avatar name={name} size="sm" />
+            <Avatar name={name} photo={profile?.photo} size="sm" />
           </Link>
         </header>
         <main className="main">

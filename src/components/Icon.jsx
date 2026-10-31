@@ -1,3 +1,4 @@
+import { useState } from 'react';
 // Line icons (24px grid, 1.8 stroke) — same set and style as PMS-IMS.
 const P = {
   home: '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
@@ -33,8 +34,13 @@ export default function Icon({ name, className = '' }) {
   );
 }
 
-export function Avatar({ name, size = '' }) {
+// The person's profile picture (My Profile), or their initials when they have none.
+export function Avatar({ name, photo = '', size = '' }) {
+  const [broken, setBroken] = useState('');
   const words = String(name || '?').split(/[\s@.]+/).filter(Boolean);
   const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] || '?').slice(0, 2)).toUpperCase();
+  if (photo && broken !== photo) {
+    return <span className={`avatar ${size}`}><img src={photo} alt="" referrerPolicy="no-referrer" onError={() => setBroken(photo)} /></span>;
+  }
   return <span className={`avatar ${size}`}>{initials}</span>;
 }

@@ -510,7 +510,8 @@ function DocumentPage({ docId }) {
                   : linkedView.bytes ? <PdfViewer bytes={linkedView.bytes} signatures={linkedView.signatures} title={`${linkedView.link.controlNo} · ${linkedView.link.typeCode}${linkedView.signatures.length ? ' · signed PDF' : ' · PDF'}`} />
                     : linkedView.type ? (
                       <DocumentPreview type={linkedView.type} data={linkedView.doc.data || {}} checklist={linkedView.doc.checklist || {}} settings={settings}
-                        signatories={linkedView.doc.signatories} office={linkedView.doc.office} controlNo={linkedView.doc.controlNo} preparedBy={linkedView.doc.createdByName} />
+                        signatories={linkedView.doc.signatories} office={linkedView.doc.office} controlNo={linkedView.doc.controlNo} preparedBy={linkedView.doc.createdByName}
+                        preparedByPosition={linkedView.doc.createdByPosition || ''} preparedByIdNo={linkedView.doc.createdByIdNo || ''} />
                     ) : <div className="spinner" />}
               </>
             ) : view === 'file' && fileView ? (
@@ -532,7 +533,8 @@ function DocumentPage({ docId }) {
             ) : (
           <DocumentPreview type={type} data={draft || docData.data} checklist={docData.checklist} settings={settings}
             signatories={docData.signatories} office={docData.office}
-            controlNo={docData.controlNo} preparedBy={docData.createdByName} />
+            controlNo={docData.controlNo} preparedBy={docData.createdByName}
+            preparedByPosition={docData.createdByPosition || ''} preparedByIdNo={docData.createdByIdNo || ''} />
             )}
           </div>
         ) : <div className="alert">The document type for this document was deleted; the format cannot be rendered.</div>}

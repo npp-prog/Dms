@@ -2,7 +2,7 @@ import {
   addDoc, collection, deleteDoc, deleteField, doc, onSnapshot, getDoc, getDocs, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { deleteObject, getBytes, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
+import { deleteObject, getBytes, getDownloadURL, getMetadata, ref as storageRef, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { isOwnerEmail } from './owner.js';
 import { counterFor, DEFAULT_REF_PATTERN, formatControlNo, refNumber } from './naming.js';
@@ -102,13 +102,25 @@ export async function listUsers() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+// The preparer's position and ID no. (My Profile), kept on the documents they prepare and printed
+// under their name.
+const preparerExtras = (user) => ({
+  ...(user.position ? { createdByPosition: user.position } : {}),
+  ...(user.idNo ? { createdByIdNo: user.idNo } : {}),
+});
+
 // ---------- Directory (names and offices, to forward a document to someone) ----------
-// directory/{uid}: { displayName, office, email, external (a supplier or payee) }. Each active user keeps their own entry up to
+// directory/{uid}: { displayName, office, email, external (a supplier or payee), position, idNo, photo (My Profile) }. Each active user keeps their own entry up to
 // date when they sign in; every active user can read it (to forward or refer a document to
 // someone by name or email; no roles).
+export const directoryEntry = (p) => ({
+  displayName: p.displayName || '', office: p.office || '', email: p.email || '', external: p.role === 'payee',
+  position: p.position || '', idNo: p.idNo || '', photo: p.photo || '',
+});
+
 export async function syncDirectoryEntry(uid, profile) {
   if (!profile?.active) return;
-  const entry = { displayName: profile.displayName || '', office: profile.office || '', email: profile.email || '', external: profile.role === 'payee' };
+  const entry = directoryEntry(profile);
   const ref = doc(db, 'directory', uid);
   const cur = await getDoc(ref).catch(() => null);
   if (!cur?.exists() || Object.keys(entry).some((k) => cur.data()[k] !== entry[k])) await setDoc(ref, entry);
@@ -123,7 +135,7 @@ export async function syncDirectory(users) {
   for (const u of all) {
     const uid = u.id || u.uid;
     if (u.active) {
-      const entry = { displayName: u.displayName || '', office: u.office || '', email: u.email || '', external: u.role === 'payee' };
+      const entry = directoryEntry(u);
       if (!cur[uid] || Object.keys(entry).some((k) => cur[uid][k] !== entry[k])) writes.push((b) => b.set(doc(db, 'directory', uid), entry));
     } else if (cur[uid]) writes.push((b) => b.delete(doc(db, 'directory', uid)));
   }
@@ -468,6 +480,7 @@ export async function createUploadedDocument(type, { title, fund = '', notes = '
     title,
     createdBy: user.uid,
     createdByName: user.displayName || user.email,
+    ...preparerExtras(user),
     office: user.office || '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -510,6 +523,7 @@ export async function createDocument(type, { data, checklist, additionalDocs = [
     title: summarize(type, data),
     createdBy: user.uid,
     createdByName: user.displayName || user.email,
+    ...preparerExtras(user),
     office: user.office || '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -588,7 +602,7 @@ export async function createSupportingDocument(parent, item, { typeCode = '', fi
     status: 'draft', uploaded: { name: fileName, at: new Date().toISOString() },
     supports: { id: parent.id, controlNo: parent.controlNo, typeCode: parent.typeCode, item: typeName },
     title: parent.title || typeName,
-    createdBy: user.uid, createdByName: user.displayName || user.email, office: user.office || '',
+    createdBy: user.uid, createdByName: user.displayName || user.email, ...preparerExtras(user), office: user.office || '',
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     history: [historyEntry('uploaded', user, `${fileName} · supporting ${parent.controlNo}`)],
   });
@@ -883,6 +897,26 @@ export async function removeSavedCertificate(uid) {
 
 // The signatory's signature mark (an image of their handwritten signature), owner only too.
 const markRef = (uid) => storageRef(storage, `certificates/${uid}/mark.png`);
+
+// The user's profile picture: avatars/{uid}/photo.jpg (a square JPEG made on the device). Its
+// download address is kept in their profile and the directory, so everyone sees it.
+export async function savePhoto(uid, jpegBlob) {
+  try {
+    const r = storageRef(storage, `avatars/${uid}/photo.jpg`);
+    await uploadBytes(r, jpegBlob, { contentType: 'image/jpeg' });
+    return await getDownloadURL(r);
+  } catch (e) {
+    throw storageError(e, 'upload', 'saving your profile picture');
+  }
+}
+
+export async function removePhoto(uid) {
+  try {
+    await deleteObject(storageRef(storage, `avatars/${uid}/photo.jpg`));
+  } catch (e) {
+    if (e?.code !== 'storage/object-not-found') throw storageError(e, 'upload', 'removing your profile picture');
+  }
+}
 
 export async function getSavedMark(uid) {
   try {

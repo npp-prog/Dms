@@ -32,6 +32,11 @@ export function AuthProvider({ children }) {
       const installed = await setupSite({ uid: firebaseUser.uid }).catch(() => []);
       if (installed.length) setSetupNotice(installed);
     }
+    // No profile picture yet: the one of their Google account, if any (once: a picture they
+    // removed stays removed).
+    if (p.active && !('photo' in p) && /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\//.test(firebaseUser.photoURL || '')) {
+      await updateUser(firebaseUser.uid, { photo: firebaseUser.photoURL }).then(() => { p.photo = firebaseUser.photoURL; }).catch(() => {});
+    }
     setProfile(p);
     if (p.active) {
       setSettings(await getSettings().catch(() => ({})));
@@ -91,7 +96,10 @@ export function AuthProvider({ children }) {
       syncDirectoryEntry(user.uid, { ...profile, ...patch }).catch(() => {});
     },
     // Combined identity used when stamping documents.
-    actor: user && profile ? { uid: user.uid, email: user.email, displayName: profile.displayName, office: profile.office } : null,
+    actor: user && profile ? {
+      uid: user.uid, email: user.email, displayName: profile.displayName, office: profile.office,
+      position: profile.position || '', idNo: profile.idNo || '', photo: profile.photo || '',
+    } : null,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     loginWithGoogle: async () => {
       const provider = new GoogleAuthProvider();

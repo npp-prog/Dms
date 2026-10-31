@@ -223,6 +223,15 @@ service cloud.firestore {
     match /users/{uid} {
       // The administrator added this email in advance, and Firebase has verified that the person
       // signing in owns it (Google sign-in, or the link emailed at registration).
+      // My Profile: short texts; the picture is in this project's Storage or the Google account's.
+      function ownDetailsOk(d) {
+        return d.get('position', '') is string && d.get('position', '').size() <= 120
+          && d.get('idNo', '') is string && d.get('idNo', '').size() <= 40
+          && d.get('photo', '') is string && d.get('photo', '').size() <= 1000
+          && (d.get('photo', '') == ''
+              || d.photo.matches('https://(firebasestorage[.]googleapis[.]com|[a-z0-9-]+[.]googleusercontent[.]com)/.*')
+              || d.photo.matches('http://(127[.]0[.]0[.]1|localhost):9199/.*'));
+      }
       function invitePath() {
         return /databases/$(database)/documents/invites/$(request.auth.token.email.lower());
       }
@@ -261,9 +270,11 @@ service cloud.firestore {
         // Admin may approve/deactivate and edit regular users only.
         || (isAdmin() && request.auth.uid != uid
             && resource.data.role in ['user', 'payee'] && request.resource.data.role in ['user', 'payee'])
-        // Anyone may edit their own name (not their office, office head or routing to any person:
-        // they decide what they can see and do).
-        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer', 'positions']))
+        // Anyone may edit their own name, position (job title), ID no. and profile picture (not
+        // their office, office head, workflow positions or routing to any person: they decide what
+        // they can see and do).
+        || (request.auth.uid == uid && unchanged(['role', 'active', 'email', 'office', 'head', 'canRefer', 'positions'])
+            && ownDetailsOk(request.resource.data))
         // Added in advance: a pending account (registered before verifying its email, or before the
         // administrator added it) takes what the invitation says once the email is verified.
         || (request.auth.uid == uid && resource.data.active == false && invited()
@@ -494,17 +505,21 @@ service cloud.firestore {
       allow write: if isAdmin() || isRecords() || (isOfficeHead() && myOffice() == office);
     }
 
-    // ---- Directory: names and offices of active users (to forward a document to someone) ----
+    // ---- Directory: names, offices, positions and pictures of active users (to forward a document to someone) ----
     // Each user keeps their own entry; administrators keep everyone's (so someone who has not
     // signed in since can still be found), from their profile, and remove inactive users'.
     match /directory/{uid} {
       // external: a supplier or payee
       allow read: if isActive();
-      allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email', 'external'])
+      // position, idNo, photo: from My Profile (checked there).
+      allow create, update: if isActive() && request.resource.data.keys().hasOnly(['displayName', 'office', 'email', 'external', 'position', 'idNo', 'photo'])
         && ((request.auth.uid == uid
               && request.resource.data.get('external', false) == (profile().role == 'payee')
               && request.resource.data.office == myOffice()
-              && request.resource.data.get('email', '') in ['', request.auth.token.email])
+              && request.resource.data.get('email', '') in ['', request.auth.token.email]
+              && request.resource.data.get('photo', '') == profile().get('photo', '')
+              && request.resource.data.get('position', '') == profile().get('position', '')
+              && request.resource.data.get('idNo', '') == profile().get('idNo', ''))
             || (isAdmin()
               && get(/databases/$(database)/documents/users/$(uid)).data.active == true
               && request.resource.data.get('external', false) == (get(/databases/$(database)/documents/users/$(uid)).data.role == 'payee')
